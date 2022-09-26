@@ -28,13 +28,13 @@ setup(
     author="Helmholtz-Zentrum Potsdam Deutsches GeoForschungsZentrum GFZ",
     license="AGPLv3+",
     install_requires=[
-        "numpy",
-        "openquake.engine==3.13.0",
+        "numpy", 
+        "openquake.engine==3.14.0",
     ],
     extras_require={
         "tests": tests_require,
     },
     packages=find_packages(),
-    entry_points={"console_scripts": ["rtlt = real-time-loss-tools.realtimelosstools:main"]},
+    entry_points={"console_scripts": ["rtlt = realtimelosstools.realtimelosstools:main"]},
     python_requires=">=3.8",
 )
