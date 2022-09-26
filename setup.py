@@ -28,7 +28,8 @@ setup(
     author="Helmholtz-Zentrum Potsdam Deutsches GeoForschungsZentrum GFZ",
     license="AGPLv3+",
     install_requires=[
-        "numpy", 
+        "numpy",
+        "pandas",
         "openquake.engine==3.14.0",
     ],
     extras_require={

@@ -11,6 +11,16 @@ cd real-time-loss-tools
 pip3 install -e .
 ```
 
+### Software dependencies
+
+- Python 3.8 or above
+
+### Python libraries
+
+- `numpy`
+- `pandas`
+- `openquake.engine 3.14`
+
 ## Acknowledgements
 
 These tools have been developed within the [RISE project](http://rise-eu.org/home/), which has
