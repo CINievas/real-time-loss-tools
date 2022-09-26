@@ -3,6 +3,14 @@
 Tools for the assessment of earthquake damage and loss in real-time, developed within the
 [RISE project](http://rise-eu.org/home/).
 
+## Installation
+
+```bash
+git clone https://git.gfz-potsdam.de/cnievas/real-time-loss-tools.git
+cd real-time-loss-tools
+pip3 install -e .
+```
+
 ## Acknowledgements
 
 These tools have been developed within the [RISE project](http://rise-eu.org/home/), which has
