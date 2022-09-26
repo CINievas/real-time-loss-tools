@@ -1,0 +1,17 @@
+*.pyc
+*.log
+*.pkl
+*.egg-info
+Pipfile
+Pipfile.lock
+.idea
+.coverage
+*.env
+
+__pycache__
+.cache
+
+build
+dist
+venv
+config.yml
