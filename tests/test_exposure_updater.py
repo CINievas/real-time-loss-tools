@@ -1,0 +1,345 @@
+#!/usr/bin/env python3
+
+# Copyright (C) 2022:
+#   Cecilia Nievas: cecilia.nievas@gfz-potsdam.de
+#
+# This program is free software: you can redistribute it and/or modify it
+# under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or (at
+# your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero
+# General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see http://www.gnu.org/licenses/.
+
+import os
+from copy import deepcopy
+import pytest
+import pandas as pd
+from realtimelosstools.exposure_updater import ExposureUpdater
+
+
+def test_create_mapping_asset_id_building_id():
+    filepath = os.path.join(os.path.dirname(__file__), "data", "exposure_model.csv")
+    exposure = pd.read_csv(filepath)
+
+    # Test case in which the index of 'exposure' is not 'asset_id'
+    with pytest.raises(OSError) as excinfo:
+        ExposureUpdater.create_mapping_asset_id_building_id(exposure)
+    assert "OSError" in str(excinfo.type)
+
+    # Test "normal" case
+    exposure.index = exposure["id"]
+    exposure.index = exposure.index.rename("asset_id")
+    exposure = exposure.drop(columns=["id"])
+
+    # Expected mapping
+    expected_mapping = pd.DataFrame(
+        {"building_id": ["osm_1", "osm_1", "tile_8", "tile_8", "shm_1"]},
+        index=["res_1", "res_2", "res_3", "res_4", "res_5"],
+    )
+    expected_mapping.index = expected_mapping.index.rename("asset_id")
+
+    # Execute the method
+    returned_mapping = ExposureUpdater.create_mapping_asset_id_building_id(exposure)
+
+    assert returned_mapping.shape[0] == expected_mapping.shape[0]
+    assert (returned_mapping.index == expected_mapping.index).all
+    assert returned_mapping.index.name == expected_mapping.index.name
+
+    for asset_id in expected_mapping.index:
+        assert asset_id in returned_mapping.index
+        assert (
+            returned_mapping.loc[asset_id, "building_id"]
+            == expected_mapping.loc[asset_id, "building_id"]
+        )
+
+
+def test_merge_damage_results_OQ_SHM():
+    # First test case: straightforward replacement (one building_id of SHM corresponds to one
+    # asset_id of OQ
+
+    # Damage results from OpenQuake
+    filepath = os.path.join(os.path.dirname(__file__), "data", "damages_OQ_0.csv")
+    damage_results_OQ = pd.read_csv(filepath)
+    new_index = pd.MultiIndex.from_arrays(
+        [damage_results_OQ["asset_id"], damage_results_OQ["dmg_state"]]
+    )
+    damage_results_OQ.index = new_index
+    damage_results_OQ = damage_results_OQ.drop(columns=["asset_id", "dmg_state"])
+
+    # Damage results from Structural Health Monitoring
+    filepath = os.path.join(os.path.dirname(__file__), "data", "damages_SHM_0.csv")
+    damage_results_SHM = pd.read_csv(filepath)
+    new_index = pd.MultiIndex.from_arrays(
+        [damage_results_SHM["building_id"], damage_results_SHM["dmg_state"]]
+    )
+    damage_results_SHM.index = new_index
+    damage_results_SHM = damage_results_SHM.drop(columns=["dmg_state"])
+
+    # Mapping of asset_id and building_id
+    id_asset_building_mapping = pd.DataFrame(
+        {"building_id": ["osm_1", "osm_1", "tile_8", "tile_8", "shm_1"]},
+        index=["res_1", "res_2", "res_3", "res_4", "res_5"],
+    )
+    id_asset_building_mapping.index = id_asset_building_mapping.index.rename("asset_id")
+
+    # Expected merged damage results
+    expected_damage_results_merged = deepcopy(damage_results_OQ)
+    for dmg in ["no_damage", "dmg_1", "dmg_2", "dmg_3", "dmg_4"]:
+        expected_damage_results_merged.loc[("res_5", dmg), "value"] = damage_results_SHM.loc[
+            ("shm_1", dmg), "value"
+        ]
+
+    # Execute the method
+    returned_damage_results_merged = ExposureUpdater.merge_damage_results_OQ_SHM(
+        damage_results_OQ, damage_results_SHM, id_asset_building_mapping
+    )
+
+    assert returned_damage_results_merged.shape[0] == expected_damage_results_merged.shape[0]
+    assert (returned_damage_results_merged.index == expected_damage_results_merged.index).all
+    assert (
+        returned_damage_results_merged.index.name == expected_damage_results_merged.index.name
+    )
+
+    for multiindex in expected_damage_results_merged.index:
+        assert multiindex in returned_damage_results_merged.index
+        assert round(returned_damage_results_merged.loc[multiindex, "value"], 5) == round(
+            expected_damage_results_merged.loc[multiindex, "value"], 5
+        )
+
+    # Second test case: one building_id of SHM corresponds to several values of asset_id of OQ
+
+    # Damage results from OpenQuake
+    filepath = os.path.join(os.path.dirname(__file__), "data", "damages_OQ_1.csv")
+    damage_results_OQ = pd.read_csv(filepath)
+    new_index = pd.MultiIndex.from_arrays(
+        [damage_results_OQ["asset_id"], damage_results_OQ["dmg_state"]]
+    )
+    damage_results_OQ.index = new_index
+    damage_results_OQ = damage_results_OQ.drop(columns=["asset_id", "dmg_state"])
+
+    # Damage results from Structural Health Monitoring
+    filepath = os.path.join(os.path.dirname(__file__), "data", "damages_SHM_1.csv")
+    damage_results_SHM = pd.read_csv(filepath)
+    new_index = pd.MultiIndex.from_arrays(
+        [damage_results_SHM["building_id"], damage_results_SHM["dmg_state"]]
+    )
+    damage_results_SHM.index = new_index
+    damage_results_SHM = damage_results_SHM.drop(columns=["dmg_state"])
+
+    # Mapping of asset_id and building_id
+    id_asset_building_mapping = pd.DataFrame(
+        {
+            "building_id": [
+                "osm_1", "osm_1", "osm_1", "osm_1", "osm_1",
+                "osm_1", "osm_1", "osm_1", "osm_1","osm_1",
+                "tile_8", "tile_8", "tile_8", "tile_8", "tile_8",
+                "tile_8", "tile_8", "tile_8", "tile_8", "tile_8",
+                "shm_1", "shm_1", "shm_1", "shm_1", "shm_1",
+            ]
+        },
+        index=[
+            "res_1", "res_2", "res_3", "res_4", "res_5", "res_6", "res_7", "res_8", "res_9",
+            "res_10", "res_11", "res_12", "res_13", "res_14", "res_15", "res_16", "res_17",
+            "res_18", "res_19", "res_20", "res_21", "res_22", "res_23", "res_24", "res_25",
+        ],
+    )
+    id_asset_building_mapping.index = id_asset_building_mapping.index.rename("asset_id")
+
+    # Expected merged damage results
+    expected_damage_results_merged = deepcopy(damage_results_OQ)
+    for dmg in ["no_damage", "dmg_1", "dmg_2", "dmg_3", "dmg_4"]:
+        expected_damage_results_merged.loc[("res_21", dmg), "value"] = (
+            damage_results_SHM.loc[("shm_1", dmg), "value"] / 5.0
+        )
+        expected_damage_results_merged.loc[("res_22", dmg), "value"] = (
+            damage_results_SHM.loc[("shm_1", dmg), "value"] / 5.0
+        )
+        expected_damage_results_merged.loc[("res_23", dmg), "value"] = (
+            damage_results_SHM.loc[("shm_1", dmg), "value"] / 5.0
+        )
+        expected_damage_results_merged.loc[("res_24", dmg), "value"] = (
+            damage_results_SHM.loc[("shm_1", dmg), "value"] / 5.0
+        )
+        expected_damage_results_merged.loc[("res_25", dmg), "value"] = (
+            damage_results_SHM.loc[("shm_1", dmg), "value"] / 5.0
+        )
+
+    # Execute the method
+    returned_damage_results_merged = ExposureUpdater.merge_damage_results_OQ_SHM(
+        damage_results_OQ, damage_results_SHM, id_asset_building_mapping
+    )
+
+    assert returned_damage_results_merged.shape[0] == expected_damage_results_merged.shape[0]
+    assert (returned_damage_results_merged.index == expected_damage_results_merged.index).all
+    assert (
+        returned_damage_results_merged.index.name == expected_damage_results_merged.index.name
+    )
+
+    for multiindex in expected_damage_results_merged.index:
+        assert multiindex in returned_damage_results_merged.index
+        assert round(returned_damage_results_merged.loc[multiindex, "value"], 5) == round(
+            expected_damage_results_merged.loc[multiindex, "value"], 5
+        )
+
+
+def test_update_exposure():
+    """
+    The test carries out two cycles of update, because the second cycle needs to re-group assets
+    but the first cycle does not.
+    """
+
+    # Columns to check
+    cols_to_check_numeric = ["lon", "lat", "number", "night", "day", "transit"]
+    cols_to_check_numeric_lower_precision = ["structural"]
+    cols_to_check_str = ["taxonomy", "building_id"]
+
+    # Mapping between the names of damage states
+    mapping_aux = {
+        "dmg_state": ["no_damage", "dmg_1", "dmg_2", "dmg_3", "dmg_4"],
+        "fragility": ["DS0", "DS1", "DS2", "DS3", "DS4"],
+    }
+    mapping_damage_states = pd.DataFrame(
+        mapping_aux, columns=["fragility"], index=mapping_aux["dmg_state"]
+    )
+    mapping_damage_states.index = mapping_damage_states.index.rename("asset_id")
+
+    # Initial exposure model
+    filepath = os.path.join(os.path.dirname(__file__), "data", "exposure_model.csv")
+    initial_exposure = pd.read_csv(filepath)
+    initial_exposure.index = initial_exposure["id"]
+    initial_exposure.index = initial_exposure.index.rename("asset_id")
+    initial_exposure = initial_exposure.drop(columns=["id"])
+
+    # Damage results from OpenQuake, first cycle
+    filepath = os.path.join(os.path.dirname(__file__), "data", "damages_OQ_0.csv")
+    damage_results_OQ = pd.read_csv(filepath)
+    new_index = pd.MultiIndex.from_arrays(
+        [damage_results_OQ["asset_id"], damage_results_OQ["dmg_state"]]
+    )
+    damage_results_OQ.index = new_index
+    damage_results_OQ = damage_results_OQ.drop(columns=["asset_id", "dmg_state"])
+
+    # Damage results from Structural Health Monitoring, first cycle
+    filepath = os.path.join(os.path.dirname(__file__), "data", "damages_SHM_0.csv")
+    damage_results_SHM = pd.read_csv(filepath)
+    new_index = pd.MultiIndex.from_arrays(
+        [damage_results_SHM["building_id"], damage_results_SHM["dmg_state"]]
+    )
+    damage_results_SHM.index = new_index
+    damage_results_SHM = damage_results_SHM.drop(columns=["dmg_state"])
+
+    # Expected updated exposure model, first cycle
+    filepath = os.path.join(
+        os.path.dirname(__file__), "data", "expected_exposure_model_cycle_1.csv"
+    )
+    expected_exposure_model_1 = pd.read_csv(filepath)
+    new_index = pd.MultiIndex.from_arrays(
+        [expected_exposure_model_1["asset_id"], expected_exposure_model_1["dmg_state"]]
+    )
+    expected_exposure_model_1.index = new_index
+    expected_exposure_model_1 = expected_exposure_model_1.drop(
+        columns=["asset_id", "dmg_state"]
+    )
+
+    # Execute the method, first cycle
+    returned_exposure_model_1 = ExposureUpdater.update_exposure(
+        initial_exposure,
+        initial_exposure,
+        damage_results_OQ,
+        damage_results_SHM,
+        mapping_damage_states,
+    )
+
+    assert returned_exposure_model_1.shape[0] == expected_exposure_model_1.shape[0]
+
+    for multiindex in expected_exposure_model_1.index:
+        assert multiindex in returned_exposure_model_1.index
+
+        for col in cols_to_check_str:
+            assert (
+                returned_exposure_model_1.loc[multiindex, col]
+                == expected_exposure_model_1.loc[multiindex, col]
+            )
+
+        for col in cols_to_check_numeric:
+            assert round(returned_exposure_model_1.loc[multiindex, col], 5) == round(
+                expected_exposure_model_1.loc[multiindex, col], 5
+            )
+
+        for col in cols_to_check_numeric_lower_precision:
+            assert round(returned_exposure_model_1.loc[multiindex, col], 2) == round(
+                expected_exposure_model_1.loc[multiindex, col], 2
+            )
+
+    # Initial exposure model, second cycle
+    initial_exposure_updated = deepcopy(returned_exposure_model_1)
+    initial_exposure_updated.index = initial_exposure_updated["id"]
+    initial_exposure_updated.index = initial_exposure_updated.index.rename("asset_id")
+    initial_exposure_updated = initial_exposure_updated.drop(columns=["id"])
+
+    # Damage results from OpenQuake, second cycle
+    filepath = os.path.join(os.path.dirname(__file__), "data", "damages_OQ_1.csv")
+    damage_results_OQ = pd.read_csv(filepath)
+    new_index = pd.MultiIndex.from_arrays(
+        [damage_results_OQ["asset_id"], damage_results_OQ["dmg_state"]]
+    )
+    damage_results_OQ.index = new_index
+    damage_results_OQ = damage_results_OQ.drop(columns=["asset_id", "dmg_state"])
+
+    # Damage results from Structural Health Monitoring, second cycle
+    filepath = os.path.join(os.path.dirname(__file__), "data", "damages_SHM_1.csv")
+    damage_results_SHM = pd.read_csv(filepath)
+    new_index = pd.MultiIndex.from_arrays(
+        [damage_results_SHM["building_id"], damage_results_SHM["dmg_state"]]
+    )
+    damage_results_SHM.index = new_index
+    damage_results_SHM = damage_results_SHM.drop(columns=["dmg_state"])
+
+    # Expected updated exposure model, second cycle
+    filepath = os.path.join(
+        os.path.dirname(__file__), "data", "expected_exposure_model_cycle_2.csv"
+    )
+    expected_exposure_model_2 = pd.read_csv(filepath)
+    new_index = pd.MultiIndex.from_arrays(
+        [expected_exposure_model_2["asset_id"], expected_exposure_model_2["dmg_state"]]
+    )
+    expected_exposure_model_2.index = new_index
+    expected_exposure_model_2 = expected_exposure_model_2.drop(
+        columns=["asset_id", "dmg_state"]
+    )
+
+    # Execute the method, second cycle
+    returned_exposure_model_2 = ExposureUpdater.update_exposure(
+        initial_exposure_updated,
+        initial_exposure,
+        damage_results_OQ,
+        damage_results_SHM,
+        mapping_damage_states,
+    )
+
+    assert returned_exposure_model_2.shape[0] == expected_exposure_model_2.shape[0]
+
+    for multiindex in expected_exposure_model_2.index:
+        assert multiindex in returned_exposure_model_2.index
+
+        for col in cols_to_check_str:
+            assert (
+                returned_exposure_model_2.loc[multiindex, col]
+                == expected_exposure_model_2.loc[multiindex, col]
+            )
+
+        for col in cols_to_check_numeric:
+            assert round(returned_exposure_model_2.loc[multiindex, col], 5) == round(
+                expected_exposure_model_2.loc[multiindex, col], 5
+            )
+
+        for col in cols_to_check_numeric_lower_precision:
+            assert round(returned_exposure_model_1.loc[multiindex, col], 2) == round(
+                expected_exposure_model_1.loc[multiindex, col], 2
+            )

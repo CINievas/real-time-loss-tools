@@ -1,0 +1,6 @@
+id,lon,lat,taxonomy,number,structural,night,day,transit,occupancy,id_3,name_3,id_1,name_1,id_2,name_2,building_id,original_asset_id
+res_1,13.400949,42.344967,CR/LFINF+CDN+LFC:0.0/H:1/DS0,0.7,198107.5,2.5492,0.65048,1.42517,Res,99999999,City,1,Region,2,State,osm_1,res_1
+res_2,13.400949,42.344967,CR/LFINF+CDL+LFC:5.0/H:1/DS0,0.3,112163.5,1.58514,0.40448,0.8862,Res,99999999,City,1,Region,2,State,osm_1,res_2
+res_3,13.3888,42.344967,CR/LFINF+CDN+LFC:0.0/H:1/DS0,90,19810750,254.92,65.048,142.517,Res,99999999,City,1,Region,2,State,tile_8,res_3
+res_4,13.3888,42.344967,CR/LFINF+CDL+LFC:5.0/H:1/DS0,10,11216350,158.514,40.448,88.62,Res,99999999,City,1,Region,2,State,tile_8,res_4
+res_5,13.400949,42.3358,CR/LFINF+CDN+LFC:0.0/H:1/DS0,1,198107.5,2.5492,0.65048,1.42517,Res,99999999,City,1,Region,2,State,shm_1,res_5

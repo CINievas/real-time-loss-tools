@@ -29,9 +29,7 @@ grant agreement No. 821115.
 
 ## Copyright and copyleft
 
-Copyright (C) 2022
-
-* Helmholtz-Zentrum Potsdam Deutsches GeoForschungsZentrum GFZ
+Copyright (C) 2022 Cecilia Nievas: cecilia.nievas@gfz-potsdam.de
 
 This program is free software: you can redistribute it and/or modify it
 under the terms of the GNU Affero General Public License as published by
