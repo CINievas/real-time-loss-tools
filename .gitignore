@@ -15,3 +15,5 @@ build
 dist
 venv
 config.yml
+
+*.swp
