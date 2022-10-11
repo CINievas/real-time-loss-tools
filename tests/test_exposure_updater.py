@@ -343,3 +343,54 @@ def test_update_exposure():
             assert round(returned_exposure_model_1.loc[multiindex, col], 2) == round(
                 expected_exposure_model_1.loc[multiindex, col], 2
             )
+
+
+def test_ensure_no_negative_damage_results_OQ():
+    # Test case in which values are adjusted
+    filepath = os.path.join(os.path.dirname(__file__), "data", "damages_OQ_negative.csv")
+    damage_results_OQ = pd.read_csv(filepath)
+    new_index = pd.MultiIndex.from_arrays(
+        [damage_results_OQ["asset_id"], damage_results_OQ["dmg_state"]]
+    )
+    damage_results_OQ.index = new_index
+    damage_results_OQ = damage_results_OQ.drop(columns=["asset_id", "dmg_state"])
+
+    expected_damage_results_OQ = deepcopy(damage_results_OQ)
+    expected_damage_results_OQ.loc[("res_11", "no_damage"), "value"] = 0.0
+    expected_damage_results_OQ.loc[("res_11", "dmg_1"), "value"] = 18.47959741
+    expected_damage_results_OQ.loc[("res_11", "dmg_2"), "value"] = 0.113728624
+    expected_damage_results_OQ.loc[("res_11", "dmg_3"), "value"] = 0.011640353
+    expected_damage_results_OQ.loc[("res_11", "dmg_4"), "value"] = 0.010561345
+    expected_damage_results_OQ.loc[("res_13", "no_damage"), "value"] = 0.0
+    expected_damage_results_OQ.loc[("res_13", "dmg_1"), "value"] = 0.0
+    expected_damage_results_OQ.loc[("res_13", "dmg_2"), "value"] = 0.0
+    expected_damage_results_OQ.loc[("res_13", "dmg_3"), "value"] = 1.588763707
+    expected_damage_results_OQ.loc[("res_13", "dmg_4"), "value"] = 0.321509105
+
+    returned_damage_results_OQ = ExposureUpdater.ensure_no_negative_damage_results_OQ(
+        damage_results_OQ, tolerance=0.0001
+    )
+
+    assert returned_damage_results_OQ.shape == expected_damage_results_OQ.shape
+
+    for multiindex in expected_damage_results_OQ.index:
+        assert round(returned_damage_results_OQ.loc[multiindex, "value"], 5) == round(
+            expected_damage_results_OQ.loc[multiindex, "value"], 5
+        )
+
+    # Test case in which there is nothing to adjust (input the already adjusted case)
+    returned_damage_results_OQ = ExposureUpdater.ensure_no_negative_damage_results_OQ(
+        expected_damage_results_OQ, tolerance=0.0001
+    )
+
+    for multiindex in expected_damage_results_OQ.index:
+        assert round(returned_damage_results_OQ.loc[multiindex, "value"], 5) == round(
+            expected_damage_results_OQ.loc[multiindex, "value"], 5
+        )
+
+    # Test case in which the negative values do not comply with the tolerance
+    with pytest.raises(ValueError) as excinfo:
+        ExposureUpdater.ensure_no_negative_damage_results_OQ(
+            damage_results_OQ, tolerance=0.00001
+        )
+    assert "ValueError" in str(excinfo.type)
