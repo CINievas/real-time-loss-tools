@@ -209,10 +209,10 @@ class Rupture:
                 DataFrame containing parameters of earthquake sources retrieved from the ITalian
                 ACcelerometric Archive (ITACA), with the following columns (the names follow those
                 used by ITACA):
-                    ITACA_event_id (str):
+                    event_id (str):
                         Event ID within the ITACA catalogue. This must also be the index of the
                         DataFrame.
-                    ITACA_Mw (float):
+                    Mw (float):
                         Moment magnitude of the event in the ITACA catalogue (preferred Mw).
                     nucleation_lon (float):
                         Longitude of the nucleation point (hypocentre), in degrees.

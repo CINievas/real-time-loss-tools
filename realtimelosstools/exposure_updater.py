@@ -148,17 +148,15 @@ class ExposureUpdater:
                             Probability of 'dmg_state' for 'asset_id'.
                         (Columns "loss_type" and "rlz", which are part of OpenQuake's output,
                         are not used).
-            damage_results_SHM (Pandas DataFrame):
-                Pandas DataFrame with probabilities of monitored buildings being in each damage
+            damage_results_SHM (Pandas Series):
+                Pandas Series with probabilities of monitored buildings being in each damage
                 state. This is output from SHM activities. It comprises the following fields:
                     Index is multiple:
                         building_id (str):
                             ID of the building.
                         dmg_state (str):
                             Damage states.
-                    Columns:
-                        value (float):
-                            Probability of 'dmg_state' for 'building_id'.
+                    Values of the series (float): Probability of 'dmg_state' for 'building_id'.
             id_asset_building_mapping (Pandas DataFrame):
                 Pandas DataFrame with the mapping between 'asset_id' (index of the DataFrame)
                 and 'building_id' (column) for the buildings in 'damage_results_SHM'.
@@ -188,6 +186,7 @@ class ExposureUpdater:
         # Go one by one each asset_id
         for asset_id in id_asset_building_mapping.index:
             building_id = id_asset_building_mapping.loc[asset_id, "building_id"]
+
             # If this building_id has SHM results, take them
             if building_id in damage_results_SHM.index.get_level_values(0):
                 how_many_asset_ids = id_asset_building_mapping[
@@ -195,7 +194,7 @@ class ExposureUpdater:
                 ].shape[0]
                 for damage_state in unique_damage_states:
                     damage_results_merged.loc[(asset_id, damage_state), "value"] = (
-                        damage_results_SHM.loc[(building_id, damage_state), "value"]
+                        damage_results_SHM.loc[(building_id, damage_state)]
                         / how_many_asset_ids
                     )
 
@@ -269,17 +268,15 @@ class ExposureUpdater:
                             Probability of 'dmg_state' for 'asset_id'.
                         (Columns "loss_type" and "rlz", which are part of OpenQuake's output,
                         are not used).
-            damage_results_SHM (Pandas DataFrame):
-                Pandas DataFrame with probabilities of monitored buildings being in each damage
+            damage_results_SHM (Pandas Series):
+                Pandas Series with probabilities of monitored buildings being in each damage
                 state. This is output from SHM activities. It comprises the following fields:
                     Index is multiple:
                         building_id (str):
                             ID of the building.
                         dmg_state (str):
                             Damage states.
-                    Columns:
-                        value (float):
-                            Probability of 'dmg_state' for 'building_id'.
+                    Values of the series (float): Probability of 'dmg_state' for 'building_id'.                          
             mapping_damage_states (Pandas DataFrame):
                 Mapping between the names of damage states as output by OpenQuake (index) and as
                 labelled in the fragility model (value). E.g.:

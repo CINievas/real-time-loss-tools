@@ -97,7 +97,7 @@ def test_merge_damage_results_OQ_SHM():
 
     # Execute the method
     returned_damage_results_merged = ExposureUpdater.merge_damage_results_OQ_SHM(
-        damage_results_OQ, damage_results_SHM, id_asset_building_mapping
+        damage_results_OQ, pd.Series(damage_results_SHM.loc[:, "value"]), id_asset_building_mapping
     )
 
     assert returned_damage_results_merged.shape[0] == expected_damage_results_merged.shape[0]
@@ -172,7 +172,7 @@ def test_merge_damage_results_OQ_SHM():
 
     # Execute the method
     returned_damage_results_merged = ExposureUpdater.merge_damage_results_OQ_SHM(
-        damage_results_OQ, damage_results_SHM, id_asset_building_mapping
+        damage_results_OQ, pd.Series(damage_results_SHM.loc[:, "value"]), id_asset_building_mapping
     )
 
     assert returned_damage_results_merged.shape[0] == expected_damage_results_merged.shape[0]
@@ -252,7 +252,7 @@ def test_update_exposure():
         initial_exposure,
         initial_exposure,
         damage_results_OQ,
-        damage_results_SHM,
+        pd.Series(damage_results_SHM.loc[:, "value"]),
         mapping_damage_states,
     )
 
@@ -319,7 +319,7 @@ def test_update_exposure():
         initial_exposure_updated,
         initial_exposure,
         damage_results_OQ,
-        damage_results_SHM,
+        pd.Series(damage_results_SHM.loc[:, "value"]),
         mapping_damage_states,
     )
 
