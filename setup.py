@@ -30,7 +30,7 @@ setup(
     install_requires=[
         "numpy",
         "pandas",
-        "openquake.engine>=3.14.0",
+        "openquake.engine==3.14.0",
     ],
     extras_require={
         "tests": tests_require,
