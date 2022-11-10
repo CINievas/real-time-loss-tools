@@ -22,6 +22,9 @@ import os
 import pandas as pd
 from realtimelosstools.configuration import Configuration
 from realtimelosstools.rla import RapidLossAssessment
+from realtimelosstools.oelf import OperationalEarthquakeLossForecasting
+from realtimelosstools.stochastic_rupture_generator import StochasticRuptureSet
+from realtimelosstools.exposure_updater import ExposureUpdater
 
 
 logger = logging.getLogger()
@@ -34,7 +37,7 @@ def main():
 
     # Log the start of the run
     logger.info("Real-Time Loss Tools has started")
-    
+
     # Read configuration parameters
     config = Configuration("config.yml")
 
@@ -116,6 +119,8 @@ def main():
         type_analysis_i = triggers["type_analysis"].to_numpy()[i]
 
         if type_analysis_i == "RLA":
+            cat_name = cat_filename_i.split(".")[0]  # Get rid of ".csv"
+
             # Read earthquake parameters
             earthquake_df = pd.read_csv(
                 os.path.join(config.main_path, "catalogues", cat_filename_i)
@@ -139,9 +144,73 @@ def main():
                 index=False,
             )
 
+            # Get damage states per building ID
+            damage_states = ExposureUpdater.summarise_damage_states_per_building_id(
+                exposure_updated
+            )
+            # Store damage states per building ID
+            damage_states.to_csv(
+                os.path.join(
+                    config.main_path,
+                    "output",
+                    "damage_states_after_RLA_%s.csv" % (cat_name)
+                ),
+                index=True,
+            )
+
         elif type_analysis_i == "OELF":
-            # to be implemented
-            pass
+            # Read forecast earthquake catalogue
+            forecast_cat = pd.read_csv(
+                os.path.join(config.main_path, "catalogues", cat_filename_i)
+            )
+            forecast_cat["time_string"] = pd.to_datetime(forecast_cat["time_string"])
+
+            forecast_name = cat_filename_i.split(".")[0]  # Get rid of ".csv"
+
+            # Create sub-directory to store stochastically-generated rupture XML files
+            path_to_ruptures = os.path.join(config.main_path, "ruptures", "oelf", forecast_name)
+            if not os.path.exists(path_to_ruptures):
+                os.mkdir(path_to_ruptures)
+            else:
+                error_message = (
+                    "The directory %s already exists under %s/ruptures/oelf and may contain "
+                    "results from a previous run. The program will stop."
+                    % (forecast_name, config.main_path)
+                )
+                logger.critical(error_message)
+                raise OSError(error_message)
+
+            # Instantiate the rupture set generator from xml
+            stoch_rup = StochasticRuptureSet.from_xml(
+                os.path.join(config.main_path, "ruptures", config.oelf_source_model_filename),
+                mmin=4.5,  # Minimum magnitude - for calculating total rates
+            )
+
+            # Generate the ruptures for all earthquakes in 'forecast'
+            ruptures = stoch_rup.generate_ruptures(
+                forecast_cat,
+                path_to_ruptures,  # Ruptures will be exported to this path
+                export_type='xml', # Type of file for export
+            )
+
+            damage_states = OperationalEarthquakeLossForecasting.run_oelf(
+                forecast_cat,
+                forecast_name,
+                config.description_general,
+                config.main_path,
+                exposure_model_undamaged,
+                config.mapping_damage_states,
+            )
+
+            # Store damage states per building ID
+            damage_states.to_csv(
+                os.path.join(
+                    config.main_path,
+                    "output",
+                    "damage_states_after_OELF_%s.csv" % (forecast_name)
+                ),
+                index=True,
+            )
 
     # Leave the program
     logger.info("Real-Time Loss Tools has finished")

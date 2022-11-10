@@ -22,6 +22,7 @@ pip3 install -e .
 - `pandas`
 - `shapely`
 - `pyproj`
+- `rtree`
 - `geopandas`
 - `openquake.engine 3.14`
 
@@ -85,7 +86,9 @@ associated with one (RLA) or more (OELF) earthquakes. The names of these files n
 - `exposure_models`: Directory with CSV files of the exposure model after each earthquake run,
 subdivided into `oelf` and `rla`, as well as the original undamaged exposure model, named
 `exposure_model_undamaged.csv`, which needs to exist before putting the software to run. This
-file is not modified during the run. It must contain the following fields:
+file is not modified during the run. The `oelf` sub-directory will be further subdivided as per
+the different catalogue CSV files (see description of `triggering.csv` and `catalogues` above).
+It must contain the following fields:
   - `id`: Asset ID, unique identifier per row.
   - `lon`: Longitude of the asset, in degrees.
   - `lat`: Latitude of the asset, in degrees.
@@ -104,10 +107,19 @@ file is not modified during the run. It must contain the following fields:
   - `original_asset_id`: ID of the asset in the initial undamaged version of the exposure model.
   It can be the value of `id` in the undamaged version or any other unique ID per row that
   refers to a combination of a building ID and a building class with no initial damage.
-- `openquake_output`: Directory to which OpenQuake results will be exported.
-- `ruptures`: Directory with XML files of the earthquake ruptures, subdivided into `oelf` and
-`rla`. No pre-existing XML files are needed here (the directory will be populated during the
-run).
+- `openquake_output`: Directory to which OpenQuake results will be exported. OELF results will
+be saved organised into sub-directories as per the different catalogue CSV files (see
+description of `triggering.csv` and `catalogues` above).
+- `output`: Directory to which the software will export results. It should be empty when
+starting the run.
+- `ruptures`: Directory with:
+  - XML files of the earthquake ruptures, subdivided into `oelf` and `rla`. No pre-existing XML
+  files are needed here (the directories will be populated during the run). The `oelf`
+  sub-directory will be further subdivided as per the different catalogue CSV files (see
+  description of `triggering.csv` and `catalogues` above).
+  - An XML with the earthquake source model to be used to stochastically generate rupture
+  properties for Operational Earthquake Loss Forecasting (OELF), in the OpenQuake format. The
+  name of this XML file can be arbitrary and must be indicated in the configuration file.
 - `shm`: Directory with a CSV file with damage classification determined by means of Structural
 Health Monitoring (SHM) techniques, named `damage_results_shm.csv`. If RLA is indicated in
 `triggering.csv`, the file needs to exist for the software to run. It needs to contain the
@@ -136,7 +148,9 @@ modified during the run.
 empty, as well as `exposure_model_undamaged.csv`, whose existence is a requirement for the
 software to run.
 - `openquake_output` needs to exist and be empty.
-- `ruptures` must contain the `oelf` and `rla` sub-directories, each of which must be empty.
+- `output` needs to exist and be empty.
+- `ruptures` must contain the `oelf` and `rla` sub-directories, each of which must be empty, and
+an XML with the earthquake source model in the OpenQuake format (see description above).
 - `shm` must contain `damage_results_shm.csv`, only if RLA is indicated at least in one case
 under `triggering.csv`.
 - `static` needs to contain `fragility_model.xml`, `gmpe_logic_tree.xml`, and `site_model.csv`.

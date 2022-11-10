@@ -252,8 +252,8 @@ def test_update_exposure():
         initial_exposure,
         initial_exposure,
         damage_results_OQ,
-        pd.Series(damage_results_SHM.loc[:, "value"]),
         mapping_damage_states,
+        damage_results_SHM=pd.Series(damage_results_SHM.loc[:, "value"]),
     )
 
     assert returned_exposure_model_1.shape[0] == expected_exposure_model_1.shape[0]
@@ -319,8 +319,8 @@ def test_update_exposure():
         initial_exposure_updated,
         initial_exposure,
         damage_results_OQ,
-        pd.Series(damage_results_SHM.loc[:, "value"]),
         mapping_damage_states,
+        damage_results_SHM=pd.Series(damage_results_SHM.loc[:, "value"]),
     )
 
     assert returned_exposure_model_2.shape[0] == expected_exposure_model_2.shape[0]
@@ -394,3 +394,39 @@ def test_ensure_no_negative_damage_results_OQ():
             damage_results_OQ, tolerance=0.00001
         )
     assert "ValueError" in str(excinfo.type)
+
+
+def test_summarise_damage_states_per_building_id():
+    # Read exposure model
+    filepath = os.path.join(
+        os.path.dirname(__file__), "data", "expected_exposure_model_cycle_2.csv"
+    )
+    exposure = pd.read_csv(filepath)
+
+    returned_damage_summary = ExposureUpdater.summarise_damage_states_per_building_id(exposure)
+
+    # Expected output
+    building_id = [
+        "osm_1", "osm_1", "osm_1", "osm_1", "osm_1",
+        "tile_8", "tile_8", "tile_8", "tile_8", "tile_8",
+        "shm_1", "shm_1", "shm_1", "shm_1", "shm_1",
+    ]
+    damage_state = [
+        "DS1", "DS2", "DS3", "DS4", "DS0",
+        "DS1", "DS2", "DS3", "DS4", "DS0",
+        "DS1", "DS2", "DS3", "DS4", "DS0",
+    ]
+    number = [
+        0.26460062, 0.05589356, 0.03028228, 0.10033112, 0.54889240,
+        22.29490758, 4.89183173, 2.26042970, 5.83527250, 64.71756050,
+        0.2, 0.4, 0.1, 0.03, 0.27
+    ]
+    expected_damage_summary = pd.DataFrame(
+        {"number": number},
+        index=pd.MultiIndex.from_arrays([building_id, damage_state]),
+    )
+
+    for index in expected_damage_summary.index:
+        assert round(returned_damage_summary.loc[index, "number"], 5) == round(
+            expected_damage_summary.loc[index, "number"], 5
+        )

@@ -99,7 +99,7 @@ def build_rupture(usd, lsd, mag, dims, strike, dip, rake, clon, clat, cdep):
         # we need to move the rupture center to make the rupture fit
         # inside the seismogenic layer.
         hshift = abs(vshift / math.tan(rdip))
-        clon, clat = geodetic.fast_point_at(
+        clon, clat = geodetic.point_at(
             clon, clat, azimuth_up if vshift < 0 else azimuth_down,
             hshift)
         cdep += vshift
@@ -109,13 +109,13 @@ def build_rupture(usd, lsd, mag, dims, strike, dip, rake, clon, clat, cdep):
     top_right = np.array([0., 0., cdep - half_height])
     bottom_left = np.array([0., 0., cdep + half_height])
     bottom_right = np.array([0., 0., cdep + half_height])
-    top_left[:2] = geodetic.fast_point_at(
+    top_left[:2] = geodetic.point_at(
         clon, clat, strike + 180 + theta, hor_dist)
-    top_right[:2] = geodetic.fast_point_at(
+    top_right[:2] = geodetic.point_at(
         clon, clat, strike - theta, hor_dist)
-    bottom_left[:2] = geodetic.fast_point_at(
+    bottom_left[:2] = geodetic.point_at(
         clon, clat, strike + 180 - theta, hor_dist)
-    bottom_right[:2] = geodetic.fast_point_at(
+    bottom_right[:2] = geodetic.point_at(
         clon, clat, strike + theta, hor_dist)
     return top_left, top_right, bottom_left, bottom_right
 

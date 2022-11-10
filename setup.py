@@ -31,6 +31,7 @@ setup(
         "pyyaml",
         "numpy",
         "pandas",
+        "rtree",
         "shapely",
         "pyproj",
         "geopandas",

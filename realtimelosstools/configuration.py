@@ -33,6 +33,10 @@ class Configuration:
         self.main_path (str):
             Path to the directory that contains the input files and where output files will be
             placed. It needs to have a pre-defined structure (please see the documentation).
+        self.oelf_source_model_filename (str):
+            Name of the XML file with the earthquake source model to be used to stochastically
+            generate rupture properties for Operational Earthquake Loss Forecasting (OELF).
+            Assumed to be located under main_path/ruptures.
         self.mapping_damage_states (Pandas DataFrame):
             Mapping between the names of damage states as output by OpenQuake and as labelled in
             the fragility model. In the yml configuration file it is defined by means of a
@@ -49,6 +53,7 @@ class Configuration:
     REQUIRES = [
         "description_general",
         "main_path",
+        "oelf_source_model_filename",
         "mapping_damage_states",
     ]
 
@@ -64,7 +69,11 @@ class Configuration:
         self.description_general = self.assign_parameter(config, "description_general")
 
         self.main_path = self.assign_parameter(config, "main_path")
-        
+
+        self.oelf_source_model_filename = self.assign_parameter(
+            config, "oelf_source_model_filename"
+        )
+
         mapping_damage_states_aux = self.assign_hierarchical_parameters(
             config, "mapping_damage_states"
         )

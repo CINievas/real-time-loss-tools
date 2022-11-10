@@ -312,8 +312,8 @@ class RapidLossAssessment:
             exposure_run,
             original_exposure_model,
             damage_results_OQ,
-            damage_results_SHM,
             mapping_damage_states,
+            damage_results_SHM=damage_results_SHM,
         )
 
         # Store new exposure CSV

@@ -205,14 +205,14 @@ class ExposureUpdater:
         previous_exposure_model,
         original_exposure_model,
         damage_results_OQ,
-        damage_results_SHM,
         mapping_damage_states,
+        damage_results_SHM=None,
     ):
         """
         This method creates the exposure model for the next earthquake in the sequence, starting
         from the exposure model for the previous earthquake ('previous_exposure_model') and its
         associated damage results ('damage_results_OQ' from OpenQuake and 'damage_results_SHM'
-        from Structural Health Monitoring).
+        from Structural Health Monitoring, if provided).
 
         Args:
             previous_exposure_model (Pandas DataFrame):
@@ -268,15 +268,6 @@ class ExposureUpdater:
                             Probability of 'dmg_state' for 'asset_id'.
                         (Columns "loss_type" and "rlz", which are part of OpenQuake's output,
                         are not used).
-            damage_results_SHM (Pandas Series):
-                Pandas Series with probabilities of monitored buildings being in each damage
-                state. This is output from SHM activities. It comprises the following fields:
-                    Index is multiple:
-                        building_id (str):
-                            ID of the building.
-                        dmg_state (str):
-                            Damage states.
-                    Values of the series (float): Probability of 'dmg_state' for 'building_id'.                          
             mapping_damage_states (Pandas DataFrame):
                 Mapping between the names of damage states as output by OpenQuake (index) and as
                 labelled in the fragility model (value). E.g.:
@@ -287,6 +278,15 @@ class ExposureUpdater:
                     dmg_2           DS2
                     dmg_3           DS3
                     dmg_4           DS4
+            damage_results_SHM (Pandas Series):
+                Pandas Series with probabilities of monitored buildings being in each damage
+                state. This is output from SHM activities. It comprises the following fields:
+                    Index is multiple:
+                        building_id (str):
+                            ID of the building.
+                        dmg_state (str):
+                            Damage states.
+                    Values of the series (float): Probability of 'dmg_state' for 'building_id'.
 
         Returns:
             new_exposure_model (Pandas DataFrame):
@@ -333,16 +333,19 @@ class ExposureUpdater:
                             "X" is the administrative level.
         """
 
-        # Create mapping between asset_id (used by OQ) and building_id (used by SHM)
-        id_asset_building_mapping = ExposureUpdater.create_mapping_asset_id_building_id(
-            previous_exposure_model
-        )
-
         # Replace probabilities in damage_results_OQ by probabilities from damage_results_SHM
         # for buildings that are monitored
-        damage_results_merged = ExposureUpdater.merge_damage_results_OQ_SHM(
-            damage_results_OQ, damage_results_SHM, id_asset_building_mapping
-        )
+        if damage_results_SHM is not None:
+            # Create mapping between asset_id (used by OQ) and building_id (used by SHM)
+            id_asset_building_mapping = ExposureUpdater.create_mapping_asset_id_building_id(
+                previous_exposure_model
+            )
+
+            damage_results_merged = ExposureUpdater.merge_damage_results_OQ_SHM(
+                damage_results_OQ, damage_results_SHM, id_asset_building_mapping
+            )
+        else:
+            damage_results_merged = deepcopy(damage_results_OQ)
 
         # Create new exposure model
         new_exposure_model = damage_results_merged.join(previous_exposure_model)
@@ -479,7 +482,7 @@ class ExposureUpdater:
             return damage_results_OQ
 
         damage_results_OQ_adjusted = deepcopy(damage_results_OQ)
-        
+
         for asset_id in damage_results_OQ_adjusted.index.get_level_values("asset_id"):
             damage_results_OQ_asset = damage_results_OQ_adjusted.loc[asset_id, "value"]
 
@@ -497,7 +500,7 @@ class ExposureUpdater:
 
                 # Set negative numbers to zero
                 damage_results_OQ_asset[damage_results_OQ_asset < 0] = 0
-                
+
                 # Recalculate the other values so as to keep the total number of buildings
                 damage_results_OQ_asset = (
                     damage_results_OQ_asset / damage_results_OQ_asset.sum() * total_bdgs
@@ -509,3 +512,69 @@ class ExposureUpdater:
                 )
 
         return damage_results_OQ_adjusted
+
+    @staticmethod
+    def summarise_damage_states_per_building_id(exposure):
+        """
+        This method returns the probability of a building with a certain building_id resulting
+        in a certain damage state, when building_id refers to individual buildings, or the
+        number of buildings with a certain building_id resulting in a certain damage state, when
+        building_id refers to a group of buildings.
+
+        Args:
+            exposure (Pandas DataFrame):
+                Pandas DataFrame representation of the exposure CSV input for OpenQuake. It
+                comprises at least the following fields:
+                    id (str):
+                        ID of the asset (i.e. specific combination of building_id and a
+                        particular building class and damage state).
+                    building_id (str):
+                        ID of the building. One building_id can be associated with different
+                        values of asset_id.
+                    original_asset_id (str):
+                        ID of the asset in the initial undamaged version of the exposure model.
+                    lon (float):
+                        Longitude of the asset in degrees.
+                    lat (float):
+                        Latitude of the asset in degrees.
+                    taxonomy (str):
+                        Building class.
+                    number (float):
+                        Number of buildings in this asset (or probability of this particular
+                        combination of building class and damage state for this building_id).
+                    occupancy (str):
+                        "Res" (residential), "Com" (commercial) or "Ind" (industrial).
+        Returns:
+            damage_summary (Pandas DataFrame):
+                Pandas DataFrame with the following structure:
+                    Index is multiple:
+                        building_id (str):
+                            ID of the building.
+                        damage_state (str):
+                            Damage states.
+                    Columns:
+                        number (float):
+                            Probability of 'damage_state' for 'building_id', if building_id is
+                            one individual building, or number of buildings of 'building_id'
+                            under 'damage_state', if building_id is a group of buildings.
+        """
+
+        # Initialise output
+        damage_summary = deepcopy(exposure)
+        damage_summary = damage_summary.drop(
+            columns=["id", "lon", "lat", "occupancy", "original_asset_id"]
+        )
+
+        # Create separate column for damage state
+        building_classes = damage_summary["taxonomy"].to_numpy()
+        damage_summary["damage_state"] = [
+            building_classes[i].split("/")[-1] for i in range(damage_summary.shape[0])
+        ]
+
+        damage_summary = damage_summary.groupby(
+            ["building_id", "damage_state"]
+        ).sum(numeric_only=True)
+
+        damage_summary = damage_summary[["number"]]
+
+        return damage_summary

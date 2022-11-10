@@ -1,5 +1,6 @@
 description_general: description of the run  # General description, used for the OpenQuake job.ini file
 main_path: path/to/running/directory  #Path to the main running directory, assumed to have the needed structure.
+oelf_source_model_filename: source_model.xml  # Name of the XML file with the source model to be used in OELF.
 mapping_damage_states:
   no_damage: DS0
   dmg_1: DS1
