@@ -18,6 +18,7 @@
 
 import logging
 import os
+import shutil
 from copy import deepcopy
 import numpy as np
 import pandas as pd
@@ -199,27 +200,14 @@ class OperationalEarthquakeLossForecasting():
             events_in_realisation = aux.sort_values(by=['time_string'], ignore_index=True)
 
             # Initialise exposure_model_current_XX.csv, with XX = oef_realisation_id
+            in_filename = os.path.join(
+                main_path, "current", "exposure_model_current.csv"
+            )  # origin
             current_exposure_filename = "exposure_model_current_oelf_%s.csv" % (
                 oef_realisation_id
             )
             out_filename = os.path.join(path_to_exposure, current_exposure_filename)
-            openfile = os.popen(
-                "cp %s %s" % (
-                    os.path.join(
-                        main_path, "current", "exposure_model_current.csv"
-                    ),  # origin
-                    out_filename  # destination
-                )
-            )
-            closemessage = openfile.close()
-
-            if closemessage is not None:  # the copying of the exposure model failed
-                error_message = (
-                    "File 'exposure_model_current_%s.csv' could not be initialised."
-                    % (oef_realisation_id)
-                )
-                logger.critical(error_message)
-                raise OSError(error_message)
+            _ = shutil.copyfile(in_filename, out_filename)
 
             # Run earthquake by earthquake of this OEF realisation
             for i, eq_id in enumerate(events_in_realisation["EQID"]):  # i is index of DataFrame

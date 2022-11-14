@@ -19,6 +19,7 @@
 import logging
 import sys
 import os
+import shutil
 import pandas as pd
 from realtimelosstools.configuration import Configuration
 from realtimelosstools.rla import RapidLossAssessment
@@ -98,21 +99,11 @@ def main():
     exposure_model_undamaged
 
     # Copy the "initial" exposure model to the 'current' sub-directory to initialise the process
+    in_filename = os.path.join(
+        config.main_path, "exposure_models", "exposure_model_undamaged.csv"
+    )  # origin
     out_filename = os.path.join(config.main_path, "current", "exposure_model_current.csv")
-    openfile = os.popen(
-        "cp %s %s" % (
-            os.path.join(
-                config.main_path, "exposure_models", "exposure_model_undamaged.csv"
-            ),  # origin
-            out_filename  # destination
-        )
-    )
-    closemessage = openfile.close()
-
-    if closemessage is not None:  # the copying of the exposure model failed
-        error_message = ("File 'exposure_model_current.csv' could not be initialised.")
-        logger.critical(error_message)
-        raise OSError(error_message)
+    _ = shutil.copyfile(in_filename, out_filename)
 
     # Run RLA or OELF for each trigger
     for i, cat_filename_i in enumerate(triggers["catalogue_filename"].to_numpy()):

@@ -17,6 +17,7 @@
 # along with this program. If not, see http://www.gnu.org/licenses/.
 
 import os
+import shutil
 import pytest
 from realtimelosstools.writers import Writer
 
@@ -122,15 +123,11 @@ def test_update_exposure_xml():
     os.mkdir(output_path)
 
     # Copy existing exposure_model.xml to temporary output directory
+    in_filename = os.path.join(
+        os.path.join(os.path.dirname(__file__), "data", "exposure_model.xml")
+    )  # origin
     out_filename = os.path.join(output_path, "exposure_model.xml")
-    openfile = os.popen(
-        "cp %s %s" % (
-            os.path.join(os.path.dirname(__file__), "data", "exposure_model.xml"),  # origin
-            out_filename  # destination
-        )
-    )
-    closemessage = openfile.close()
-    assert closemessage is None  # means the process exited successfully
+    _ = shutil.copyfile(in_filename, out_filename)
 
     # Execute function
     Writer.update_exposure_xml(out_filename, "night", "newcsvfilename.csv")
@@ -189,15 +186,11 @@ def test_update_job_ini():
     os.mkdir(output_path)
 
     # Copy existing job.ini to temporary output directory
+    in_filename = os.path.join(
+        os.path.join(os.path.dirname(__file__), "data", "job.ini")
+    )  # origin
     out_filename = os.path.join(output_path, "job.ini")
-    openfile = os.popen(
-        "cp %s %s" % (
-            os.path.join(os.path.dirname(__file__), "data", "job.ini"),  # origin
-            out_filename  # destination
-        )
-    )
-    closemessage = openfile.close()
-    assert closemessage is None  # means the process exited successfully
+    _ = shutil.copyfile(in_filename, out_filename)
 
     # Execute function
     Writer.update_job_ini(
