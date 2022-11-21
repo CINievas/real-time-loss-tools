@@ -5,15 +5,61 @@ Tools for the assessment of earthquake damage and loss in real-time, developed w
 
 ## Installation
 
+It is recommended that a Python 3.8 virtual environment be created so as to install and run the
+software from within it. To do so, type:
+
 ```bash
-git clone https://git.gfz-potsdam.de/cnievas/real-time-loss-tools.git
-cd real-time-loss-tools
-pip3 install -e .
+$ python3.8 -m venv YourPreferredName
+```
+
+`YourPreferredName` will be the name of the virtual environment. Activate it by doing:
+
+```bash
+$ source YourPreferredName/bin/activate
+```
+
+Before doing anything else, upgrade `pip` to its latest version (not doing so might result in
+errors during installation that will not indicate that the problem lies in the version of
+`pip`):
+
+```bash
+(YourPreferredName) $ pip install --upgrade pip
+```
+
+Move within your directory structure to a location where you would like to clone the present
+repository. From there, do:
+
+```bash
+(YourPreferredName) $ git clone https://git.gfz-potsdam.de/cnievas/real-time-loss-tools.git
+(YourPreferredName) $ cd real-time-loss-tools
+(YourPreferredName) $ pip3 install -e .
+```
+
+The last command will install the `Real Time Loss Tools` and all its dependencies, including the
+[OpenQuake engine](https://github.com/gem/oq-engine). If you already have a version of OpenQuake
+installed in your computer, even if it is within a virtual environment, the different versions
+or installations will share the same underlying database and it might be necessary to stop and
+re-start it to be able to run the `Real Time Loss Tools`. The error that might flag up if this
+is the case might not be fully self-explanatory, and so it is recommended to stop and re-start
+the database as a precautionary measure by doing:
+
+```bash
+(YourPreferredName) $ oq dbserver stop
+(YourPreferredName) $ oq dbserver start
+```
+
+Please note that mixing different versions of OpenQuake can lead to the database becoming
+unusable with older versions.
+
+The virtual environment can be deactivated by typing:
+
+```bash
+(YourPreferredName) $ deactivate
 ```
 
 ### Software dependencies
 
-- Python 3.8 or above
+- Python 3.8 or above (tested only with Python 3.8 and 3.9)
 
 ### Python libraries
 
@@ -27,6 +73,29 @@ pip3 install -e .
 - `openquake.engine 3.15`
 
 ## Running
+
+### Preparation
+
+A series of input files and a specific file structure are needed to run the
+`Real Time Loss Tools`. Please refer to [Assumed file structure](#assumed-file-structure) down
+below for details and follow the instructions.
+
+Once the input files and the file structure have been created, create a `config.yml` file
+following the example contained in this repository as
+[config_example.yml](./config_example.yml). The `config.yml` file can be located anywhere, but
+the `Real Time Loss Tools` need to be run from the directory where `config.yml` is located. It
+can be placed, for example, within `main_path`.
+
+### Execution
+
+Having activated the virtual environment where the `Real Time Loss Tools` are installed,
+navigate to the directory where you placed `config.yml`. Then type:
+
+```bash
+(YourPreferredName) $ rtlt
+```
+
+The program will start to run.
 
 ### Assumed file structure
 
