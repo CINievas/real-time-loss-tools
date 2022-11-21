@@ -28,6 +28,7 @@ setup(
     author="Helmholtz-Zentrum Potsdam Deutsches GeoForschungsZentrum GFZ",
     license="AGPLv3+",
     install_requires=[
+        "openquake.engine==3.15.0",
         "pyyaml",
         "numpy",
         "pandas",
@@ -35,7 +36,6 @@ setup(
         "shapely",
         "pyproj",
         "geopandas",
-        "openquake.engine==3.14.0",
     ],
     extras_require={
         "tests": tests_require,

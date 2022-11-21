@@ -24,7 +24,7 @@ pip3 install -e .
 - `pyproj`
 - `rtree`
 - `geopandas`
-- `openquake.engine 3.14`
+- `openquake.engine 3.15`
 
 ## Running
 
