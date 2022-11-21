@@ -1,4 +1,4 @@
-description_general: description of the run  # General description, used for the OpenQuake job.ini file
+description_general: description of the run  # General description, used for the OpenQuake job.ini file.
 main_path: path/to/running/directory  #Path to the main running directory, assumed to have the needed structure.
 oelf_source_model_filename: source_model.xml  # Name of the XML file with the source model to be used in OELF.
 mapping_damage_states:
@@ -7,3 +7,4 @@ mapping_damage_states:
   dmg_2: DS2
   dmg_3: DS3
   dmg_4: DS4
+store_intermediate: True  # If True, intermediate results including OpenQuake HDF5 files will be stored. Intended for debugging.

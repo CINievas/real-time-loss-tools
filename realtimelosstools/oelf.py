@@ -44,6 +44,7 @@ class OperationalEarthquakeLossForecasting():
         main_path,
         original_exposure_model,
         mapping_damage_states,
+        store_intermediate,
     ):
         """
         This method uses OpenQuake to run an Operational Earthquake Loss Forecast (OELF) due to
@@ -130,6 +131,18 @@ class OperationalEarthquakeLossForecasting():
                     dmg_2           DS2
                     dmg_3           DS3
                     dmg_4           DS4
+            store_intermediate (bool):
+                If True, a series of intermediate outputs will be stored. These intermediate
+                outputs are:
+                    - The exposure model updated after each earthquake, to be stored under
+                    'main_path'/exposure_models/oelf/forecast_name/exposure_model_after_XXX.csv.
+                    The "current" OELF exposure file will always be stored, irrespective of
+                    'store_intermediate'.
+                    - The damage results as directly output by OpenQuake, to be stored under
+                    'main_path'/openquake_output/forecast_name/XXX_damages_OQ_raw.csv.
+                    - The damage results from OpenQuake, adjusted so that the do not include
+                    negative numbers of buildings, to be stored under 'main_path'/
+                    openquake_output/forecast_name/XXX_damages_OQ.csv.
 
         Returns:
             damage_states_all_realisations (Pandas DataFrame):
@@ -148,17 +161,18 @@ class OperationalEarthquakeLossForecasting():
         """
 
         # Create sub-directory to store OpenQuake outputs
-        path_to_oq_outputs = os.path.join(main_path, "openquake_output", forecast_name)
-        if not os.path.exists(path_to_oq_outputs):
-            os.mkdir(path_to_oq_outputs)
-        else:
-            error_message = (
-                "The directory %s already exists under %s/openquake_output and may contain "
-                "results from a previous run. The program will stop."
-                % (forecast_name, main_path)
-            )
-            logger.critical(error_message)
-            raise OSError(error_message)
+        if store_intermediate:
+            path_to_oq_outputs = os.path.join(main_path, "openquake_output", forecast_name)
+            if not os.path.exists(path_to_oq_outputs):
+                os.mkdir(path_to_oq_outputs)
+            else:
+                error_message = (
+                    "The directory %s already exists under %s/openquake_output and may contain "
+                    "results from a previous run. The program will stop."
+                    % (forecast_name, main_path)
+                )
+                logger.critical(error_message)
+                raise OSError(error_message)
 
         # Create sub-directory to store general outputs
         path_to_outputs = os.path.join(main_path, "output", forecast_name)
@@ -276,9 +290,10 @@ class OperationalEarthquakeLossForecasting():
 
                 # Store damage states from OpenQuake output to CSV
                 # (incl. potential negative values)
-                damage_results_OQ.to_csv(
-                    os.path.join(path_to_oq_outputs, "%s_damages_OQ_raw.csv" % (eq_id))
-                )
+                if store_intermediate:
+                    damage_results_OQ.to_csv(
+                        os.path.join(path_to_oq_outputs, "%s_damages_OQ_raw.csv" % (eq_id))
+                    )
 
                 # Ensure no negative number of buildings in 'damage_results_OQ'
                 damage_results_OQ = ExposureUpdater.ensure_no_negative_damage_results_OQ(
@@ -286,9 +301,10 @@ class OperationalEarthquakeLossForecasting():
                 )
 
                 # Store adjusted damage states from OpenQuake output to CSV
-                damage_results_OQ.to_csv(
-                    os.path.join(path_to_oq_outputs, "%s_damages_OQ.csv" % (eq_id))
-                )
+                if store_intermediate:
+                    damage_results_OQ.to_csv(
+                        os.path.join(path_to_oq_outputs, "%s_damages_OQ.csv" % (eq_id))
+                    )
 
                 # Load exposure CSV (the exposure model just used to run OpenQuake)
                 exposure_run = pd.read_csv(
@@ -308,12 +324,13 @@ class OperationalEarthquakeLossForecasting():
                 )
 
                 # Store new exposure CSV
-                name_exposure_csv_file_next = "exposure_model_after_%s.csv" % (eq_id)
-                # Named after the earthquake
-                exposure_updated.to_csv(
-                    os.path.join(path_to_exposure, name_exposure_csv_file_next),
-                    index=False,
-                )
+                if store_intermediate:
+                    name_exposure_csv_file_next = "exposure_model_after_%s.csv" % (eq_id)
+                    # Named after the earthquake
+                    exposure_updated.to_csv(
+                        os.path.join(path_to_exposure, name_exposure_csv_file_next),
+                        index=False,
+                    )
                 # Replace current exposure for this OEF realisation
                 exposure_updated.to_csv(
                     os.path.join(path_to_exposure, current_exposure_filename),

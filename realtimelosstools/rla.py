@@ -43,6 +43,7 @@ class RapidLossAssessment:
         original_exposure_model,
         mapping_damage_states,
         damage_results_SHM,
+        store_intermediate,
     ):
         """
         This method uses OpenQuake to run a Rapid Loss Assessment (RLA) due to an input
@@ -157,6 +158,17 @@ class RapidLossAssessment:
                         dmg_state (str):
                             Damage states.
                     Values of the series (float): Probability of 'dmg_state' for 'building_id'.
+            store_intermediate (bool):
+                If True, a series of intermediate outputs will be stored. These intermediate
+                outputs are:
+                    - The exposure model updated after each earthquake, i.e. the output
+                    'exposure_updated' of this model, to be stored under 'main_path'/
+                    exposure_models/rla/exposure_model_after_XXX.csv.
+                    - The damage results as directly output by OpenQuake, to be stored under
+                    'main_path'/openquake_output/XXX_damages_OQ_raw.csv.
+                    - The damage results from OpenQuake, adjusted so that the do not include
+                    negative numbers of buildings, to be stored under 'main_path'/
+                    openquake_output/XXX_damages_OQ.csv.
 
         Returns:
             exposure_updated (Pandas DataFrame):
@@ -274,14 +286,15 @@ class RapidLossAssessment:
         damage_results_OQ = damage_results_OQ.drop(columns=["asset_id", "dmg_state"])
 
         # Store damage states from OpenQuake output to CSV (incl. potential negative values)
-        damage_results_OQ.to_csv(
-            os.path.join(
-                main_path,
-                "openquake_output",
-                "%s_damages_OQ_raw.csv"
-                % (earthquake["event_id"])
-            ),
-        )
+        if store_intermediate:
+            damage_results_OQ.to_csv(
+                os.path.join(
+                    main_path,
+                    "openquake_output",
+                    "%s_damages_OQ_raw.csv"
+                    % (earthquake["event_id"])
+                ),
+            )
 
         # Ensure no negative number of buildings in 'damage_results_OQ'
         damage_results_OQ = ExposureUpdater.ensure_no_negative_damage_results_OQ(
@@ -289,14 +302,15 @@ class RapidLossAssessment:
         )
 
         # Store adjusted damage states from OpenQuake output to CSV
-        damage_results_OQ.to_csv(
-            os.path.join(
-                main_path,
-                "openquake_output",
-                "%s_damages_OQ.csv"
-                % (earthquake["event_id"])
-            ),
-        )
+        if store_intermediate:
+            damage_results_OQ.to_csv(
+                os.path.join(
+                    main_path,
+                    "openquake_output",
+                    "%s_damages_OQ.csv"
+                    % (earthquake["event_id"])
+                ),
+            )
 
         # Load exposure CSV (the exposure model just used to run OpenQuake)
         exposure_run = pd.read_csv(
@@ -317,10 +331,13 @@ class RapidLossAssessment:
         )
 
         # Store new exposure CSV
-        name_exposure_csv_file_next = "exposure_model_after_%s.csv" % (earthquake["event_id"])
-        exposure_updated.to_csv(
-            os.path.join(main_path, "exposure_models", "rla", name_exposure_csv_file_next),
-            index=False,
-        )
+        if store_intermediate:
+            name_exposure_csv_file_next = (
+                "exposure_model_after_%s.csv" % (earthquake["event_id"])
+            )
+            exposure_updated.to_csv(
+                os.path.join(main_path, "exposure_models", "rla", name_exposure_csv_file_next),
+                index=False,
+            )
 
         return exposure_updated

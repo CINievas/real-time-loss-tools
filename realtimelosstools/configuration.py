@@ -48,6 +48,10 @@ class Configuration:
                     asset_id (str): Names of damage states as output by OpenQuake.
                 Columns:
                     fragility (str): Names of damage states as labelled in the fragility model.
+        self.store_intermediate (bool):
+            If True, intermediate results including updated exposure files after each earthquake
+            and OpenQuake HDF5 files will be stored. If False, these intermediate results will
+            not be available after running the software. True option is intended for debugging.
     """
 
     REQUIRES = [
@@ -55,6 +59,7 @@ class Configuration:
         "main_path",
         "oelf_source_model_filename",
         "mapping_damage_states",
+        "store_intermediate",
     ]
 
     def __init__(self, filepath):
@@ -83,6 +88,8 @@ class Configuration:
         self.mapping_damage_states.index = (
             self.mapping_damage_states.index.rename("asset_id")
         )
+
+        self.store_intermediate = self.assign_boolean_parameter(config, "store_intermediate")
 
         # Terminate if critical parameters are missing (not all parameters are critical)
         for key_parameter in self.REQUIRES:
@@ -192,5 +199,50 @@ class Configuration:
 
         if sub_parameters_missing is True:
             return None
+
+        return assigned_parameter
+
+    def assign_boolean_parameter(self, config, input_parameter):
+        """This function searches for the key input_parameter in the dictionary config, and
+        converts it into a boolean.
+
+        If input_parameter is not a key of config, the output is None.
+
+        Args:
+            config (dictionary):
+                The configuration file read as a dictionary. It may be an empty dictionary.
+            input_parameter (str):
+                Name of the desired parameter, to be searched for as a primary key of config.
+
+        Returns:
+            assigned_parameter (bool):
+                The content of config[input_parameter] converted into a boolean.
+
+        """
+
+        assigned_parameter = self.assign_parameter(config, input_parameter)
+
+        if assigned_parameter is None:
+            return None
+
+        if not isinstance(assigned_parameter, bool):  # yaml tries to interpret data types
+            if isinstance(assigned_parameter, str):
+                if assigned_parameter.lower() in ["true", "yes"]:
+                    assigned_parameter = True
+                elif assigned_parameter.lower() in ["false", "no"]:
+                    assigned_parameter = False
+                else:
+                    logger.critical(
+                        "Error reading %s from configuration file: "
+                        "string '%s' cannot be interpreted as boolean"
+                        % (input_parameter, assigned_parameter)
+                    )
+                    assigned_parameter = None
+            else:
+                logger.critical(
+                    "Error reading %s from configuration file: not a boolean"
+                    % (input_parameter)
+                )
+                assigned_parameter = None
 
         return assigned_parameter
