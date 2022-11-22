@@ -45,6 +45,7 @@ class OperationalEarthquakeLossForecasting():
         original_exposure_model,
         mapping_damage_states,
         store_intermediate,
+        store_openquake,
     ):
         """
         This method uses OpenQuake to run an Operational Earthquake Loss Forecast (OELF) due to
@@ -143,6 +144,10 @@ class OperationalEarthquakeLossForecasting():
                     - The damage results from OpenQuake, adjusted so that the do not include
                     negative numbers of buildings, to be stored under 'main_path'/
                     openquake_output/forecast_name/XXX_damages_OQ.csv.
+            store_openquake (bool):
+                If True, OpenQuake HDF5 files will be stored and jobs will be kept in
+                OpenQuake's database. If false, OpenQuake's database will be purged of the last
+                job after each run.
 
         Returns:
             damage_states_all_realisations (Pandas DataFrame):
@@ -287,6 +292,9 @@ class OperationalEarthquakeLossForecasting():
                 )
                 damage_results_OQ.index = new_index
                 damage_results_OQ = damage_results_OQ.drop(columns=["asset_id", "dmg_state"])
+
+                if not store_openquake:  # Erase the job just run from OpenQuake's database (and HDF5)
+                    Writer.delete_OpenQuake_last_job()
 
                 # Store damage states from OpenQuake output to CSV
                 # (incl. potential negative values)

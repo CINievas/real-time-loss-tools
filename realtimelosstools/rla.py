@@ -44,6 +44,7 @@ class RapidLossAssessment:
         mapping_damage_states,
         damage_results_SHM,
         store_intermediate,
+        store_openquake,
     ):
         """
         This method uses OpenQuake to run a Rapid Loss Assessment (RLA) due to an input
@@ -169,6 +170,10 @@ class RapidLossAssessment:
                     - The damage results from OpenQuake, adjusted so that the do not include
                     negative numbers of buildings, to be stored under 'main_path'/
                     openquake_output/XXX_damages_OQ.csv.
+            store_openquake (bool):
+                If True, OpenQuake HDF5 files will be stored and jobs will be kept in
+                OpenQuake's database. If false, OpenQuake's database will be purged of the last
+                job after running.
 
         Returns:
             exposure_updated (Pandas DataFrame):
@@ -284,6 +289,9 @@ class RapidLossAssessment:
         )
         damage_results_OQ.index = new_index
         damage_results_OQ = damage_results_OQ.drop(columns=["asset_id", "dmg_state"])
+
+        if not store_openquake:  # Erase the job just run from OpenQuake's database (and HDF5)
+            Writer.delete_OpenQuake_last_job()
 
         # Store damage states from OpenQuake output to CSV (incl. potential negative values)
         if store_intermediate:

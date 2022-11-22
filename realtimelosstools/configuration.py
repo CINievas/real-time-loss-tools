@@ -49,9 +49,13 @@ class Configuration:
                 Columns:
                     fragility (str): Names of damage states as labelled in the fragility model.
         self.store_intermediate (bool):
-            If True, intermediate results including updated exposure files after each earthquake
-            and OpenQuake HDF5 files will be stored. If False, these intermediate results will
-            not be available after running the software. True option is intended for debugging.
+            If True, intermediate results including updated exposure files and damage states
+            after each earthquake will be stored. If False, these intermediate results will not
+            be available after running the software. True option is intended for debugging.
+        self.store_openquake (bool):
+            If True, OpenQuake HDF5 files will be stored and jobs will be kept in OpenQuake's
+            database. If false, OpenQuake's database will be purged of the last job after each
+            run. True option is intended for debugging.
     """
 
     REQUIRES = [
@@ -60,6 +64,7 @@ class Configuration:
         "oelf_source_model_filename",
         "mapping_damage_states",
         "store_intermediate",
+        "store_openquake"
     ]
 
     def __init__(self, filepath):
@@ -90,6 +95,8 @@ class Configuration:
         )
 
         self.store_intermediate = self.assign_boolean_parameter(config, "store_intermediate")
+
+        self.store_openquake = self.assign_boolean_parameter(config, "store_openquake")
 
         # Terminate if critical parameters are missing (not all parameters are critical)
         for key_parameter in self.REQUIRES:

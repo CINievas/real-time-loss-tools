@@ -19,6 +19,9 @@
 import os
 import logging
 import fileinput
+import getpass
+from openquake.commonlib import datastore
+from openquake.commands.purge import purge_one
 
 
 logger = logging.getLogger()
@@ -211,3 +214,16 @@ class Writer:
                 else:
                     text_to_search = line
                     print(line.replace(text_to_search, text_to_search), end='')
+
+    @staticmethod
+    def delete_OpenQuake_last_job():
+        """
+        This method removes the last calculation ID from OpenQuake's database and its associated
+        HDF5 file.
+        """
+
+        datadir = datastore.get_datadir()
+        calc_id = datastore.get_calc_ids(datadir)
+        purge_one(calc_id[-1], getpass.getuser(), True)
+
+        return

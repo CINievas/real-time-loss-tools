@@ -128,6 +128,7 @@ def main():
                 config.mapping_damage_states,
                 damage_results_SHM.loc[:, earthquake_params["event_id"]],
                 config.store_intermediate,
+                config.store_openquake,
             )
 
             # Update 'exposure_model_current.csv'
@@ -193,6 +194,7 @@ def main():
                 exposure_model_undamaged,
                 config.mapping_damage_states,
                 config.store_intermediate,
+                config.store_openquake,
             )
 
             # Store damage states per building ID
