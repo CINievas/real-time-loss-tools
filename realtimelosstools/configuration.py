@@ -48,6 +48,10 @@ class Configuration:
                     asset_id (str): Names of damage states as output by OpenQuake.
                 Columns:
                     fragility (str): Names of damage states as labelled in the fragility model.
+        self.oelf_min_magnitude (float):
+            Minimum magnitude to carry out a damage and loss assessment while running OELF.
+            Earthquakes in the seismicity forecast whose magnitude is smaller than
+            'oelf_min_magnitude' will be skipped.
         self.store_intermediate (bool):
             If True, intermediate results including updated exposure files and damage states
             after each earthquake will be stored. If False, these intermediate results will not
@@ -63,6 +67,7 @@ class Configuration:
         "main_path",
         "oelf_source_model_filename",
         "mapping_damage_states",
+        "oelf_min_magnitude",
         "store_intermediate",
         "store_openquake"
     ]
@@ -92,6 +97,10 @@ class Configuration:
         )
         self.mapping_damage_states.index = (
             self.mapping_damage_states.index.rename("asset_id")
+        )
+
+        self.oelf_min_magnitude = self.assign_float_parameter(
+            config, "oelf_min_magnitude", True, 3.0, 10.0
         )
 
         self.store_intermediate = self.assign_boolean_parameter(config, "store_intermediate")
@@ -251,5 +260,71 @@ class Configuration:
                     % (input_parameter)
                 )
                 assigned_parameter = None
+
+        return assigned_parameter
+
+    def assign_float_parameter(
+        self, config, input_parameter, check_range, lower_bound, upper_bound
+    ):
+        """This function searches for the key input_parameter in the dictionary config, and
+        converts it into a float.
+
+        If input_parameter is not a key of config, the output is None.
+
+        Args:
+            config (dictionary):
+                The configuration file read as a dictionary. It may be an empty dictionary.
+            input_parameter (str):
+                Name of the desired parameter, to be searched for as a primary key of config.
+            check_range (bool):
+                If True, it will be verified that the desired float parameter belongs to the
+                closed interval [lower_bound, upper_bound].
+            lower_bound (float):
+                Lower possible value of the desired float parameter, inclusive. Only verified
+                if 'check_range' is True.
+            upper_bound (float):
+                Upper possible value of the desired float parameter, inclusive. Only verified
+                if 'check_range' is True.
+
+        Returns:
+            assigned_parameter (float):
+                The content of config[input_parameter] converted into a float.
+
+        """
+
+        assigned_parameter = self.assign_parameter(config, input_parameter)
+
+        if assigned_parameter is None:
+            return None
+
+        if isinstance(assigned_parameter, int):
+            assigned_parameter = float(assigned_parameter)
+
+        # yaml interprets scientific notation as integers
+        if isinstance(assigned_parameter, str) and (
+            "e" in assigned_parameter or "E" in assigned_parameter
+        ):
+            assigned_parameter = float(assigned_parameter)
+
+        if isinstance(assigned_parameter, float):
+            if check_range:
+                if assigned_parameter < lower_bound or assigned_parameter > upper_bound:
+                    error_message = (
+                        "Error reading %s from configuration file: float out of range. "
+                        "Valid range: [%s, %s]"
+                        % (
+                            input_parameter,
+                            "{:.2f}".format(lower_bound),
+                            "{:.2f}".format(upper_bound),
+                        )
+                    )
+                    logger.critical(error_message)
+                    raise ValueError(error_message)
+        else:
+            error_message = "Error reading %s from configuration file: not a float" % (
+                input_parameter
+            )
+            logger.critical(error_message)
+            raise ValueError(error_message)
 
         return assigned_parameter

@@ -188,6 +188,7 @@ def main():
 
             damage_states = OperationalEarthquakeLossForecasting.run_oelf(
                 forecast_cat,
+                config.oelf_min_magnitude,
                 forecast_name,
                 config.description_general,
                 config.main_path,

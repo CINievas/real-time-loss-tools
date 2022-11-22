@@ -39,6 +39,7 @@ class OperationalEarthquakeLossForecasting():
     @staticmethod
     def run_oelf(
         forecast_catalogue,
+        min_magnitude,
         forecast_name,
         description_general,
         main_path,
@@ -81,6 +82,10 @@ class OperationalEarthquakeLossForecasting():
                     catalog_id (int): ID of the realisation of seismicity that the earthquake\
                     belongs to.
                     event_id (str): Unique identifier of an earthquake within a 'catalog_id'.
+            min_magnitude (float)
+                Minimum magnitude to carry out a damage and loss assessment. Earthquakes in
+                'forecast_catalogue' whose magnitude is smaller than 'min_magnitude' will be
+                skipped.
             forecast_name (str):
                 Name of the forecast. It is used for the description of the OpenQuake job.ini
                 file and to create sub-directories to store files associated with this forecast.
@@ -234,8 +239,31 @@ class OperationalEarthquakeLossForecasting():
             out_filename = os.path.join(path_to_exposure, current_exposure_filename)
             _ = shutil.copyfile(in_filename, out_filename)
 
+            exposure_updated = None
+            damage_states = None
+
             # Run earthquake by earthquake of this OEF realisation
             for i, eq_id in enumerate(events_in_realisation["EQID"]):  # i is index of DataFrame
+
+                # Load exposure CSV (the exposure model to be used to run OpenQuake with this
+                # earthquake)
+                exposure_run = pd.read_csv(
+                    os.path.join(path_to_exposure, current_exposure_filename),
+                    dtype={"id_3": str, "id_2": str, "id_1": str}
+                )
+                exposure_run.index = exposure_run["id"]
+                exposure_run.index = exposure_run.index.rename("asset_id")
+
+                if events_in_realisation.loc[i, "magnitude"] < min_magnitude:
+                    # Magnitude too small --> skip this earthquake and go on to the next one
+                    # The 'exposure_updated' is the same as the exposure so far
+                    exposure_updated = deepcopy(exposure_run)
+                    continue
+
+                # Drop "id" but only after checking min_magnitude
+                # ("id" col needed in 'exposure_updated')
+                exposure_run = exposure_run.drop(columns=["id"])
+
                 # Description
                 description = "%s, %s, event ID %s" % (
                     description_general, forecast_name, eq_id
@@ -319,15 +347,6 @@ class OperationalEarthquakeLossForecasting():
                     damage_results_OQ.to_csv(
                         os.path.join(path_to_oq_outputs, "%s_damages_OQ.csv" % (eq_id))
                     )
-
-                # Load exposure CSV (the exposure model just used to run OpenQuake)
-                exposure_run = pd.read_csv(
-                    os.path.join(path_to_exposure, current_exposure_filename),
-                    dtype={"id_3": str, "id_2": str, "id_1": str}
-                )
-                exposure_run.index = exposure_run["id"]
-                exposure_run.index = exposure_run.index.rename("asset_id")
-                exposure_run = exposure_run.drop(columns=["id"])
 
                 # Update exposure
                 exposure_updated = ExposureUpdater.update_exposure(
