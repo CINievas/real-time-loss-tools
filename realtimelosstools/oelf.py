@@ -140,10 +140,15 @@ class OperationalEarthquakeLossForecasting():
                     The "current" OELF exposure file will always be stored, irrespective of
                     'store_intermediate'.
                     - The damage results as directly output by OpenQuake, to be stored under
-                    'main_path'/openquake_output/forecast_name/XXX_damages_OQ_raw.csv.
+                    'main_path'/openquake_output/forecast_name/XXX_damages_OQ_raw.csv, for each
+                    individual earthquake run.
                     - The damage results from OpenQuake, adjusted so that the do not include
                     negative numbers of buildings, to be stored under 'main_path'/
-                    openquake_output/forecast_name/XXX_damages_OQ.csv.
+                    openquake_output/forecast_name/XXX_damages_OQ.csv, for each individual
+                    earthquake run.
+                    - The damage states per building ID for each full realisation of seismicity,
+                    to be stored under 'main_path'/output/forecast_name/
+                    damage_states_after_OELF_forecast_name_realisation_XXX.csv.
             store_openquake (bool):
                 If True, OpenQuake HDF5 files will be stored and jobs will be kept in
                 OpenQuake's database. If false, OpenQuake's database will be purged of the last
@@ -179,18 +184,19 @@ class OperationalEarthquakeLossForecasting():
                 logger.critical(error_message)
                 raise OSError(error_message)
 
-        # Create sub-directory to store general outputs
-        path_to_outputs = os.path.join(main_path, "output", forecast_name)
-        if not os.path.exists(path_to_outputs):
-            os.mkdir(path_to_outputs)
-        else:
-            error_message = (
-                "The directory %s already exists under %s/output and may contain results from "
-                "a previous run. The program will stop."
-                % (forecast_name, main_path)
-            )
-            logger.critical(error_message)
-            raise OSError(error_message)
+        # Create sub-directory to store general outputs per realisation of seismicity
+        if store_intermediate:
+            path_to_outputs = os.path.join(main_path, "output", forecast_name)
+            if not os.path.exists(path_to_outputs):
+                os.mkdir(path_to_outputs)
+            else:
+                error_message = (
+                    "The directory %s already exists under %s/output and may contain results from "
+                    "a previous run. The program will stop."
+                    % (forecast_name, main_path)
+                )
+                logger.critical(error_message)
+                raise OSError(error_message)
 
         # Create sub-directory to store updated exposure files
         path_to_exposure = os.path.join(main_path, "exposure_models", "oelf", forecast_name)
@@ -350,15 +356,16 @@ class OperationalEarthquakeLossForecasting():
                 exposure_updated
             )
             # Store damage states per building ID
-            damage_states.to_csv(
-                os.path.join(
-                    path_to_outputs,
-                    "damage_states_after_OELF_%s_realisation_%s.csv" % (
-                        forecast_name, oef_realisation_id
-                    )
-                ),
-                index=True,
-            )
+            if store_intermediate:
+                damage_states.to_csv(
+                    os.path.join(
+                        path_to_outputs,
+                        "damage_states_after_OELF_%s_realisation_%s.csv" % (
+                            forecast_name, oef_realisation_id
+                        )
+                    ),
+                    index=True,
+                )
 
             # Concatenate damage states from all realisations
             if damage_states_all_realisations is None:

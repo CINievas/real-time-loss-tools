@@ -224,6 +224,41 @@ an XML with the earthquake source model in the OpenQuake format (see description
 under `triggering.csv`.
 - `static` needs to contain `fragility_model.xml`, `gmpe_logic_tree.xml`, and `site_model.csv`.
 
+### Effect of `store_intermediate` on output stored
+
+The section [Assumed file structure](#assumed-file-structure) above describes the file structure
+needed to run this software and the kinds of outputs that are generated. However, the user can
+control whether intermediate results are stored or not by setting the option
+`store_intermediate` in the `config.yml` file to True or False, respectively. The effect of
+`store_intermediate` on the files that are stored is shown in the following table, which
+specifies if each kind of file is stored ("yes") or not ("no"). Only directories that are used
+for storing output are listed:
+
+| Path                 | File                                                   | `store_intermediate` = True | `store_intermediate` = False |
+|----------------------|--------------------------------------------------------|-----------------------------|------------------------------|
+| current              | exposure_model_current.csv                             | yes                         | yes                          |
+| exposure_models/oelf | exposure_model_current_oelf_SES.csv                    | yes                         | yes                          |
+| exposure_models/oelf | exposure_model_after_SES_EQ.csv                        | yes                         | no                           |
+| exposure_models/rla  | exposure_model_after_EQ.csv                            | yes                         | no                           |
+| openquake_output     | (SES)\_EQ_damages_OQ.csv                               | yes                         | no                           |
+| openquake_output     | (SES)\_EQ_damages_OQ_raw.csv                           | yes                         | no                           |
+| oputput              | damage_states_after_RLA_trig_name.csv                  | yes                         | yes                          |
+| oputput              | damage_states_after_OELF_trig_name.csv                 | yes                         | yes                          |
+| oputput              | damage_states_after_OELF_trig_name_realisation_SES.csv | yes                         | no                           |
+| ruptures             | rupture_EQ.xml                                         | yes                         | yes                          |
+| ruptures             | RUP_SES-EQ.xml                                         | yes                         | yes                          |
+
+Notes on nomenclature:
+
+1. `SES` refers to "stochastic event set", that is, each individual realisation of seismicity
+for a given period of time in the seismicity forecast. As part of a file name, it represents the
+ID of the SES.
+2. Parentheses `( )` imply that there are two cases, one in which the file name contains what
+is between the parentheses and one in which it does not.
+3. `EQ` refers to the earthquake ID.
+4. `trig_name` refers to each of the CSV files contained in `catalogues` and listed in the
+`triggering.csv` file.
+
 ## Acknowledgements
 
 These tools have been developed within the [RISE project](http://rise-eu.org/home/), which has
