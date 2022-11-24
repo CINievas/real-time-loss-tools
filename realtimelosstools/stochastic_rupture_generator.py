@@ -522,7 +522,7 @@ class StochasticRuptureSet():
 
         Args:
             catalogue: Earthquake catalogue containing fields ["longitude", "latitude",
-                       "magnitude", "time_string", "catalog_id", "event_id"]
+                       "magnitude", "datetime", "ses_id", "event_id"]
             export_file: File to export the ruptures
             export_type: Type of file for export (from ['xml', 'shp'])
             event_id_stem: Common step for all event IDs
@@ -536,7 +536,7 @@ class StochasticRuptureSet():
         # Set a unique ID for each event by joining the catalog ID and the event ID
         catalogue["EQID"] = pd.Series([
             "{:g}-{:g}".format(cat_id, ev_id)
-            for (cat_id, ev_id) in zip(catalogue["catalog_id"], catalogue["event_id"])])
+            for (cat_id, ev_id) in zip(catalogue["ses_id"], catalogue["event_id"])])
         catalogue.set_index("EQID", drop=True, inplace=True)
         catalogue_cart = catalogue.to_crs("EPSG:3035")
         catalogue_cart = gpd.sjoin(catalogue_cart,
@@ -555,7 +555,7 @@ class StochasticRuptureSet():
 
         Args:
             event: The event as a row of a pandas Series (or any other class with
-                   attributes longitude, latitude, magnitude, time_string, USD, LSD)
+                   attributes longitude, latitude, magnitude, datetime, USD, LSD)
             aspect_ratio: Rupture aspect ratio (length / width) for the event (note that this
                           will be re-scaled if the rupture width exceeds the available
                           seismogenic thickness
@@ -593,7 +593,7 @@ class StochasticRuptureSet():
             event.latitude, hypo_depth
         )
         return {
-            "time": event.time_string,
+            "time": event.datetime,
             "magnitude": event.magnitude,
             "rake": nodal_plane.rake,
             "hypocenter": {"lon": event.longitude,
@@ -619,7 +619,7 @@ class StochasticRuptureSet():
 
         Args:
             catalogue: Earthquake catalogue containing fields ["longitude", "latitude",
-                       "magnitude", "time_string"]
+                       "magnitude", "datetime"]
 
         Returns:
             ruptures: Dictionary of ruptures indexed by ID

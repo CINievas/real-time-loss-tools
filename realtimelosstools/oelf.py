@@ -51,37 +51,37 @@ class OperationalEarthquakeLossForecasting():
         """
         This method uses OpenQuake to run an Operational Earthquake Loss Forecast (OELF) due to
         an input 'forecast_catalogue' with name 'forecast_name'. The input 'forecast_catalogue'
-        may consist of one or more seismicity forecasts, whose ID is indicated under the field
-        'catalog_id' of 'forecast_catalogue'. Each seismicity forecast is run independently,
-        always starting with the exposure model stored under
-        main_path/current/exposure_model_current.csv, which is copied for each seismicity
-        forecast
-        under main_path/exposure_models/oelf/forecast_name/exposure_model_current_oelf_XX.csv,
-        where "XX" is the 'catalog_id'. These "exposure_model_current_oelf_XX.csv" files are
-        updated after running each earthquake of 'catalog_id', to reflec the damage states of
-        the buildings, but main_path/current/exposure_model_current.csv is not updated. The
-        'original_exposure_model' is used to keep track of the original asset_id (i.e. ID used
-        by OpenQuake, one ID per row of the exposure CSV file). Results from all (realisations
-        of) the seismicity forecasts are finally averaged and returned.
+        may consist of one or more seismicity forecasts, which we call "stochastic event sets"
+        (SES) following OpenQuake and whose ID is indicated under the field 'ses_id' of
+        'forecast_catalogue'. Each stochastic event set is run independently, always starting
+        with the exposure model stored under main_path/current/exposure_model_current.csv, which
+        is copied for each SES under main_path/exposure_models/oelf/forecast_name/
+        exposure_model_current_oelf_XX.csv, where "XX" is the 'ses_id'. These
+        "exposure_model_current_oelf_XX.csv" files are updated after running each earthquake of
+        'ses_id', to reflect the damage states of the buildings, but main_path/current/
+        exposure_model_current.csv is not updated. The 'original_exposure_model' is used to keep
+        track of the original asset_id (i.e. ID used by OpenQuake, one ID per row of the
+        exposure CSV file). Results from all stochastic event sets (i.e. all realisations of
+        forecast seismicity) are finally averaged and returned.
 
         Args:
             forecast_catalogue (Pandas DataFrame):
                 DataFrame containing a seismicity forecast for a period of time of interest. It
-                normally consists of several realisations of seismicity, each realisation being
-                identified by a 'catalog_id'. One 'catalog_id' can contain one or more
-                earthquakes, each of them identified with an 'event_id'. The values of
-                'event_id' can be repeated across different values of 'catalog_id'. It is
-                assumed that the XML of the ruptures of 'forecast_catalogue' exist under
-                main_path/ruptures/oelf/forecast_name. The DataFrame must contain the following
-                fields:
+                normally consists of several realisations of seismicity, which we call
+                "stochastic event sets" (SES), each realisation being identified by a 'ses_id'.
+                One 'ses_id' can contain one or more earthquakes, each of them identified with
+                an 'event_id'. The values of 'event_id' can be repeated across different values
+                of 'ses_id'. It is assumed that the XML of the ruptures of 'forecast_catalogue'
+                exist under main_path/ruptures/oelf/forecast_name. The DataFrame must contain
+                the following fields:
                     longitude (float): Longitude of the hypocentre.
                     latitude (float): Latitude of the hypocentre.
                     magnitude (float): Moment magnitude.
-                    time_string (Numpy datetime64): Date and time.
+                    datetime (Numpy datetime64): Date and time.
                     depth (float): Depth of the hypocentre.
-                    catalog_id (int): ID of the realisation of seismicity that the earthquake\
+                    ses_id (int): ID of the stochastic event set (SES) that the earthquake
                     belongs to.
-                    event_id (str): Unique identifier of an earthquake within a 'catalog_id'.
+                    event_id (str): Unique identifier of an earthquake within a 'ses_id'.
             min_magnitude (float)
                 Minimum magnitude to carry out a damage and loss assessment. Earthquakes in
                 'forecast_catalogue' whose magnitude is smaller than 'min_magnitude' will be
@@ -160,9 +160,10 @@ class OperationalEarthquakeLossForecasting():
                 job after each run.
 
         Returns:
-            damage_states_all_realisations (Pandas DataFrame):
+            damage_states_all_ses (Pandas DataFrame):
                 Pandas DataFrame with the damage states resulting from the average of all OELF
-                realisations, reported per building_id. It has the following structure:
+                realisations, i.e. all stochastic event sets of 'forecast_catalogue', reported
+                per building_id. It has the following structure:
                     Index is multiple:
                         building_id (str):
                             ID of the building.
@@ -189,7 +190,7 @@ class OperationalEarthquakeLossForecasting():
                 logger.critical(error_message)
                 raise OSError(error_message)
 
-        # Create sub-directory to store general outputs per realisation of seismicity
+        # Create sub-directory to store general outputs per realisation of seismicity (SES)
         if store_intermediate:
             path_to_outputs = os.path.join(main_path, "output", forecast_name)
             if not os.path.exists(path_to_outputs):
@@ -216,25 +217,25 @@ class OperationalEarthquakeLossForecasting():
             logger.critical(error_message)
             raise OSError(error_message)
 
-        # Identify IDs of individual realisations of seismicity
-        oef_realisation_ids = forecast_catalogue["catalog_id"].unique()
+        # Identify IDs of individual realisations of seismicity (stochastic event sets, SES)
+        oef_ses_ids = forecast_catalogue["ses_id"].unique()
 
-        # Initialise 'damage_states_all_realisations'
-        damage_states_all_realisations = None
+        # Initialise 'damage_states_all_ses'
+        damage_states_all_ses = None
 
-        for oef_realisation_id in oef_realisation_ids:  # Each of the seismicity forecasts
-            # Earthquakes that belong only to this realisation of seismicity
-            filter_realisation = (forecast_catalogue["catalog_id"] == oef_realisation_id)
+        for oef_ses_id in oef_ses_ids:  # Each of the stochastic event sets
+            # Earthquakes that belong only to this realisation of seismicity (SES)
+            filter_realisation = (forecast_catalogue["ses_id"] == oef_ses_id)
             aux = forecast_catalogue[filter_realisation]
-            # Order the earthquakes in chronological order
-            events_in_realisation = aux.sort_values(by=['time_string'], ignore_index=True)
+            # Order the earthquakes of this SES in chronological order
+            events_in_ses = aux.sort_values(by=['datetime'], ignore_index=True)
 
-            # Initialise exposure_model_current_XX.csv, with XX = oef_realisation_id
+            # Initialise exposure_model_current_XX.csv, with XX = oef_ses_id
             in_filename = os.path.join(
                 main_path, "current", "exposure_model_current.csv"
             )  # origin
             current_exposure_filename = "exposure_model_current_oelf_%s.csv" % (
-                oef_realisation_id
+                oef_ses_id
             )
             out_filename = os.path.join(path_to_exposure, current_exposure_filename)
             _ = shutil.copyfile(in_filename, out_filename)
@@ -242,8 +243,8 @@ class OperationalEarthquakeLossForecasting():
             exposure_updated = None
             damage_states = None
 
-            # Run earthquake by earthquake of this OEF realisation
-            for i, eq_id in enumerate(events_in_realisation["EQID"]):  # i is index of DataFrame
+            # Run earthquake by earthquake of this stochastic event set
+            for i, eq_id in enumerate(events_in_ses["EQID"]):  # i is index of DataFrame
 
                 # Load exposure CSV (the exposure model to be used to run OpenQuake with this
                 # earthquake)
@@ -254,7 +255,7 @@ class OperationalEarthquakeLossForecasting():
                 exposure_run.index = exposure_run["id"]
                 exposure_run.index = exposure_run.index.rename("asset_id")
 
-                if events_in_realisation.loc[i, "magnitude"] < min_magnitude:
+                if events_in_ses.loc[i, "magnitude"] < min_magnitude:
                     # Magnitude too small --> skip this earthquake and go on to the next one
                     # The 'exposure_updated' is the same as the exposure so far
                     exposure_updated = deepcopy(exposure_run)
@@ -271,7 +272,7 @@ class OperationalEarthquakeLossForecasting():
 
                 # Determine time of the day (used for number of occupants)
                 local_hour = Rupture.determine_local_time_from_utc(
-                    events_in_realisation.loc[i, "time_string"], "timezone"
+                    events_in_ses.loc[i, "datetime"], "timezone"
                 )
                 time_of_day = Rupture.interpret_time_of_the_day(local_hour.hour)
 
@@ -283,7 +284,7 @@ class OperationalEarthquakeLossForecasting():
                         % (
                             forecast_name,
                             eq_id,
-                            events_in_realisation.loc[i, "time_string"],
+                            events_in_ses.loc[i, "datetime"],
                             local_hour,
                         )
                     )
@@ -292,8 +293,8 @@ class OperationalEarthquakeLossForecasting():
 
                 # Identify rupture XML
                 name_rupture_file = "RUP_%s-%s.xml" % (
-                    events_in_realisation.loc[i, "catalog_id"],
-                    events_in_realisation.loc[i, "event_id"]
+                    events_in_ses.loc[i, "ses_id"],
+                    events_in_ses.loc[i, "event_id"]
                 )
 
                 # Update exposure XML
@@ -364,13 +365,13 @@ class OperationalEarthquakeLossForecasting():
                         os.path.join(path_to_exposure, name_exposure_csv_file_next),
                         index=False,
                     )
-                # Replace current exposure for this OEF realisation
+                # Replace current exposure for this stochastic event set
                 exposure_updated.to_csv(
                     os.path.join(path_to_exposure, current_exposure_filename),
                     index=False,
                 )
 
-            # Get damage states per building ID for this OELF realisation
+            # Get damage states per building ID for this stochastic event set (OELF realisation)
             damage_states = ExposureUpdater.summarise_damage_states_per_building_id(
                 exposure_updated
             )
@@ -380,24 +381,114 @@ class OperationalEarthquakeLossForecasting():
                     os.path.join(
                         path_to_outputs,
                         "damage_states_after_OELF_%s_realisation_%s.csv" % (
-                            forecast_name, oef_realisation_id
+                            forecast_name, oef_ses_id
                         )
                     ),
                     index=True,
                 )
 
-            # Concatenate damage states from all realisations
-            if damage_states_all_realisations is None:
+            # Concatenate damage states from all stochastic event sets
+            if damage_states_all_ses is None:
                 # First realisation
-                damage_states_all_realisations = deepcopy(damage_states)
+                damage_states_all_ses = deepcopy(damage_states)
             else:
-                damage_states_all_realisations = pd.concat(
-                    [damage_states_all_realisations, damage_states]
+                damage_states_all_ses = pd.concat(
+                    [damage_states_all_ses, damage_states]
                 )
 
-        # Average damage states per building ID for all OELF realisations
-        damage_states_all_realisations = damage_states_all_realisations.groupby(
+        # Average damage states per building ID for all stochastic event sets
+        damage_states_all_ses = damage_states_all_ses.groupby(
             ["building_id", "damage_state"]
         ).mean()
 
-        return damage_states_all_realisations
+        return damage_states_all_ses
+
+    @staticmethod
+    def format_seismicity_forecast(forecast_catalogue, add_event_id=True, add_depth=False):
+        """This method reformats 'forecast_catalogue' so that its fields are those required by
+        the Real Time Loss Tools and its earthquakes are ordered, firstly, by stochastic event
+        set (SES), and secondly in chronological order (within each SES).
+
+        Args:
+            forecast_catalogue (Pandas DataFrame):
+                DataFrame containing a seismicity forecast for a period of time of interest. It
+                normally consists of several realisations of seismicity, or "Stochastic Event
+                Sets" (SES), each of them being identified by an SES ID. One SES ID can contain
+                one or more earthquakes. The DataFrame must contain the following fields:
+                    Lon or longitude (float): Longitude of the hypocentre.
+                    Lat or latitude (float): Latitude of the hypocentre.
+                    Mag or magnitude (float): Moment magnitude.
+                    Time or datetime (Numpy datetime64): Date and time.
+                    Idx.cat or catalog_id or ses_id (int): ID of the stochastic event set that
+                    the earthquake belongs to.
+                Optional fields are:
+                    event_id (str): Unique identifier of an earthquake within a Stochastic Event
+                    Set.
+                    depth (float): Depth of the hypocentre.
+            add_event_id (bool):
+                If True, a field named "event_id" will be added to 'forecast_catalogue'. Unique IDs
+                will be assigned to each earthquake within each stochastic event set (SES), in
+                chronlogical order. Default: True.
+            add_depth (bool):
+                If True, and if "Depth" or "depth" are not already fields of 'forecast_catalogue',
+                a "depth" field will be added to 'forecast_catalogue' and filled in with numpy.nan.
+                Default: False.
+
+        Returns:
+            out_catalogue (Pandas DataFrame):
+                Re-formatted version of 'forecast_catalogue' with the following fields:
+                    longitude (float): Longitude of the hypocentre.
+                    latitude (float): Latitude of the hypocentre.
+                    magnitude (float): Moment magnitude.
+                    datetime (Numpy datetime64): Date and time.
+                    ses_id (int): ID of the stochastic event set that the
+                    earthquake belongs to.
+                    event_id (str): Unique identifier of an earthquake within a Stochastic Event
+                    Set (only output if 'add_event_id' is True and 'forecast_catalogue' did not
+                    have an 'event_id' field already).
+                    depth (float): Depth of the hypocentre (only output if 'add_depth' is True).
+        """
+
+        out_catalogue = deepcopy(forecast_catalogue)
+
+        columns_input = forecast_catalogue.columns
+
+        if "Lon" in columns_input:
+            out_catalogue = out_catalogue.rename(columns={"Lon": "longitude"})
+        if "Lat" in columns_input:
+            out_catalogue = out_catalogue.rename(columns={"Lat": "latitude"})
+        if "Time" in columns_input:
+            out_catalogue = out_catalogue.rename(columns={"Time": "datetime"})
+        if "datetime" in out_catalogue.columns:
+            out_catalogue["datetime"] = pd.to_datetime(out_catalogue["datetime"])
+        if "Mag" in columns_input:
+            out_catalogue = out_catalogue.rename(columns={"Mag": "magnitude"})
+        if "Idx.cat" in columns_input:
+            out_catalogue = out_catalogue.rename(columns={"Idx.cat": "ses_id"})
+        if "catalog_id" in columns_input:
+            out_catalogue = out_catalogue.rename(columns={"catalog_id": "ses_id"})
+
+        if add_depth and ("Depth" not in columns_input) and ("depth" not in columns_input):
+            out_catalogue["depth"] = np.nan * np.ones_like(out_catalogue["magnitude"])
+
+        # Order 'out_catalogue' first by SES ID and then chronologically (within each SES)
+        out_catalogue = out_catalogue.sort_values(by=["ses_id", "datetime"], ignore_index=True)
+
+        if add_event_id and "event_id" not in columns_input:
+            event_ids = []
+
+            # Identify IDs of individual realisations of seismicity
+            ses_ids = out_catalogue["ses_id"].unique()
+
+            for ses_id in ses_ids:  # Each of the seismicity forecasts
+                # Earthquakes that belong only to this realisation of seismicity
+                filter_realisation = (out_catalogue["ses_id"] == ses_id)
+                aux = out_catalogue[filter_realisation]
+                # Order the earthquakes in chronological order
+
+                event_ids_ses = [i for i in range(1, aux.shape[0]+1)]
+                event_ids = event_ids + event_ids_ses
+
+            out_catalogue["event_id"] = event_ids
+
+        return out_catalogue

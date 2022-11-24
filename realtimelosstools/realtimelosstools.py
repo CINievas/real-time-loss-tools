@@ -156,9 +156,14 @@ def main():
             forecast_cat = pd.read_csv(
                 os.path.join(config.main_path, "catalogues", cat_filename_i)
             )
-            forecast_cat["time_string"] = pd.to_datetime(forecast_cat["time_string"])
+            forecast_cat = OperationalEarthquakeLossForecasting.format_seismicity_forecast(
+                forecast_cat, add_event_id=True, add_depth=False
+            )
 
-            forecast_name = cat_filename_i.split(".")[0]  # Get rid of ".csv"
+            # Get rid of ".txt", replace ".", "-" and ":" with "_"
+            forecast_name = (
+                "_".join(cat_filename_i.split(".")[:-1]).replace("-", "_").replace(":", "_")
+            )
 
             # Create sub-directory to store stochastically-generated rupture XML files
             path_to_ruptures = os.path.join(config.main_path, "ruptures", "oelf", forecast_name)
