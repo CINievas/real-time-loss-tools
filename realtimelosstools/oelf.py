@@ -23,6 +23,7 @@ from copy import deepcopy
 import numpy as np
 import pandas as pd
 from openquake.commands.run import main
+from openquake.hazardlib import geo
 from realtimelosstools.ruptures import Rupture
 from realtimelosstools.exposure_updater import ExposureUpdater
 from realtimelosstools.writers import Writer
@@ -39,7 +40,6 @@ class OperationalEarthquakeLossForecasting():
     @staticmethod
     def run_oelf(
         forecast_catalogue,
-        min_magnitude,
         forecast_name,
         description_general,
         main_path,
@@ -82,10 +82,8 @@ class OperationalEarthquakeLossForecasting():
                     ses_id (int): ID of the stochastic event set (SES) that the earthquake
                     belongs to.
                     event_id (str): Unique identifier of an earthquake within a 'ses_id'.
-            min_magnitude (float)
-                Minimum magnitude to carry out a damage and loss assessment. Earthquakes in
-                'forecast_catalogue' whose magnitude is smaller than 'min_magnitude' will be
-                skipped.
+                    to_run (bool): If True, the corresponding earthquake is to be
+                    used to run damage/loss calculations; if False, it will be skipped.
             forecast_name (str):
                 Name of the forecast. It is used for the description of the OpenQuake job.ini
                 file and to create sub-directories to store files associated with this forecast.
@@ -228,7 +226,7 @@ class OperationalEarthquakeLossForecasting():
             filter_realisation = (forecast_catalogue["ses_id"] == oef_ses_id)
             aux = forecast_catalogue[filter_realisation]
             # Order the earthquakes of this SES in chronological order
-            events_in_ses = aux.sort_values(by=['datetime'], ignore_index=True)
+            events_in_ses = aux.sort_values(by=['datetime'])
 
             # Initialise exposure_model_current_XX.csv, with XX = oef_ses_id
             in_filename = os.path.join(
@@ -244,7 +242,7 @@ class OperationalEarthquakeLossForecasting():
             damage_states = None
 
             # Run earthquake by earthquake of this stochastic event set
-            for i, eq_id in enumerate(events_in_ses["EQID"]):  # i is index of DataFrame
+            for eq_id in events_in_ses.index:  # EQID is index of DataFrame
 
                 # Load exposure CSV (the exposure model to be used to run OpenQuake with this
                 # earthquake)
@@ -255,8 +253,9 @@ class OperationalEarthquakeLossForecasting():
                 exposure_run.index = exposure_run["id"]
                 exposure_run.index = exposure_run.index.rename("asset_id")
 
-                if events_in_ses.loc[i, "magnitude"] < min_magnitude:
-                    # Magnitude too small --> skip this earthquake and go on to the next one
+                if not events_in_ses.loc[eq_id, "to_run"]:
+                    # Magnitude too small or too far away from all exposure sites
+                    # --> skip this earthquake and go on to the next one
                     # The 'exposure_updated' is the same as the exposure so far
                     exposure_updated = deepcopy(exposure_run)
                     continue
@@ -272,7 +271,7 @@ class OperationalEarthquakeLossForecasting():
 
                 # Determine time of the day (used for number of occupants)
                 local_hour = Rupture.determine_local_time_from_utc(
-                    events_in_ses.loc[i, "datetime"], "timezone"
+                    events_in_ses.loc[eq_id, "datetime"], "timezone"
                 )
                 time_of_day = Rupture.interpret_time_of_the_day(local_hour.hour)
 
@@ -284,7 +283,7 @@ class OperationalEarthquakeLossForecasting():
                         % (
                             forecast_name,
                             eq_id,
-                            events_in_ses.loc[i, "datetime"],
+                            events_in_ses.loc[eq_id, "datetime"],
                             local_hour,
                         )
                     )
@@ -293,8 +292,8 @@ class OperationalEarthquakeLossForecasting():
 
                 # Identify rupture XML
                 name_rupture_file = "RUP_%s-%s.xml" % (
-                    events_in_ses.loc[i, "ses_id"],
-                    events_in_ses.loc[i, "event_id"]
+                    events_in_ses.loc[eq_id, "ses_id"],
+                    events_in_ses.loc[eq_id, "event_id"]
                 )
 
                 # Update exposure XML
@@ -447,6 +446,8 @@ class OperationalEarthquakeLossForecasting():
                     Set (only output if 'add_event_id' is True and 'forecast_catalogue' did not
                     have an 'event_id' field already).
                     depth (float): Depth of the hypocentre (only output if 'add_depth' is True).
+                The index is called "EQID" and it has the format "[ses_id]-[event_id]". It is
+                not created if "event_id" is missing and 'add_event_id' is False.
         """
 
         out_catalogue = deepcopy(forecast_catalogue)
@@ -491,4 +492,72 @@ class OperationalEarthquakeLossForecasting():
 
             out_catalogue["event_id"] = event_ids
 
+        if ("event_id" in out_catalogue.columns) and ("ses_id" in out_catalogue.columns):
+            out_catalogue["EQID"] = pd.Series([
+                "{:g}-{:g}".format(cat_id, ev_id)
+                for (cat_id, ev_id) in zip(out_catalogue["ses_id"], out_catalogue["event_id"])])
+            out_catalogue.set_index("EQID", drop=True, inplace=True)
+
         return out_catalogue
+
+    @staticmethod
+    def filter_forecast(
+        forecast_catalogue, exposure_lons, exposure_lats, magnitude_min, distance_max
+    ):
+        """
+        This method filters 'forecast_catalogue' to keep only earthquakes:
+        (1) whose magnitude is equal to or larger than 'magnitude_min', and
+        (2) whose epicentral distance to the closest exposure site (defined by 'exposure_lons'
+        and 'exposure_lats') is smaller than 'distance_max'.
+        The index of the output catalogue is kept as in 'forecast_catalogue'.
+
+        Args:
+            forecast_catalogue (Pandas DataFrame):
+                DataFrame containing a seismicity forecast for a period of time of interest with
+                at least the following fields:
+                    longitude (float): Longitude of the hypocentre.
+                    latitude (float): Latitude of the hypocentre.
+                    magnitude (float): Moment magnitude.
+            exposure_lons (float):
+                Longitude of unique exposure locations.
+            exposure_lats (float):
+                Latitude of unique exposure locations.
+            magnitude_min (float):
+                Minimum earthquake magnitude.
+            distance_max (float):
+                Maximum epicentral distance.
+
+        Returns:
+            forecast_cat_filtered (Pandas DataFrame):
+                Filtered version of 'forecast_catalogue', with the same column structure.
+            earthquakes_kept (array of bool):
+                Numpy array with length equal to the number of rows of 'forecast_catalogue',
+                indicating whether each earthquake of 'forecast_catalogue' has been kept in
+                'forecast_cat_filtered' (True) or not (False).
+        """
+
+        # Initialise output
+        forecast_cat_filtered = deepcopy(forecast_catalogue)
+        earthquakes_kept = np.array([True for i in range(forecast_cat_filtered.shape[0])])
+
+        # Keep only earthquakes with magnitude >= magnitude_min
+        magnitude_filter = (forecast_cat_filtered.magnitude >= magnitude_min)
+        forecast_cat_filtered = forecast_cat_filtered[magnitude_filter]
+        earthquakes_kept = magnitude_filter.to_numpy()
+
+        # Calculate minimum distance between each earthquake and all exposure sites
+        eq_lons = forecast_cat_filtered["longitude"].to_numpy()
+        eq_lats = forecast_cat_filtered["latitude"].to_numpy()
+        keep = [True for i in range(forecast_cat_filtered.shape[0])]
+
+        for i in range(forecast_cat_filtered.shape[0]):
+            distances_to_all_exposure = geo.geodetic.geodetic_distance(
+                eq_lons[i], eq_lats[i], exposure_lons, exposure_lats
+            )
+            if distances_to_all_exposure.min() > distance_max:
+                keep[i] = False
+
+        forecast_cat_filtered = forecast_cat_filtered[keep]
+        earthquakes_kept[earthquakes_kept == True] = np.array(keep)
+
+        return forecast_cat_filtered, earthquakes_kept

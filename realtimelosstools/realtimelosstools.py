@@ -158,7 +158,23 @@ def main():
             )
             forecast_cat = OperationalEarthquakeLossForecasting.format_seismicity_forecast(
                 forecast_cat, add_event_id=True, add_depth=False
+            )  # The index of 'forecast_cat' is the unique ID "[ses_id]-[event_id]"
+
+            # Filter catalogue as per minimum magnitude and maximum distance (so as to not build
+            # ruptures for earthquakes that will not be used to calculate damage)
+            exposure_lons, exposure_lats = ExposureUpdater.get_unique_exposure_locations(
+                exposure_model_undamaged
             )
+            forecast_cat_filtered, earthquakes_to_run = (
+                OperationalEarthquakeLossForecasting.filter_forecast(
+                    forecast_cat,
+                    exposure_lons,
+                    exposure_lats,
+                    config.oelf_min_magnitude,
+                    config.max_distance,
+                )
+            )
+            forecast_cat["to_run"] = earthquakes_to_run
 
             # Get rid of ".txt", replace ".", "-" and ":" with "_"
             forecast_name = (
@@ -186,14 +202,13 @@ def main():
 
             # Generate the ruptures for all earthquakes in 'forecast'
             ruptures = stoch_rup.generate_ruptures(
-                forecast_cat,
+                forecast_cat_filtered,
                 path_to_ruptures,  # Ruptures will be exported to this path
                 export_type='xml', # Type of file for export
             )
 
             damage_states = OperationalEarthquakeLossForecasting.run_oelf(
                 forecast_cat,
-                config.oelf_min_magnitude,
                 forecast_name,
                 config.description_general,
                 config.main_path,

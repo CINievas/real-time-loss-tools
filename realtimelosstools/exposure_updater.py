@@ -578,3 +578,42 @@ class ExposureUpdater:
         damage_summary = damage_summary[["number"]]
 
         return damage_summary
+
+    @staticmethod
+    def get_unique_exposure_locations(exposure):
+        """
+        This method identifies and returns the longitude and latitude of the unique locations of
+        'exposure'.
+
+        Args:
+            exposure (PandasDataFrame):
+                Pandas DataFrame representation of the exposure CSV input for OpenQuake. It
+                comprises at least the following fields:
+                    lon (float):
+                        Longitude of the asset in degrees.
+                    lat (float):
+                        Latitude of the asset in degrees.
+
+        Returns:
+            unique_lons (float):
+                Longitude of the unique locations.
+            unique_lats (float):
+                Latitude of the unique locations.
+        """
+
+        all_lons = exposure["lon"].to_numpy().astype(str)
+        all_lats = exposure["lat"].to_numpy().astype(str)
+
+        # Identify unique points by combining lon and lat as strings
+        all_points = ["%s_%s" % (all_lons[i], all_lats[i]) for i in range(len(all_lons))]
+        unique_points = np.unique(all_points)
+
+        # Split unit into lons and lats and transform back to floats
+        unique_lons = np.array([
+            unique_points[i].split("_")[0] for i in range(len(unique_points))
+        ]).astype(float)
+        unique_lats = np.array([
+            unique_points[i].split("_")[1] for i in range(len(unique_points))
+        ]).astype(float)
+
+        return unique_lons, unique_lats

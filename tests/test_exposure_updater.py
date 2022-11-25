@@ -19,6 +19,7 @@
 import os
 from copy import deepcopy
 import pytest
+import numpy as np
 import pandas as pd
 from realtimelosstools.exposure_updater import ExposureUpdater
 
@@ -430,3 +431,27 @@ def test_summarise_damage_states_per_building_id():
         assert round(returned_damage_summary.loc[index, "number"], 5) == round(
             expected_damage_summary.loc[index, "number"], 5
         )
+
+
+def test_get_unique_exposure_locations():
+    filepath = os.path.join(os.path.dirname(__file__), "data", "exposure_model.csv")
+    exposure = pd.read_csv(filepath)
+
+    returned_lons, returned_lats = ExposureUpdater.get_unique_exposure_locations(exposure)
+
+    expected_lons = np.array([13.400949, 13.3888, 13.400949])
+    expected_lats = np.array([42.344967, 42.344967 ,42.3358])
+
+    # The order of the expected and returned values might not be the same --> re-order them first
+    new_order_expected = (expected_lons + expected_lats).argsort()
+    new_order_returned = (returned_lons + returned_lats).argsort()
+
+    expected_lons = expected_lons[new_order_expected]
+    expected_lats = expected_lats[new_order_expected]
+    returned_lons = returned_lons[new_order_returned]
+    returned_lats = returned_lats[new_order_returned]
+
+    for i in range(len(expected_lons)):
+
+        assert round(returned_lons[i], 6) == round(expected_lons[i], 6)
+        assert round(returned_lats[i], 6) == round(expected_lats[i], 6)

@@ -533,12 +533,15 @@ class StochasticRuptureSet():
         # Assign the catalogue to zones
         catalogue_geom = gpd.points_from_xy(catalogue["longitude"], catalogue["latitude"])
         catalogue = gpd.GeoDataFrame(catalogue, geometry=catalogue_geom, crs='EPSG:4326')
-        # Set a unique ID for each event by joining the catalog ID and the event ID
-        catalogue["EQID"] = pd.Series([
-            "{:g}-{:g}".format(cat_id, ev_id)
-            for (cat_id, ev_id) in zip(catalogue["ses_id"], catalogue["event_id"])])
-        catalogue.set_index("EQID", drop=True, inplace=True)
+        if catalogue.index.name != "EQID":
+            # Set a unique ID for each event by joining the catalog ID and the event ID
+            catalogue["EQID"] = pd.Series([
+                "{:g}-{:g}".format(cat_id, ev_id)
+                for (cat_id, ev_id) in zip(catalogue["ses_id"], catalogue["event_id"])])
+            catalogue.set_index("EQID", drop=True, inplace=True)
         catalogue_cart = catalogue.to_crs("EPSG:3035")
+        # Assign the corresponding source geometry to each earthquake (earthquake entries will
+        # be duplicated if belonging to multiple polygons)
         catalogue_cart = gpd.sjoin(catalogue_cart,
                                    self.source_model.to_crs("EPSG:3035"),
                                    how="left")
@@ -626,6 +629,8 @@ class StochasticRuptureSet():
         """
         ruptures = {}
         nevents = catalogue.shape[0]
+        # Index is SES-EQ_ID, several counts can come from same earthquake belonging to multiple
+        # sources (e.g. same geographic area, different depth)
         event_count = catalogue.index.value_counts(sort=False)
         aspect_ratios = np.random.uniform(*self.aspect_limits, size=nevents)
         for i, eq_id in enumerate(event_count.index):

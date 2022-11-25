@@ -8,5 +8,6 @@ mapping_damage_states:
   dmg_3: DS3
   dmg_4: DS4
 oelf_min_magnitude: 4.0  # Minimum magnitude to carry out a damage and loss assessment while running OELF.
+max_distance: 200.0  # Maximum epicentral distance between earthquake source and site to actually run the earthquake.
 store_intermediate: True  # If True, intermediate results including intermediate exposure models and damage states will be stored. Intended for debugging.
 store_openquake: True  # If True, OpenQuake HDF5 files will be stored and jobs will be kept in OpenQuake's database. Intended for debugging.

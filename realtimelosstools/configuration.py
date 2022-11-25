@@ -52,6 +52,11 @@ class Configuration:
             Minimum magnitude to carry out a damage and loss assessment while running OELF.
             Earthquakes in the seismicity forecast whose magnitude is smaller than
             'oelf_min_magnitude' will be skipped.
+        self.max_distance (float):
+            Maximum epicentral distance between earthquake source and site to actually run the
+            earthquake scenario with OpenQuake. If an epicentre is too far away from all
+            exposure sites, zero damage at all sites will be assumed without running the
+            calculation.
         self.store_intermediate (bool):
             If True, intermediate results including updated exposure files and damage states
             after each earthquake will be stored. If False, these intermediate results will not
@@ -68,6 +73,7 @@ class Configuration:
         "oelf_source_model_filename",
         "mapping_damage_states",
         "oelf_min_magnitude",
+        "max_distance",
         "store_intermediate",
         "store_openquake"
     ]
@@ -101,6 +107,10 @@ class Configuration:
 
         self.oelf_min_magnitude = self.assign_float_parameter(
             config, "oelf_min_magnitude", True, 3.0, 10.0
+        )
+
+        self.max_distance = self.assign_float_parameter(
+            config, "max_distance", True, 0.0, 1000.0
         )
 
         self.store_intermediate = self.assign_boolean_parameter(config, "store_intermediate")
