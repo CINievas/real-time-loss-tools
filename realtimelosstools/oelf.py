@@ -221,7 +221,13 @@ class OperationalEarthquakeLossForecasting():
         # Initialise 'damage_states_all_ses'
         damage_states_all_ses = None
 
-        for oef_ses_id in oef_ses_ids:  # Each of the stochastic event sets
+        for k, oef_ses_id in enumerate(oef_ses_ids):  # Each of the stochastic event sets
+
+            logger.info(
+                "%s Working on stochastic event set %s of %s"
+                % (np.datetime64('now'), k+1, len(oef_ses_ids))
+            )
+
             # Earthquakes that belong only to this realisation of seismicity (SES)
             filter_realisation = (forecast_catalogue["ses_id"] == oef_ses_id)
             aux = forecast_catalogue[filter_realisation]
@@ -525,7 +531,7 @@ class OperationalEarthquakeLossForecasting():
             magnitude_min (float):
                 Minimum earthquake magnitude.
             distance_max (float):
-                Maximum epicentral distance.
+                Maximum epicentral distance (km).
 
         Returns:
             forecast_cat_filtered (Pandas DataFrame):
@@ -544,6 +550,10 @@ class OperationalEarthquakeLossForecasting():
         magnitude_filter = (forecast_cat_filtered.magnitude >= magnitude_min)
         forecast_cat_filtered = forecast_cat_filtered[magnitude_filter]
         earthquakes_kept = magnitude_filter.to_numpy()
+        logger.info(
+            "%s out of %s earthquakes have magnitudes equal to or larger than the minimum %s."
+            % (magnitude_filter.sum(), forecast_catalogue.shape[0], magnitude_min)
+        )
 
         # Calculate minimum distance between each earthquake and all exposure sites
         eq_lons = forecast_cat_filtered["longitude"].to_numpy()
@@ -557,6 +567,10 @@ class OperationalEarthquakeLossForecasting():
             if distances_to_all_exposure.min() > distance_max:
                 keep[i] = False
 
+        logger.info(
+            "%s of those %s are located within %s km of at least one exposure asset."
+            % (np.array(keep).sum(), magnitude_filter.sum(), distance_max)
+        )
         forecast_cat_filtered = forecast_cat_filtered[keep]
         earthquakes_kept[earthquakes_kept == True] = np.array(keep)
 

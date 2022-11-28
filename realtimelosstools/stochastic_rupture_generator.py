@@ -239,7 +239,7 @@ def export_ruptures_to_xml(ruptures: Dict, export_folder: str):
     for event_id, rup in ruptures.items():
         fname = os.path.join(export_folder, "RUP_{:s}.xml".format(event_id))
         planar_rupture_to_xml(rup, fname)
-    print("Exported %g ruptures to %s" % (nrups, export_folder))
+    logger.info("Exported %g ruptures to %s" % (nrups, export_folder))
     return
 
 
@@ -256,7 +256,7 @@ def export_ruptures_to_shp(ruptures: Dict, export_folder: str):
     """
     rup_dframe = ruptures_to_geodataframe(ruptures)
     rup_dframe.to_file(export_folder, index=False)
-    print("Exported %g ruptures to %s" % (len(ruptures), export_folder))
+    logger.info("Exported %g ruptures to %s" % (len(ruptures), export_folder))
     return
 
 

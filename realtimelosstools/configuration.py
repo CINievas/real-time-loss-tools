@@ -53,8 +53,8 @@ class Configuration:
             Earthquakes in the seismicity forecast whose magnitude is smaller than
             'oelf_min_magnitude' will be skipped.
         self.max_distance (float):
-            Maximum epicentral distance between earthquake source and site to actually run the
-            earthquake scenario with OpenQuake. If an epicentre is too far away from all
+            Maximum epicentral distance (km) between earthquake source and site to actually run
+            the earthquake scenario with OpenQuake. If an epicentre is too far away from all
             exposure sites, zero damage at all sites will be assumed without running the
             calculation.
         self.store_intermediate (bool):

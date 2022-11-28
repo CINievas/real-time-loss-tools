@@ -20,6 +20,7 @@ import logging
 import sys
 import os
 import shutil
+import numpy as np
 import pandas as pd
 from realtimelosstools.configuration import Configuration
 from realtimelosstools.rla import RapidLossAssessment
@@ -109,6 +110,11 @@ def main():
     for i, cat_filename_i in enumerate(triggers["catalogue_filename"].to_numpy()):
         type_analysis_i = triggers["type_analysis"].to_numpy()[i]
 
+        logger.info(
+            "%s Running trigger %s of %s: %s with %s"
+            % (np.datetime64('now'), i+1, triggers.shape[0], type_analysis_i, cat_filename_i)
+        )
+
         if type_analysis_i == "RLA":
             cat_name = cat_filename_i.split(".")[0]  # Get rid of ".csv"
 
@@ -175,6 +181,11 @@ def main():
                 )
             )
             forecast_cat["to_run"] = earthquakes_to_run
+            logger.info(
+                "%s out of %s earthquakes will be run, all other earthquakes "
+                "will be assumed to cause no damage."
+                % (earthquakes_to_run.sum(), forecast_cat.shape[0])
+            )
 
             # Get rid of ".txt", replace ".", "-" and ":" with "_"
             forecast_name = (
