@@ -26,6 +26,7 @@ from openquake.commands.run import main
 from openquake.hazardlib import geo
 from realtimelosstools.ruptures import Rupture
 from realtimelosstools.exposure_updater import ExposureUpdater
+from realtimelosstools.losses import EconomicLosses
 from realtimelosstools.writers import Writer
 
 
@@ -44,6 +45,7 @@ class OperationalEarthquakeLossForecasting():
         description_general,
         main_path,
         original_exposure_model,
+        consequence_economic,
         mapping_damage_states,
         store_intermediate,
         store_openquake,
@@ -92,8 +94,8 @@ class OperationalEarthquakeLossForecasting():
             main_path (str):
                 Path to the main running directory, assumed to have the needed structure.
             original_exposure_model (Pandas DataFrame):
-                Pandas DataFrame representation of the exposure CSV input for OpenQuake for the undamaged
-                structures. It comprises the following fields:
+                Pandas DataFrame representation of the exposure CSV input for OpenQuake for the
+                undamaged structures. It comprises the following fields:
                     Index (simple):
                         asset_id (str):
                             ID of the asset (i.e. specific combination of building_id and a
@@ -125,6 +127,14 @@ class OperationalEarthquakeLossForecasting():
                         id_X, name_X (str):
                             ID and name of the administrative units to which the asset belongs.
                             "X" is the administrative level.
+            consequence_economic (Pandas DataFrame):
+                Pandas DataFrame indicating the economic loss ratios per building class and
+                damage state, with the following structure:
+                    Index:
+                        Taxonomy (str): Building classes.
+                    Columns:
+                        One per damage state (float): They contain the mean loss ratios for
+                        each building class and damage state.
             mapping_damage_states (Pandas DataFrame):
                 Mapping between the names of damage states as output by OpenQuake (index) and as
                 labelled in the fragility model (value). E.g.:
@@ -172,6 +182,18 @@ class OperationalEarthquakeLossForecasting():
                             Probability of 'damage_state' for 'building_id', if building_id is
                             one individual building, or number of buildings of 'building_id'
                             under 'damage_state', if building_id is a group of buildings.
+            losses_economic_all_ses (Pandas DataFrame):
+                Pandas DataFrame with the economic losses resulting from the average of all OELF
+                realisations, i.e. all stochastic event sets of 'forecast_catalogue', reported
+                per building_id. It has the following structure:
+                    Index:
+                        building_id (str):
+                            ID of the building.
+                    Columns:
+                        loss (float):
+                            Expected loss for 'building_id' considering all its associated
+                            building classes and damage states, with their respective
+                            probabilities, as well as all stochastic event sets of seismicity.
         """
 
         # Create sub-directory to store OpenQuake outputs
@@ -218,8 +240,9 @@ class OperationalEarthquakeLossForecasting():
         # Identify IDs of individual realisations of seismicity (stochastic event sets, SES)
         oef_ses_ids = forecast_catalogue["ses_id"].unique()
 
-        # Initialise 'damage_states_all_ses'
+        # Initialise 'damage_states_all_ses' and 'losses_economic_all_ses'
         damage_states_all_ses = None
+        losses_economic_all_ses = None
 
         for k, oef_ses_id in enumerate(oef_ses_ids):  # Each of the stochastic event sets
 
@@ -333,7 +356,8 @@ class OperationalEarthquakeLossForecasting():
                 damage_results_OQ.index = new_index
                 damage_results_OQ = damage_results_OQ.drop(columns=["asset_id", "dmg_state"])
 
-                if not store_openquake:  # Erase the job just run from OpenQuake's database (and HDF5)
+                if not store_openquake:
+                    # Erase the job just run from OpenQuake's database (and HDF5)
                     Writer.delete_OpenQuake_last_job()
 
                 # Store damage states from OpenQuake output to CSV
@@ -380,12 +404,27 @@ class OperationalEarthquakeLossForecasting():
             damage_states = ExposureUpdater.summarise_damage_states_per_building_id(
                 exposure_updated
             )
-            # Store damage states per building ID
+            # Get economic losses per building ID for this stochastic event set (realisation)
+            losses_economic = EconomicLosses.expected_economic_loss(
+                exposure_updated, consequence_economic
+            )
+
+            # Store damage states and economic losses per building ID
             if store_intermediate:
                 damage_states.to_csv(
                     os.path.join(
                         path_to_outputs,
                         "damage_states_after_OELF_%s_realisation_%s.csv" % (
+                            forecast_name, oef_ses_id
+                        )
+                    ),
+                    index=True,
+                )
+
+                losses_economic.to_csv(
+                    os.path.join(
+                        path_to_outputs,
+                        "losses_economic_after_OELF_%s_realisation_%s.csv" % (
                             forecast_name, oef_ses_id
                         )
                     ),
@@ -401,12 +440,26 @@ class OperationalEarthquakeLossForecasting():
                     [damage_states_all_ses, damage_states]
                 )
 
+            # Concatenate economic losses from all stochastic event sets
+            if losses_economic_all_ses is None:
+                # First realisation
+                losses_economic_all_ses = deepcopy(losses_economic)
+            else:
+                losses_economic_all_ses = pd.concat(
+                    [losses_economic_all_ses, losses_economic]
+                )
+
         # Average damage states per building ID for all stochastic event sets
         damage_states_all_ses = damage_states_all_ses.groupby(
             ["building_id", "damage_state"]
         ).mean()
 
-        return damage_states_all_ses
+        # Average economic losses per building ID for all stochastic event sets
+        losses_economic_all_ses = losses_economic_all_ses.groupby(
+            ["building_id"]
+        ).mean()
+
+        return damage_states_all_ses, losses_economic_all_ses
 
     @staticmethod
     def format_seismicity_forecast(forecast_catalogue, add_event_id=True, add_depth=False):

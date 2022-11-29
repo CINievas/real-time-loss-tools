@@ -199,11 +199,13 @@ following fields:
   These fields contain the probability of each `building_id` resulting in a specific damage
   state (`dmg_state`) due to the action of the earthquake with the indicated event ID. All rows
   associated with a particular `building_id` and event ID must add up to unity.
-- `static`: Directory with input files for OpenQuake that need to be defined by the user before
-the run and remain the same all throughout. These files are:
+- `static`: Directory with input files that need to be defined by the user before the run and
+remain the same all throughout. These files are:
   - `fragility_model.xml`: XML file of the fragility model, in OpenQuake input format.
   - `gmpe_logic_tree.xml`: XML file of the ground motion logic tree, in OpenQuake input format.
   - `site_model.csv`: CSV file of the site model, in OpenQuake input format.
+  - `consequences_economic.csv`: CSV file with economic loss ratios per building class (row) and
+  damage state (including "DS0", i.e. the no damage case).
 
 Before running the software, the user needs to set up the structure under `main_path` as
 follows:
@@ -222,7 +224,8 @@ software to run.
 an XML with the earthquake source model in the OpenQuake format (see description above).
 - `shm` must contain `damage_results_shm.csv`, only if RLA is indicated at least in one case
 under `triggering.csv`.
-- `static` needs to contain `fragility_model.xml`, `gmpe_logic_tree.xml`, and `site_model.csv`.
+- `static` needs to contain `fragility_model.xml`, `gmpe_logic_tree.xml`, `site_model.csv`, and
+`consequences_economic.csv`.
 
 ### Effect of `store_intermediate` on output stored
 

@@ -27,6 +27,7 @@ from realtimelosstools.rla import RapidLossAssessment
 from realtimelosstools.oelf import OperationalEarthquakeLossForecasting
 from realtimelosstools.stochastic_rupture_generator import StochasticRuptureSet
 from realtimelosstools.exposure_updater import ExposureUpdater
+from realtimelosstools.losses import EconomicLosses
 
 
 logger = logging.getLogger()
@@ -90,6 +91,15 @@ def main():
         damage_results_SHM.index = new_index
         damage_results_SHM = damage_results_SHM.drop(columns=["dmg_state"])
 
+    # Load the consequence models
+    consequence_economic = pd.read_csv(
+        os.path.join(config.main_path, "static", "consequences_economic.csv")
+    )
+    consequence_economic.set_index(
+        consequence_economic["Taxonomy"], drop=True, inplace=True
+    )
+    consequence_economic = consequence_economic.drop(columns=["Taxonomy"])
+
     # Load the "initial" exposure model
     exposure_model_undamaged = pd.read_csv(
             os.path.join(config.main_path, "exposure_models", "exposure_model_undamaged.csv")
@@ -97,7 +107,6 @@ def main():
     exposure_model_undamaged.index = exposure_model_undamaged["id"]
     exposure_model_undamaged.index = exposure_model_undamaged.index.rename("asset_id")
     exposure_model_undamaged = exposure_model_undamaged.drop(columns=["id"])
-    exposure_model_undamaged
 
     # Copy the "initial" exposure model to the 'current' sub-directory to initialise the process
     in_filename = os.path.join(
@@ -153,6 +162,20 @@ def main():
                     config.main_path,
                     "output",
                     "damage_states_after_RLA_%s.csv" % (cat_name)
+                ),
+                index=True,
+            )
+
+            # Get economic losses per building ID
+            losses_economic = EconomicLosses.expected_economic_loss(
+                exposure_updated, consequence_economic
+            )
+            # Store economic losses per building ID
+            losses_economic.to_csv(
+                os.path.join(
+                    config.main_path,
+                    "output",
+                    "losses_economic_after_RLA_%s.csv" % (cat_name)
                 ),
                 index=True,
             )
@@ -218,12 +241,13 @@ def main():
                 export_type='xml', # Type of file for export
             )
 
-            damage_states = OperationalEarthquakeLossForecasting.run_oelf(
+            damage_states, losses_economic = OperationalEarthquakeLossForecasting.run_oelf(
                 forecast_cat,
                 forecast_name,
                 config.description_general,
                 config.main_path,
                 exposure_model_undamaged,
+                consequence_economic,
                 config.mapping_damage_states,
                 config.store_intermediate,
                 config.store_openquake,
@@ -235,6 +259,16 @@ def main():
                     config.main_path,
                     "output",
                     "damage_states_after_OELF_%s.csv" % (forecast_name)
+                ),
+                index=True,
+            )
+
+            # Store economic losses per building ID
+            losses_economic.to_csv(
+                os.path.join(
+                    config.main_path,
+                    "output",
+                    "losses_economic_after_OELF_%s.csv" % (forecast_name)
                 ),
                 index=True,
             )
