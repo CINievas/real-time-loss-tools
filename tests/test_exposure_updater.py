@@ -189,7 +189,7 @@ def test_merge_damage_results_OQ_SHM():
         )
 
 
-def test_update_exposure():
+def test_update_exposure_with_damage_states():
     """
     The test carries out two cycles of update, because the second cycle needs to re-group assets
     but the first cycle does not.
@@ -249,7 +249,7 @@ def test_update_exposure():
     )
 
     # Execute the method, first cycle
-    returned_exposure_model_1 = ExposureUpdater.update_exposure(
+    returned_exposure_model_1 = ExposureUpdater.update_exposure_with_damage_states(
         initial_exposure,
         initial_exposure,
         damage_results_OQ,
@@ -316,7 +316,7 @@ def test_update_exposure():
     )
 
     # Execute the method, second cycle
-    returned_exposure_model_2 = ExposureUpdater.update_exposure(
+    returned_exposure_model_2 = ExposureUpdater.update_exposure_with_damage_states(
         initial_exposure_updated,
         initial_exposure,
         damage_results_OQ,

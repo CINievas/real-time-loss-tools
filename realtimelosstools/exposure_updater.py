@@ -201,7 +201,7 @@ class ExposureUpdater:
         return damage_results_merged
 
     @staticmethod
-    def update_exposure(
+    def update_exposure_with_damage_states(
         previous_exposure_model,
         original_exposure_model,
         damage_results_OQ,
@@ -212,7 +212,10 @@ class ExposureUpdater:
         This method creates the exposure model for the next earthquake in the sequence, starting
         from the exposure model for the previous earthquake ('previous_exposure_model') and its
         associated damage results ('damage_results_OQ' from OpenQuake and 'damage_results_SHM'
-        from Structural Health Monitoring, if provided).
+        from Structural Health Monitoring, if provided). The existing assets are distributed to
+        different damage states as per 'damage_results_OQ' and 'damage_results_SHM', and their
+        repair costs and occupants are distributed accordingly, without yet updating the number
+        of occupants to reflect injuries and deaths.
 
         Args:
             previous_exposure_model (Pandas DataFrame):
@@ -441,6 +444,21 @@ class ExposureUpdater:
         )
 
         return new_exposure_model
+
+
+    @staticmethod
+    def update_exposure_occupants(exposure_updated_damage, losses_human_per_asset):
+        """
+        This method is not implemented yet.
+        """
+
+        warning_message = (
+            "The method 'update_exposure_occupants' has not been implemented yet. "
+            "Returning exposure without updated occupants for now."
+        )
+        logger.warning(warning_message)
+
+        return exposure_updated_damage
 
 
     @staticmethod

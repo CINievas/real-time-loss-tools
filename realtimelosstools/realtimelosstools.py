@@ -27,7 +27,7 @@ from realtimelosstools.rla import RapidLossAssessment
 from realtimelosstools.oelf import OperationalEarthquakeLossForecasting
 from realtimelosstools.stochastic_rupture_generator import StochasticRuptureSet
 from realtimelosstools.exposure_updater import ExposureUpdater
-from realtimelosstools.losses import EconomicLosses
+from realtimelosstools.losses import Losses
 
 
 logger = logging.getLogger()
@@ -100,6 +100,20 @@ def main():
     )
     consequence_economic = consequence_economic.drop(columns=["Taxonomy"])
 
+    consequence_injuries = {}
+    for severity in config.injuries_scale:
+        consequence_injuries[severity] = pd.read_csv(
+            os.path.join(
+                config.main_path, "static", "consequences_injuries_severity_%s.csv" % (severity)
+            )
+        )
+        consequence_injuries[severity].set_index(
+            consequence_injuries[severity]["Taxonomy"], drop=True, inplace=True
+        )
+        consequence_injuries[severity] = consequence_injuries[severity].drop(
+            columns=["Taxonomy"]
+        )
+
     # Load the "initial" exposure model
     exposure_model_undamaged = pd.read_csv(
             os.path.join(config.main_path, "exposure_models", "exposure_model_undamaged.csv")
@@ -134,11 +148,12 @@ def main():
             earthquake_df["datetime"] = pd.to_datetime(earthquake_df["datetime"])
             earthquake_params = earthquake_df.loc[0, :].to_dict()
 
-            exposure_updated = RapidLossAssessment.run_rla(
+            exposure_updated, losses_human = RapidLossAssessment.run_rla(
                 earthquake_params,
                 config.description_general,
                 config.main_path,
                 source_parameters_RLA,
+                consequence_injuries,
                 exposure_model_undamaged,
                 config.mapping_damage_states,
                 damage_results_SHM.loc[:, earthquake_params["event_id"]],
@@ -167,7 +182,7 @@ def main():
             )
 
             # Get economic losses per building ID
-            losses_economic = EconomicLosses.expected_economic_loss(
+            losses_economic = Losses.expected_economic_loss(
                 exposure_updated, consequence_economic
             )
             # Store economic losses per building ID
@@ -176,6 +191,16 @@ def main():
                     config.main_path,
                     "output",
                     "losses_economic_after_RLA_%s.csv" % (cat_name)
+                ),
+                index=True,
+            )
+
+            # Store human losses per building ID
+            losses_human.to_csv(
+                os.path.join(
+                    config.main_path,
+                    "output",
+                    "losses_human_after_RLA_%s.csv" % (cat_name)
                 ),
                 index=True,
             )
@@ -241,16 +266,19 @@ def main():
                 export_type='xml', # Type of file for export
             )
 
-            damage_states, losses_economic = OperationalEarthquakeLossForecasting.run_oelf(
+            damage_states, losses_economic, losses_human = (
+                OperationalEarthquakeLossForecasting.run_oelf(
                 forecast_cat,
                 forecast_name,
                 config.description_general,
                 config.main_path,
                 exposure_model_undamaged,
                 consequence_economic,
+                consequence_injuries,
                 config.mapping_damage_states,
                 config.store_intermediate,
                 config.store_openquake,
+                )
             )
 
             # Store damage states per building ID
@@ -269,6 +297,16 @@ def main():
                     config.main_path,
                     "output",
                     "losses_economic_after_OELF_%s.csv" % (forecast_name)
+                ),
+                index=True,
+            )
+
+            # Store human losses per building ID
+            losses_human.to_csv(
+                os.path.join(
+                    config.main_path,
+                    "output",
+                    "losses_human_after_OELF_%s.csv" % (forecast_name)
                 ),
                 index=True,
             )

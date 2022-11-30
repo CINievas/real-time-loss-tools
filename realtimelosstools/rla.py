@@ -18,12 +18,11 @@
 
 import logging
 import os
-from copy import deepcopy
-import numpy as np
 import pandas as pd
 from openquake.commands.run import main
 from realtimelosstools.ruptures import Rupture
 from realtimelosstools.exposure_updater import ExposureUpdater
+from realtimelosstools.losses import Losses
 from realtimelosstools.writers import Writer
 
 
@@ -40,6 +39,7 @@ class RapidLossAssessment:
         description_general,
         main_path,
         source_parameters,
+        consequence_injuries,
         original_exposure_model,
         mapping_damage_states,
         damage_results_SHM,
@@ -106,6 +106,16 @@ class RapidLossAssessment:
                         Dip of the rupture, in degrees, measured downwards from the horizontal.
                     Rake (float):
                         Rake of the rupture, in degrees.
+            consequence_injuries (dict of Pandas DataFrame):
+                Dictionary whose keys are the injury severity levels and whose contents are
+                Pandas DataFrames with the consequence models for injuries in terms of mean
+                values of loss ratio per damage state. Each row in the consequence model
+                corresponds to a different building class. The structure is as follows:
+                    Index:
+                        Taxonomy (str): Building classes.
+                    Columns:
+                        One per damage state (float): They contain the mean loss ratios (as
+                        percentages) for each building class and damage state.
             original_exposure_model (Pandas DataFrame):
                 Pandas DataFrame representation of the exposure CSV input for OpenQuake for the undamaged
                 structures. It comprises the following fields:
@@ -218,6 +228,16 @@ class RapidLossAssessment:
                         id_X, name_X (str):
                             ID and name of the administrative units to which the asset belongs.
                             "X" is the administrative level.
+            losses_human (Pandas DataFrame):
+                Pandas DataFrame with the following structure:
+                    Index:
+                        building_id (str):
+                            ID of the building.
+                    Columns:
+                        injuries_Y (float):
+                            Expected injuries of severity Y for 'building_id', considering all
+                            its associated building classes and damage states (i.e., all its
+                            associated asset IDs), with their respective probabilities.
         """
 
         # Description
@@ -329,13 +349,27 @@ class RapidLossAssessment:
         exposure_run.index = exposure_run.index.rename("asset_id")
         exposure_run = exposure_run.drop(columns=["id"])
 
-        # Update exposure
-        exposure_updated = ExposureUpdater.update_exposure(
+        # Update exposure to reflect new damage states
+        # (occupants not updated yet)
+        exposure_updated_damage = ExposureUpdater.update_exposure_with_damage_states(
             exposure_run,
             original_exposure_model,
             damage_results_OQ,
             mapping_damage_states,
             damage_results_SHM=damage_results_SHM,
+        )
+
+        # Calculate human losses per asset of 'exposure_updated_damage'
+        losses_human_per_asset = Losses.expected_human_loss_per_asset_id(
+            exposure_updated_damage, time_of_day, consequence_injuries
+        )
+        # Calculate human losses per building ID
+        losses_human = Losses.expected_human_loss_per_building_id(losses_human_per_asset)
+
+        # Update exposure to reflect new occupants (reflecting injuries and deaths)
+        exposure_updated = ExposureUpdater.update_exposure_occupants(
+            exposure_updated_damage,
+            losses_human_per_asset,
         )
 
         # Store new exposure CSV
@@ -348,4 +382,4 @@ class RapidLossAssessment:
                 index=False,
             )
 
-        return exposure_updated
+        return exposure_updated, losses_human
