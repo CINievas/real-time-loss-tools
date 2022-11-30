@@ -57,6 +57,9 @@ class Configuration:
             the earthquake scenario with OpenQuake. If an epicentre is too far away from all
             exposure sites, zero damage at all sites will be assumed without running the
             calculation.
+        self.injuries_scale (list of str):
+            Scale of severity of injuries. E.g. HAZUS defines four injury severity levels, from
+            1 through 4, and this would be represented as self.injuries_scale=["1","2","3","4"].
         self.store_intermediate (bool):
             If True, intermediate results including updated exposure files and damage states
             after each earthquake will be stored. If False, these intermediate results will not
@@ -74,6 +77,7 @@ class Configuration:
         "mapping_damage_states",
         "oelf_min_magnitude",
         "max_distance",
+        "injuries_scale",
         "store_intermediate",
         "store_openquake"
     ]
@@ -112,6 +116,8 @@ class Configuration:
         self.max_distance = self.assign_float_parameter(
             config, "max_distance", True, 0.0, 1000.0
         )
+
+        self.injuries_scale = self.assign_listed_parameters(config, "injuries_scale")
 
         self.store_intermediate = self.assign_boolean_parameter(config, "store_intermediate")
 
@@ -336,5 +342,33 @@ class Configuration:
             )
             logger.critical(error_message)
             raise ValueError(error_message)
+
+        return assigned_parameter
+
+    def assign_listed_parameters(self, config, input_parameter):
+        """This function searches for the key input_parameter in the dictionary config, and
+        splits its assigned value as per ", ", i.e. a comma plus space separation.
+
+        If input_parameter is not a key of config, the output is None.
+
+        Args:
+            config (dictionary):
+                The configuration file read as a dictionary. It may be an empty dictionary.
+            input_parameter (str):
+                Name of the desired parameter, to be searched for as a primary key of config.
+
+        Returns:
+            assigned_parameter (list of str):
+                Each element of the list is an element of config[input_parameter], separated as
+                per a comma followed by a space (", "). E.g. if 'config[input_parameter]' is
+                "Name_A, Name_B", 'assigned_parameter' is ["Name_A", "Name_B"].
+        """
+
+        assigned_parameter = self.assign_parameter(config, input_parameter)
+
+        if assigned_parameter is None:
+            return None
+
+        assigned_parameter = assigned_parameter.split(", ")
 
         return assigned_parameter

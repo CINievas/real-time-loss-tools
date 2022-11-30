@@ -206,6 +206,9 @@ remain the same all throughout. These files are:
   - `site_model.csv`: CSV file of the site model, in OpenQuake input format.
   - `consequences_economic.csv`: CSV file with economic loss ratios per building class (row) and
   damage state (including "DS0", i.e. the no damage case).
+  - `consequences_injuries_severity_X.csv`: CSV file with human loss ratios (as percentages) per
+  building class (row) and damage state (including "DS0", i.e. the no damage case), for every
+  injury severity level `X` listed in the `config.yml` file under `injuries_scale`.
 
 Before running the software, the user needs to set up the structure under `main_path` as
 follows:
@@ -224,8 +227,9 @@ software to run.
 an XML with the earthquake source model in the OpenQuake format (see description above).
 - `shm` must contain `damage_results_shm.csv`, only if RLA is indicated at least in one case
 under `triggering.csv`.
-- `static` needs to contain `fragility_model.xml`, `gmpe_logic_tree.xml`, `site_model.csv`, and
-`consequences_economic.csv`.
+- `static` needs to contain `fragility_model.xml`, `gmpe_logic_tree.xml`, `site_model.csv`,
+`consequences_economic.csv`, and `consequences_injuries_severity_X.csv`, for every injury
+severity level `X` listed in the `config.yml` file under `injuries_scale`.
 
 ### Effect of `store_intermediate` on output stored
 
