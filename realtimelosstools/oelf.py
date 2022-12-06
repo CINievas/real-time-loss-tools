@@ -42,6 +42,8 @@ class OperationalEarthquakeLossForecasting():
     def run_oelf(
         forecast_catalogue,
         forecast_name,
+        forecast_continuous_ses_numbering,
+        forecast_ses_range,
         description_general,
         main_path,
         original_exposure_model,
@@ -67,6 +69,15 @@ class OperationalEarthquakeLossForecasting():
         exposure CSV file). Results from all stochastic event sets (i.e. all realisations of
         forecast seismicity) are finally averaged and returned.
 
+        The method contemplates the possibility that not all desired stochastic event sets are
+        contained in 'forecast_catalogue'. This may be the case, for example, if the seismicity
+        forecast software only outputs earthquakes with a certain magnitude, which leads to some
+        stochastic event sets being "empty". In order to consider the "empty" SES,
+        'forecast_continuous_ses_numbering' needs to be set to True and the two integer values
+        contained in 'forecast_ses_range' will be used to define the range of IDs of the SES. If
+        the ID of a SES defined in this way is not found in 'forecast_catalogue', the effect is
+        to consider that the SES does not produce any damage or losses.
+
         Args:
             forecast_catalogue (Pandas DataFrame):
                 DataFrame containing a seismicity forecast for a period of time of interest. It
@@ -90,6 +101,15 @@ class OperationalEarthquakeLossForecasting():
             forecast_name (str):
                 Name of the forecast. It is used for the description of the OpenQuake job.ini
                 file and to create sub-directories to store files associated with this forecast.
+            forecast_continuous_ses_numbering (bool):
+                If True, the method will assume there are as many stochastic event sets as
+                indicated in 'forecast_ses_range', with an increment of 1. If False, the IDs of
+                the stochastic event sets will be read from 'forecast_catalogue'.
+            forecast_ses_range (list of two int):
+                Start and end number of the ID of the stochastic event sets, which will be used
+                to define the IDs of the stochastic event sets only if
+                'forecast_continuous_ses_numbering' is True. Both start and end numbers are
+                included.
             description_general (str):
                 General description of the run/analysis, used for the OpenQuake job.ini file.
             main_path (str):
@@ -265,8 +285,26 @@ class OperationalEarthquakeLossForecasting():
             logger.critical(error_message)
             raise OSError(error_message)
 
-        # Identify IDs of individual realisations of seismicity (stochastic event sets, SES)
-        oef_ses_ids = forecast_catalogue["ses_id"].unique()
+        # IDs of individual realisations of seismicity (stochastic event sets, SES)
+        ses_ids_in_catalogue = forecast_catalogue["ses_id"].unique()
+        if forecast_continuous_ses_numbering:
+            # Generate IDs based on input configuration
+            oef_ses_ids = [i for i in range(forecast_ses_range[0], forecast_ses_range[1]+1)]
+            # Check if there are SES IDs in 'forecast_catalogue' that are not in 'oef_ses_ids'
+            existing_IDs_missing = False
+            for oef_ses_id in enumerate(ses_ids_in_catalogue):
+                if oef_ses_id not in oef_ses_ids:
+                    existing_IDs_missing = True
+                    break
+            if existing_IDs_missing:
+                logger.warning(
+                    "The seismicity forecast %s contains IDs of stochastic event sets not "
+                    "contemplated by the input configuration ('forecast_ses_range' parameter)."
+                    % (forecast_name)
+                )
+        else:
+            # Identify IDs in the input 'forecast_catalogue'
+            oef_ses_ids = deepcopy(ses_ids_in_catalogue)
 
         # Initialise 'damage_states_all_ses', 'losses_economic_all_ses', 'losses_human_all_ses'
         damage_states_all_ses = None
@@ -284,7 +322,7 @@ class OperationalEarthquakeLossForecasting():
             filter_realisation = (forecast_catalogue["ses_id"] == oef_ses_id)
             aux = forecast_catalogue[filter_realisation]
             # Order the earthquakes of this SES in chronological order
-            events_in_ses = aux.sort_values(by=['datetime'])
+            events_in_ses = aux.sort_values(by=['datetime'])  # can be empty
 
             # Initialise exposure_model_current_XX.csv, with XX = oef_ses_id
             in_filename = os.path.join(
@@ -296,9 +334,15 @@ class OperationalEarthquakeLossForecasting():
             out_filename = os.path.join(path_to_exposure, current_exposure_filename)
             _ = shutil.copyfile(in_filename, out_filename)
 
-            exposure_updated = None
             damage_states = None
             losses_human_all_events = None
+            # Initialise exposure, in case there are no elements in 'events_in_ses'
+            exposure_updated = pd.read_csv(
+                os.path.join(path_to_exposure, current_exposure_filename),
+                dtype={"id_3": str, "id_2": str, "id_1": str}
+            )
+            exposure_updated.index = exposure_updated["id"]
+            exposure_updated.index = exposure_updated.index.rename("asset_id")
 
             # Run earthquake by earthquake of this stochastic event set
             for eq_id in events_in_ses.index:  # EQID is index of DataFrame

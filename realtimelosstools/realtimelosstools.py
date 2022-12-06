@@ -263,16 +263,18 @@ def main():
 
             damage_states, losses_economic, losses_human = (
                 OperationalEarthquakeLossForecasting.run_oelf(
-                forecast_cat,
-                forecast_name,
-                config.description_general,
-                config.main_path,
-                exposure_model_undamaged,
-                consequence_economic,
-                consequence_injuries,
-                config.mapping_damage_states,
-                config.store_intermediate,
-                config.store_openquake,
+                    forecast_cat,
+                    forecast_name,
+                    config.oelf["continuous_ses_numbering"],
+                    config.oelf["ses_range"],
+                    config.description_general,
+                    config.main_path,
+                    exposure_model_undamaged,
+                    consequence_economic,
+                    consequence_injuries,
+                    config.mapping_damage_states,
+                    config.store_intermediate,
+                    config.store_openquake,
                 )
             )
 
