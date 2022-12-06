@@ -67,8 +67,8 @@ class Losses:
                     Index:
                         Taxonomy (str): Building classes.
                     Columns:
-                        One per damage state (float): They contain the mean loss ratios for
-                        each building class and damage state.
+                        One per damage state (float): They contain the mean loss ratios (as
+                        percentages) for each building class and damage state.
         Returns:
             loss_summary (Pandas DataFrame):
                 Pandas DataFrame with the following structure:
@@ -103,7 +103,7 @@ class Losses:
         # Calculate the losses
         losses = np.zeros([loss_summary.shape[0]])
         for i, row in enumerate(loss_summary.index):
-            loss_ratio = loss_summary.loc[row, loss_summary.loc[row, "damage_state"]]
+            loss_ratio = loss_summary.loc[row, loss_summary.loc[row, "damage_state"]] / 100.0
             losses[i] = loss_ratio * loss_summary.loc[row, "structural"]
         loss_summary["loss"] = losses
 

@@ -134,8 +134,8 @@ class OperationalEarthquakeLossForecasting():
                     Index:
                         Taxonomy (str): Building classes.
                     Columns:
-                        One per damage state (float): They contain the mean loss ratios for
-                        each building class and damage state.
+                        One per damage state (float): They contain the mean loss ratios (as
+                        percentages) for each building class and damage state.
             consequence_injuries (dict of Pandas DataFrame):
                 Dictionary whose keys are the injury severity levels and whose contents are
                 Pandas DataFrames with the consequence models for injuries in terms of mean

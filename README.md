@@ -204,8 +204,8 @@ remain the same all throughout. These files are:
   - `fragility_model.xml`: XML file of the fragility model, in OpenQuake input format.
   - `gmpe_logic_tree.xml`: XML file of the ground motion logic tree, in OpenQuake input format.
   - `site_model.csv`: CSV file of the site model, in OpenQuake input format.
-  - `consequences_economic.csv`: CSV file with economic loss ratios per building class (row) and
-  damage state (including "DS0", i.e. the no damage case).
+  - `consequences_economic.csv`: CSV file with economic loss ratios (as percentages) per
+  building class (row) and damage state (including "DS0", i.e. the no damage case).
   - `consequences_injuries_severity_X.csv`: CSV file with human loss ratios (as percentages) per
   building class (row) and damage state (including "DS0", i.e. the no damage case), for every
   injury severity level `X` listed in the `config.yml` file under `injuries_scale`.
