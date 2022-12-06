@@ -39,6 +39,7 @@ class RapidLossAssessment:
         description_general,
         main_path,
         source_parameters,
+        consequence_economic,
         consequence_injuries,
         original_exposure_model,
         mapping_damage_states,
@@ -106,6 +107,14 @@ class RapidLossAssessment:
                         Dip of the rupture, in degrees, measured downwards from the horizontal.
                     Rake (float):
                         Rake of the rupture, in degrees.
+            consequence_economic (Pandas DataFrame):
+                Pandas DataFrame indicating the economic loss ratios per building class and
+                damage state, with the following structure:
+                    Index:
+                        Taxonomy (str): Building classes.
+                    Columns:
+                        One per damage state (float): They contain the mean loss ratios (as
+                        percentages) for each building class and damage state.
             consequence_injuries (dict of Pandas DataFrame):
                 Dictionary whose keys are the injury severity levels and whose contents are
                 Pandas DataFrames with the consequence models for injuries in terms of mean
@@ -228,8 +237,33 @@ class RapidLossAssessment:
                         id_X, name_X (str):
                             ID and name of the administrative units to which the asset belongs.
                             "X" is the administrative level.
+            damage_states (Pandas DataFrame):
+                Pandas DataFrame with damage states reported per building_id. It has the
+                following structure:
+                    Index is multiple:
+                        building_id (str):
+                            ID of the building.
+                        damage_state (str):
+                            Damage states.
+                    Columns:
+                        number (float):
+                            Probability of 'damage_state' for 'building_id', if building_id is
+                            one individual building, or number of buildings of 'building_id'
+                            under 'damage_state', if building_id is a group of buildings.
+            losses_economic (Pandas DataFrame):
+                Pandas DataFrame with economic losses reported per building_id through the
+                following structure:
+                    Index:
+                        building_id (str):
+                            ID of the building.
+                    Columns:
+                        loss (float):
+                            Expected loss for 'building_id' considering all its associated
+                            building classes and damage states (i.e., all its associated asset
+                            IDs), with their respective probabilities.
             losses_human (Pandas DataFrame):
-                Pandas DataFrame with the following structure:
+                Pandas DataFrame with human losses reported per building_id through the
+                following structure:
                     Index:
                         building_id (str):
                             ID of the building.
@@ -359,6 +393,16 @@ class RapidLossAssessment:
             damage_results_SHM=damage_results_SHM,
         )
 
+        # Get damage states per building ID
+        damage_states = ExposureUpdater.summarise_damage_states_per_building_id(
+            exposure_updated_damage
+        )
+
+        # Get economic losses per building ID
+        losses_economic = Losses.expected_economic_loss(
+            exposure_updated_damage, consequence_economic
+        )
+
         # Calculate human losses per asset of 'exposure_updated_damage'
         losses_human_per_asset = Losses.expected_human_loss_per_asset_id(
             exposure_updated_damage, time_of_day, consequence_injuries
@@ -382,4 +426,4 @@ class RapidLossAssessment:
                 index=False,
             )
 
-        return exposure_updated, losses_human
+        return exposure_updated, damage_states, losses_economic, losses_human

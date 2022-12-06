@@ -148,17 +148,20 @@ def main():
             earthquake_df["datetime"] = pd.to_datetime(earthquake_df["datetime"])
             earthquake_params = earthquake_df.loc[0, :].to_dict()
 
-            exposure_updated, losses_human = RapidLossAssessment.run_rla(
-                earthquake_params,
-                config.description_general,
-                config.main_path,
-                source_parameters_RLA,
-                consequence_injuries,
-                exposure_model_undamaged,
-                config.mapping_damage_states,
-                damage_results_SHM.loc[:, earthquake_params["event_id"]],
-                config.store_intermediate,
-                config.store_openquake,
+            exposure_updated, damage_states, losses_economic, losses_human = (
+                RapidLossAssessment.run_rla(
+                    earthquake_params,
+                    config.description_general,
+                    config.main_path,
+                    source_parameters_RLA,
+                    consequence_economic,
+                    consequence_injuries,
+                    exposure_model_undamaged,
+                    config.mapping_damage_states,
+                    damage_results_SHM.loc[:, earthquake_params["event_id"]],
+                    config.store_intermediate,
+                    config.store_openquake,
+                )
             )
 
             # Update 'exposure_model_current.csv'
@@ -167,10 +170,6 @@ def main():
                 index=False,
             )
 
-            # Get damage states per building ID
-            damage_states = ExposureUpdater.summarise_damage_states_per_building_id(
-                exposure_updated
-            )
             # Store damage states per building ID
             damage_states.to_csv(
                 os.path.join(
@@ -181,10 +180,6 @@ def main():
                 index=True,
             )
 
-            # Get economic losses per building ID
-            losses_economic = Losses.expected_economic_loss(
-                exposure_updated, consequence_economic
-            )
             # Store economic losses per building ID
             losses_economic.to_csv(
                 os.path.join(
