@@ -7,8 +7,11 @@ mapping_damage_states:
   dmg_2: DS2
   dmg_3: DS3
   dmg_4: DS4
-oelf_min_magnitude: 4.0  # Minimum magnitude to carry out a damage and loss assessment while running OELF.
-max_distance: 200.0  # Maximum epicentral distance between earthquake source and site to actually run the earthquake.
+oelf:
+  min_magnitude: 4.0  # Minimum magnitude to carry out a damage and loss assessment while running OELF.
+  max_distance: 200.0  # Maximum epicentral distance between earthquake source and site to actually run the earthquake.
+  continuous_ses_numbering: True  # If True, the software will assume there are as many stochastic event sets as indicated in 'ses_range', with an increment of 1.
+  ses_range: 1, 10000  # Start and end number of the ID of the stochastic event sets, given as a list separated by comma and space (", ").
 injuries_scale: 1, 2, 3, 4  # Scale of severity of injuries, given as a list separated by comma and space (", ").
 store_intermediate: True  # If True, intermediate results including intermediate exposure models and damage states will be stored. Intended for debugging.
 store_openquake: True  # If True, OpenQuake HDF5 files will be stored and jobs will be kept in OpenQuake's database. Intended for debugging.

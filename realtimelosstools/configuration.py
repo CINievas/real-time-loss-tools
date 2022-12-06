@@ -48,15 +48,29 @@ class Configuration:
                     asset_id (str): Names of damage states as output by OpenQuake.
                 Columns:
                     fragility (str): Names of damage states as labelled in the fragility model.
-        self.oelf_min_magnitude (float):
-            Minimum magnitude to carry out a damage and loss assessment while running OELF.
-            Earthquakes in the seismicity forecast whose magnitude is smaller than
-            'oelf_min_magnitude' will be skipped.
-        self.max_distance (float):
-            Maximum epicentral distance (km) between earthquake source and site to actually run
-            the earthquake scenario with OpenQuake. If an epicentre is too far away from all
-            exposure sites, zero damage at all sites will be assumed without running the
-            calculation.
+        self.oelf (dict):
+            Parameters used to run Operational Earthquake Loss Forecasting (OELF):
+            min_magnitude (float):
+                Minimum magnitude to carry out a damage and loss assessment while running OELF.
+                Earthquakes in the seismicity forecast whose magnitude is smaller than
+                'oelf_min_magnitude' will be skipped.
+            max_distance (float):
+                Maximum epicentral distance (km) between earthquake source and site to actually
+                run the earthquake scenario with OpenQuake. If an epicentre is too far away from
+                all exposure sites, zero damage at all sites will be assumed without running the
+                calculation.
+            continuous_ses_numbering (bool):
+                If True, the software will assume there are as many stochastic event sets as
+                indicated in 'ses_range', with an increment of 1. E.g. if 'ses_range=1, 10000'
+                and 'continuous_ses_numbering' is True, it will assume that 10,000 stochastic
+                event sets are to be processed and if any ID of the range 1-10,000 is missing
+                it will assume it needs to account for zero damaging earthquakes in that
+                stochastic event set. If False, the IDs of the stochastic event sets will be
+                read from the input seismicity forecasts.
+            ses_range (list of two int):
+                Start and end number of the ID of the stochastic event sets, which will be used
+                to define the IDs of the stochastic event sets only if
+                'continuous_ses_numbering' is True. Both start and end numbers are included.
         self.injuries_scale (list of str):
             Scale of severity of injuries. E.g. HAZUS defines four injury severity levels, from
             1 through 4, and this would be represented as self.injuries_scale=["1","2","3","4"].
@@ -75,8 +89,7 @@ class Configuration:
         "main_path",
         "oelf_source_model_filename",
         "mapping_damage_states",
-        "oelf_min_magnitude",
-        "max_distance",
+        "oelf",
         "injuries_scale",
         "store_intermediate",
         "store_openquake"
@@ -109,13 +122,30 @@ class Configuration:
             self.mapping_damage_states.index.rename("asset_id")
         )
 
-        self.oelf_min_magnitude = self.assign_float_parameter(
-            config, "oelf_min_magnitude", True, 3.0, 10.0
+        self.oelf = self.assign_hierarchical_parameters(
+            config,
+            "oelf",
+            requested_nested = [
+                "min_magnitude",
+                "max_distance",
+                "continuous_ses_numbering",
+                "ses_range",
+            ]
         )
-
-        self.max_distance = self.assign_float_parameter(
-            config, "max_distance", True, 0.0, 1000.0
+        self.oelf["min_magnitude"] = self.assign_float_parameter(
+            self.oelf, "min_magnitude", True, 3.0, 10.0
         )
+        self.oelf["max_distance"] = self.assign_float_parameter(
+            self.oelf, "max_distance", True, 0.0, 1000.0
+        )
+        self.oelf["continuous_ses_numbering"] = self.assign_boolean_parameter(
+            self.oelf, "continuous_ses_numbering"
+        )
+        self.oelf["ses_range"] = self.assign_listed_parameters(
+            self.oelf, "ses_range"
+        )
+        self.oelf["ses_range"][0] = int(self.oelf["ses_range"][0])
+        self.oelf["ses_range"][1] = int(self.oelf["ses_range"][1])
 
         self.injuries_scale = self.assign_listed_parameters(config, "injuries_scale")
 

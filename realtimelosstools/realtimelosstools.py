@@ -219,8 +219,8 @@ def main():
                     forecast_cat,
                     exposure_lons,
                     exposure_lats,
-                    config.oelf_min_magnitude,
-                    config.max_distance,
+                    config.oelf["min_magnitude"],
+                    config.oelf["max_distance"],
                 )
             )
             forecast_cat["to_run"] = earthquakes_to_run
