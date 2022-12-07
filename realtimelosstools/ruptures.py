@@ -40,7 +40,7 @@ class Rupture:
 
     @staticmethod
     def interpret_time_of_the_day(local_hour):
-        """This method interprets a time of the day as corresponding to teh "day", "night" or
+        """This method interprets a time of the day as corresponding to the "day", "night" or
         "transit" period, in the following way:
             Day: 10 am (inclusive) to 6 pm (exclusive).
             Night: 10 pm (inclusive) to 6 am (exclusive).

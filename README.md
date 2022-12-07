@@ -165,6 +165,8 @@ It must contain the following fields:
   `static/fragility_model.xml`.
   - `number`: Number of buildings associated with the asset.
   - `structural`: Total replacement cost of the asset.
+  - `census`: Number of occupants in the asset irrespective of the time of the day (see `night`,
+  `day`, and `transit` below).
   - `night`: Number of occupants in the asset during the night time.
   - `day`: Number of occupants in the asset during the day time.
   - `transit`: Number of occupants in the asset during the transit time.

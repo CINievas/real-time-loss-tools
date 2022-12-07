@@ -141,8 +141,10 @@ class Losses:
                     number (float):
                         Number of buildings in this asset (or probability of this particular
                         combination of building class and damage state for this building_id).
-                    night, day, transit (float):
-                        Total number of occupants in this asset at different times of the day.
+                    night, day, transit, census (float):
+                        Total number of occupants in this asset at different times of the
+                        day (night, day, transit) and irrespective of the time of the day
+                        (census).
                     occupancy (str):
                         "Res" (residential), "Com" (commercial) or "Ind" (industrial).
             time_of_day (str):

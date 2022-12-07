@@ -196,7 +196,7 @@ def test_update_exposure_with_damage_states():
     """
 
     # Columns to check
-    cols_to_check_numeric = ["lon", "lat", "number", "night", "day", "transit"]
+    cols_to_check_numeric = ["lon", "lat", "number", "census", "night", "day", "transit"]
     cols_to_check_numeric_lower_precision = ["structural"]
     cols_to_check_str = ["taxonomy", "building_id"]
 

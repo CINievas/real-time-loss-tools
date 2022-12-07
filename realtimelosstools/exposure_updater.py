@@ -71,9 +71,10 @@ class ExposureUpdater:
                             Number of buildings in this asset.
                         structural (float):
                             Total replacement cost of this asset (all buildings in "number").
-                        night, day, transit (float):
+                        night, day, transit, census (float):
                             Total number of occupants in this asset at different times of the
-                            day.
+                            day (night, day, transit) and irrespective of the time of the day
+                            (census).
                         occupancy (str):
                             "Res" (residential), "Com" (commercial) or "Ind" (industrial).
                         id_X, name_X (str):
@@ -245,9 +246,10 @@ class ExposureUpdater:
                             Number of buildings in this asset.
                         structural (float):
                             Total replacement cost of this asset (all buildings in "number").
-                        night, day, transit (float):
+                        night, day, transit, census (float):
                             Total number of occupants in this asset at different times of the
-                            day.
+                            day (night, day, transit) and irrespective of the time of the day
+                            (census).
                         occupancy (str):
                             "Res" (residential), "Com" (commercial) or "Ind" (industrial).
                         id_X, name_X (str):
@@ -326,9 +328,10 @@ class ExposureUpdater:
                             Number of buildings in this asset.
                         structural (float):
                             Total replacement cost of this asset (all buildings in "number").
-                        night, day, transit (float):
+                        night, day, transit, census (float):
                             Total number of occupants in this asset at different times of the
-                            day.
+                            day (night, day, transit) and irrespective of the time of the day
+                            (census).
                         occupancy (str):
                             "Res" (residential), "Com" (commercial) or "Ind" (industrial).
                         id_X, name_X (str):
@@ -354,7 +357,7 @@ class ExposureUpdater:
         new_exposure_model = damage_results_merged.join(previous_exposure_model)
 
         # Re-calculate costs and people
-        for col_name in ["structural", "day", "night", "transit"]:
+        for col_name in ["structural", "day", "night", "transit", "census"]:
             new_exposure_model[col_name] = (
                 new_exposure_model["value"].to_numpy() / new_exposure_model["number"].to_numpy()
             ) * new_exposure_model[col_name].to_numpy()

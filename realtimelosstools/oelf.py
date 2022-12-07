@@ -140,9 +140,10 @@ class OperationalEarthquakeLossForecasting():
                             Number of buildings in this asset.
                         structural (float):
                             Total replacement cost of this asset (all buildings in "number").
-                        night, day, transit (float):
+                        night, day, transit, census (float):
                             Total number of occupants in this asset at different times of the
-                            day.
+                            day (night, day, transit) and irrespective of the time of the day
+                            (census).
                         occupancy (str):
                             "Res" (residential), "Com" (commercial) or "Ind" (industrial).
                         id_X, name_X (str):
