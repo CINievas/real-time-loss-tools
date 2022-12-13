@@ -77,6 +77,14 @@ class Configuration:
         self.injuries_longest_time (int):
             Maximum number of days since the time of the an earthquake that will be used to
             calculate the number of occupants in the future.
+        self.time_of_day_occupancy (dict):
+            Factors by which the census population per building can be multiplied to obtain an
+            estimate of the people in the building at a certain time of the day. The dictionary
+            should contain one key per occupancy case present in the exposure model (e.g.
+            "residential", "commercial", "industrial"), and each key should be subdivided into:
+                - "day": approx. 10 am to 6 pm;
+                - "night": approx. 10 pm to 6 am;
+                - "transit": approx. 6 am to 10 am and 6 pm to 10 pm.
         self.store_intermediate (bool):
             If True, intermediate results including updated exposure files and damage states
             after each earthquake will be stored. If False, these intermediate results will not
@@ -95,6 +103,7 @@ class Configuration:
         "oelf",
         "injuries_scale",
         "injuries_longest_time",
+        "time_of_day_occupancy",
         "store_intermediate",
         "store_openquake"
     ]
@@ -155,6 +164,10 @@ class Configuration:
 
         self.injuries_longest_time = self.assign_integer_parameter(
             config, "injuries_longest_time"
+        )
+
+        self.time_of_day_occupancy = self.assign_hierarchical_parameters(
+            config, "time_of_day_occupancy"
         )
 
         self.store_intermediate = self.assign_boolean_parameter(config, "store_intermediate")

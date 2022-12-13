@@ -14,5 +14,18 @@ oelf:
   ses_range: 1, 10000  # Start and end number of the ID of the stochastic event sets, given as a list separated by comma and space (", ").
 injuries_scale: 1, 2, 3, 4  # Scale of severity of injuries, given as a list separated by comma and space (", ").
 injuries_longest_time: 1095  # Max. number of days since the time of an earthquake that will be used to calculate the number of occupants in the future.
+time_of_day_occupancy:  # Factors by which the census population can be multiplied to obtain the people in the building at a certain time of the day.
+  residential:
+    day: 0.242853  # approx. 10 am to 6 pm
+    night: 0.9517285  # approx. 10 pm to 6 am
+    transit: 0.532079  # approx. 6 am to 10 am and 6 pm to 10 pm
+  commercial:
+    day: 0.4982155
+    night: 0.0436495
+    transit: 0.090751
+  industrial:
+    day: 0.4982155
+    night: 0.0436495
+    transit: 0.090751
 store_intermediate: True  # If True, intermediate results including intermediate exposure models and damage states will be stored. Intended for debugging.
 store_openquake: True  # If True, OpenQuake HDF5 files will be stored and jobs will be kept in OpenQuake's database. Intended for debugging.
