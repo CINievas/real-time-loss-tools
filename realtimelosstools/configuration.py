@@ -74,6 +74,9 @@ class Configuration:
         self.injuries_scale (list of str):
             Scale of severity of injuries. E.g. HAZUS defines four injury severity levels, from
             1 through 4, and this would be represented as self.injuries_scale=["1","2","3","4"].
+        self.injuries_longest_time (int):
+            Maximum number of days since the time of the an earthquake that will be used to
+            calculate the number of occupants in the future.
         self.store_intermediate (bool):
             If True, intermediate results including updated exposure files and damage states
             after each earthquake will be stored. If False, these intermediate results will not
@@ -91,6 +94,7 @@ class Configuration:
         "mapping_damage_states",
         "oelf",
         "injuries_scale",
+        "injuries_longest_time",
         "store_intermediate",
         "store_openquake"
     ]
@@ -148,6 +152,10 @@ class Configuration:
         self.oelf["ses_range"][1] = int(self.oelf["ses_range"][1])
 
         self.injuries_scale = self.assign_listed_parameters(config, "injuries_scale")
+
+        self.injuries_longest_time = self.assign_integer_parameter(
+            config, "injuries_longest_time"
+        )
 
         self.store_intermediate = self.assign_boolean_parameter(config, "store_intermediate")
 
@@ -400,5 +408,50 @@ class Configuration:
             return None
 
         assigned_parameter = assigned_parameter.split(", ")
+
+        return assigned_parameter
+
+    def assign_integer_parameter(self, config, input_parameter):
+        """This function searches for the key input_parameter in the dictionary config, and
+        converts it into an integer.
+
+        If input_parameter is not a key of config, the output is None.
+
+        Args:
+            config (dictionary):
+                The configuration file read as a dictionary. It may be an empty dictionary.
+            input_parameter (str):
+                Name of the desired parameter, to be searched for as a primary key of config.
+
+        Returns:
+            assigned_parameter (int):
+                The content of config[input_parameter] converted into an integer.
+        """
+
+        assigned_parameter = self.assign_parameter(config, input_parameter)
+
+        if assigned_parameter is None:
+            return None
+
+        if isinstance(assigned_parameter, int):
+            return assigned_parameter
+
+        if isinstance(assigned_parameter, float):
+            if assigned_parameter.is_integer():
+                return int(assigned_parameter)
+            else:
+                logger.critical(
+                    "Error reading %s from configuration file: not an integer"
+                    % (input_parameter)
+                )
+                return None
+
+        try:
+            assigned_parameter = int(assigned_parameter)
+        except ValueError:
+            logger.critical(
+                "Error reading %s from configuration file: not an integer" % (input_parameter)
+            )
+            assigned_parameter = None
 
         return assigned_parameter

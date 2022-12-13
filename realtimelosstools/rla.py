@@ -41,6 +41,9 @@ class RapidLossAssessment:
         source_parameters,
         consequence_economic,
         consequence_injuries,
+        recovery_damage,
+        recovery_injuries,
+        recovery_longest_time,
         original_exposure_model,
         mapping_damage_states,
         damage_results_SHM,
@@ -125,6 +128,39 @@ class RapidLossAssessment:
                     Columns:
                         One per damage state (float): They contain the mean loss ratios (as
                         percentages) for each building class and damage state.
+            occupancy_timeline (arr of int):
+                Number of days since the last earthquake that mark different stages of recovery,
+                used to calculate occupants of the 'exposure_updated' output (to be used for the
+                next earthquake).
+            recovery_damage (Pandas DataFrame):
+                Pandas DataFrame indicating the expected number of days that it will take for
+                people to be allowed back in to a building as a function of their damage state.
+                As a minimum, its structure comprises the following:
+                    Index:
+                        dmg_state (str):
+                            Damage state.
+                    Columns:
+                        N_damage (int):
+                            Number of days (as an integer) for people to be allowed back into a
+                            buildings as a function of their damage state (independently from
+                            the health status of the people). If the damage states include
+                            irreparable damage and/or collapse, use a very large number herein.
+            recovery_injuries (Pandas DataFrame):
+                Pandas DataFrame indicating the expected number of days that a person suffering
+                from injuries of each level of severity will spend in hospital before being
+                allowed to leave (i.e. before being medically discharged). It has the following
+                structure:
+                    Index:
+                        injuries_scale (int or str):
+                            Severity of the injury according to a scale.
+                    Columns:
+                        N_discharged (int):
+                            Number of days (as an integer) for a person with each level of
+                            injury to be allowed to return to their building. If the injuries
+                            scale includes death, use a very large number herein.
+            recovery_longest_time (numpy.datetime64):
+                Maximum number of days since the time of the earthquake that will be used to
+                calculate the number of occupants in the future.
             original_exposure_model (Pandas DataFrame):
                 Pandas DataFrame representation of the exposure CSV input for OpenQuake for the undamaged
                 structures. It comprises the following fields:
@@ -196,7 +232,7 @@ class RapidLossAssessment:
                 job after running.
 
         Returns:
-            exposure_updated (Pandas DataFrame):
+            exposure_updated_damage (Pandas DataFrame):
                 Pandas DataFrame with the updated exposure model that results from the rapid
                 loss assessment. The rows are ordered by 'asset_id' and 'dmg_state' in ascending
                 order. It comprises the following fields:
@@ -324,6 +360,10 @@ class RapidLossAssessment:
             "exposure_model_current.csv",
         )
 
+        # Update exposure to reflect occupants for this earthquake
+        # (reflecting injuries and deaths)
+        # TO DO
+
         # Update job.ini with the description, time of the day and name of the rupture XML
         Writer.update_job_ini(
             os.path.join(main_path, "current", "job.ini"),
@@ -412,10 +452,15 @@ class RapidLossAssessment:
         # Calculate human losses per building ID
         losses_human = Losses.expected_human_loss_per_building_id(losses_human_per_asset)
 
-        # Update exposure to reflect new occupants (reflecting injuries and deaths)
-        exposure_updated = ExposureUpdater.update_exposure_occupants(
-            exposure_updated_damage,
+        # Calculate timeline of recovery (to define occupants for next earthquake)
+        injured_still_away = Losses.calculate_injuries_recovery_timeline(
             losses_human_per_asset,
+            recovery_injuries,
+            recovery_longest_time,
+            earthquake["datetime"],
+        )
+        occupancy_factors = Losses.calculate_repair_recovery_timeline(
+            recovery_damage, recovery_longest_time, earthquake["datetime"]
         )
 
         # Store new exposure CSV
@@ -423,9 +468,16 @@ class RapidLossAssessment:
             name_exposure_csv_file_next = (
                 "exposure_model_after_%s.csv" % (earthquake["event_id"])
             )
-            exposure_updated.to_csv(
+            exposure_updated_damage.to_csv(
                 os.path.join(main_path, "exposure_models", "rla", name_exposure_csv_file_next),
                 index=False,
             )
 
-        return exposure_updated, damage_states, losses_economic, losses_human
+        return (
+            exposure_updated_damage,
+            damage_states,
+            losses_economic,
+            losses_human,
+            injured_still_away,
+            occupancy_factors,
+        )

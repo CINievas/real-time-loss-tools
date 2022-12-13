@@ -17,6 +17,7 @@
 # along with this program. If not, see http://www.gnu.org/licenses/.
 
 import os
+import numpy as np
 import pandas as pd
 from realtimelosstools.losses import Losses
 
@@ -180,4 +181,159 @@ def test_assign_zero_human_losses():
         for col in ["injuries_1", "injuries_2", "injuries_3", "injuries_4"]:
             assert round(returned_zero_loss_summary.loc[index, col], 8) == round(
                 expected_zero_loss_summary.loc[index, col], 8
+            )
+
+
+def test_define_timeline_recovery_relative():
+    # Test 1
+    timeline_raw = np.array([5, 5, 365, 1095, 1095])
+    shortest_time = 0
+    longest_time = 730
+
+    expected_timeline = np.array([0, 5, 365, 730])
+
+    returned_timeline = Losses.define_timeline_recovery_relative(
+        timeline_raw, shortest_time, longest_time
+    )
+
+    np.testing.assert_almost_equal(returned_timeline, expected_timeline, decimal=8)
+
+    # Test 2
+    timeline_raw = np.array([5, 5, 365, 1095, 1095])
+    shortest_time = 0
+    longest_time = 3650
+
+    expected_timeline = np.array([0, 5, 365, 1095, 3650])
+
+    returned_timeline = Losses.define_timeline_recovery_relative(
+        timeline_raw, shortest_time, longest_time
+    )
+
+    np.testing.assert_almost_equal(returned_timeline, expected_timeline, decimal=8)
+
+    # Test 3
+    timeline_raw = np.array([5, 5, 10, 365, 1095, 1095])
+    shortest_time = 10
+    longest_time = 3650
+
+    expected_timeline = np.array([10, 365, 1095, 3650])
+
+    returned_timeline = Losses.define_timeline_recovery_relative(
+        timeline_raw, shortest_time, longest_time
+    )
+
+    np.testing.assert_almost_equal(returned_timeline, expected_timeline, decimal=8)
+
+
+def test_calculate_injuries_recovery_timeline():
+    # Define time of the earthquake
+    datetime_earthquake = np.datetime64("2009-04-06T01:32:00")
+
+    # Define longest time to calculate future occupants
+    longest_time = 36500
+
+    # Human losses per asset ID
+    filepath = os.path.join(
+        os.path.dirname(__file__), "data", "expected_injuries_cycle_2.csv"
+    )
+    losses_human_per_asset = pd.read_csv(filepath)
+    losses_human_per_asset.set_index(
+        losses_human_per_asset["id"], drop=True, inplace=True
+    )
+    losses_human_per_asset = losses_human_per_asset.drop(columns=["id"])
+
+    # Load the recovery times dependent on health
+    recovery_injuries = pd.read_csv(
+        os.path.join(os.path.dirname(__file__), "data", "recovery_injuries.csv"),
+        dtype={"injuries_scale": str, "N_discharged": int},
+    )
+    recovery_injuries.set_index(recovery_injuries["injuries_scale"], drop=True, inplace=True)
+    recovery_injuries = recovery_injuries.drop(columns=["injuries_scale"])
+
+    # Expected output:
+    expected_injured_still_away = pd.read_csv(
+        os.path.join(os.path.dirname(__file__), "data", "expected_injured_still_away.csv"),
+    )
+    expected_injured_still_away.set_index(
+        expected_injured_still_away["id"], drop=True, inplace=True
+    )
+    expected_injured_still_away = expected_injured_still_away.drop(columns=["id"])
+
+    returned_injured_still_away = Losses.calculate_injuries_recovery_timeline(
+        losses_human_per_asset,
+        recovery_injuries,
+        longest_time,
+        datetime_earthquake,
+    )
+
+    for col in expected_injured_still_away.columns:
+        assert col in returned_injured_still_away.columns
+    for index in expected_injured_still_away.index:
+        assert index in returned_injured_still_away.index
+
+    for col in ["taxonomy", "original_asset_id", "building_id"]:
+        for index in expected_injured_still_away.index:
+            assert (
+                returned_injured_still_away.loc[index, col]
+                == expected_injured_still_away.loc[index, col]
+            )
+
+    expected_dates = [
+        "2009-04-06T01:32:00",
+        "2009-04-08T01:32:00",
+        "2009-04-16T01:32:00",
+        "2109-03-13T01:32:00",
+    ]
+    for col in expected_dates:
+        for index in expected_injured_still_away.index:
+            assert (
+                round(returned_injured_still_away.loc[index, col], 10)
+                == round(expected_injured_still_away.loc[index, col], 10)
+            )
+
+
+def test_calculate_repair_recovery_timeline():
+    # Define time of the earthquake
+    datetime_earthquake = np.datetime64("2009-04-06T01:32:00")
+
+    # Define longest time to calculate future occupants
+    longest_time = 36500
+
+    # Load the recovery times dependent on damage
+    recovery_damage = pd.read_csv(
+        os.path.join(os.path.dirname(__file__), "data", "recovery_damage.csv"),
+        dtype={"dmg_state": str, "N_inspection": int, "N_repair":int},
+    )
+    recovery_damage.set_index(recovery_damage["dmg_state"], drop=True, inplace=True)
+    recovery_damage = recovery_damage.drop(columns=["dmg_state"])
+    recovery_damage["N_damage"] = np.maximum(
+        recovery_damage["N_inspection"], recovery_damage["N_repair"]
+    )
+
+    # Expected output
+    expected_occupancy_factors = pd.read_csv(
+        os.path.join(os.path.dirname(__file__), "data", "expected_occupancy_factors.csv"),
+        dtype={"dmg_state": str},
+    )
+    expected_occupancy_factors.set_index(
+        expected_occupancy_factors["dmg_state"], drop=True, inplace=True
+    )
+    expected_occupancy_factors = expected_occupancy_factors.drop(columns=["dmg_state"])
+
+    returned_occupancy_factors = Losses.calculate_repair_recovery_timeline(
+        recovery_damage,
+        longest_time,
+        datetime_earthquake,
+    )
+
+    for col in expected_occupancy_factors.columns:
+        assert col in returned_occupancy_factors.columns
+    for index in expected_occupancy_factors.index:
+        assert index in returned_occupancy_factors.index
+
+    for col in expected_occupancy_factors.columns:
+        for index in expected_occupancy_factors.index:
+            assert (
+                returned_occupancy_factors.loc[index, col]
+                == expected_occupancy_factors.loc[index, col]
             )

@@ -296,3 +296,262 @@ class Losses:
             zero_loss_summary["injuries_%s" % (severity)] = np.zeros([zero_loss_summary.shape[0]])
 
         return zero_loss_summary
+
+    @staticmethod
+    def define_timeline_recovery_relative(timeline_raw, shortest_time, longest_time):
+        """
+        This method defines the points in time to be used for the updating of the occupants of
+        buildings, starting from a 'timeline_raw' and making sure 'shortest_time' and
+        'longest_time' are included. All three parameters are assumed to refer to number of days
+        since the last earthquake (i.e. they are relative values). All three parameters are
+        assumed to be integers and will be transformed to integers if they are not.
+
+        Args:
+            timeline_raw (arr of int):
+                Number of days since the last earthquake that mark different stages of
+                inspection or repair for different damage states and/or recovery of patients in
+                hospital.
+            shortest_time (int):
+                Lower bound for the output.
+            longest_time (int):
+                Upper bound for the output.
+
+        Returns:
+            timeline (arr of int):
+                Number of days since the last earthquake that mark different stages of recovery,
+                defined as described above.
+
+        Examples:
+            1) timeline_raw = np.array([5, 5, 365, 1095, 1095])
+               shortest_time = 0
+               longest_time = 730
+
+               Result: timeline = np.array([0, 5, 365, 730])
+
+            2) timeline_raw = np.array([5, 5, 365, 1095, 1095])
+               shortest_time = 0
+               longest_time = 3650
+
+               Result: timeline = np.array([0, 5, 365, 1095, 3650])
+
+            3) timeline_raw = np.array([5, 5, 10, 365, 1095, 1095])
+               shortest_time = 10
+               longest_time = 3650
+
+               Result: timeline = np.array([10, 365, 1095, 3650])
+        """
+
+        timeline = np.unique(timeline_raw.astype(int))
+        timeline = timeline[timeline >= shortest_time]
+        timeline = timeline[timeline <= longest_time]
+        if shortest_time not in timeline:
+            timeline = np.append(timeline, shortest_time)
+        if longest_time not in timeline:
+            timeline = np.append(timeline, longest_time)
+        timeline.sort()
+
+        return timeline
+
+    @staticmethod
+    def calculate_injuries_recovery_timeline(
+        losses_human_per_asset,
+        recovery_injuries,
+        longest_time,
+        datetime_earthquake,
+    ):
+        """
+        This method calculates the number of people still not able to return to their building
+        at each point in time defined by the time of the earthquake in UTC
+        ('datetime_earthquake') and time horizons defined relative to the earthquake in terms of
+        numbers of days in 'recovery_injuries'.
+
+        Args:
+            losses_human_per_asset (Pandas DataFrame):
+                Pandas DataFrame indicating number of injured people (with different severity
+                levels) and the following structure:
+                    Index:
+                        id (str):
+                            ID of the asset.
+                    Columns:
+                        taxonomy (str):
+                            Building class.
+                        original_asset_id (str):
+                            ID of the asset in the initial undamaged version of the exposure
+                            model.
+                        building_id (str):
+                            ID of the building. One building_id can be associated with different
+                            values of original_asset_id and id.
+                        injuries_X (float):
+                            Expected injuries of severity X for 'id'.
+            recovery_injuries (Pandas DataFrame):
+                Pandas DataFrame indicating the expected number of days that a person suffering
+                from injuries of each level of severity will spend in hospital before being
+                allowed to leave (i.e. before being medically discharged). It has the following
+                structure:
+                    Index:
+                        injuries_scale (int or str):
+                            Severity of the injury according to a scale.
+                    Columns:
+                        N_discharged (int):
+                            Number of days (as an integer) for a person with each level of
+                            injury to be allowed to return to their building. If the injuries
+                            scale includes death, use a very large number herein.
+            longest_time (int):
+                Maximum number of days since 'datetime_earthquake' that will be used
+                (irrespective of the largest number of days in 'recovery_injuries').
+            datetime_earthquake (numpy.datetime64):
+                UTC date and time of the earthquake.
+
+        Returns:
+            injured_still_away (Pandas DataFrame):
+                Pandas DataFrame with the following structure:
+                    Index:
+                        id (str):
+                            ID of the asset.
+                    Columns:
+                        taxonomy (str):
+                            Building class.
+                        original_asset_id (str):
+                            ID of the asset in the initial undamaged version of the exposure
+                            model.
+                        building_id (str):
+                            ID of the building. One building_id can be associated with different
+                            values of original_asset_id and id.
+                        dates in UTC (float):
+                            The names of the columns are UTC dates and times (as str) at which
+                            the number of injured people still unable to return to their
+                            buildings has been calculated. The content of the columns is the
+                            number of injured people.
+        """
+
+        # Define timeline in UTC
+        timeline_injuries_relative = Losses.define_timeline_recovery_relative(
+            recovery_injuries["N_discharged"].to_numpy(), 0, longest_time
+        )
+        timeline_injuries_absolute = (
+            datetime_earthquake
+            + np.array([np.timedelta64(t, "D") for t in timeline_injuries_relative])
+        )
+
+        # Define f_severity: factor to account for whether people are able to go back into the
+        # building based on their health status and irrespective of the damage state of the
+        # building and the inspection times. One factor per injury severity (index) and time
+        # threshold (column).
+        f_severity = deepcopy(recovery_injuries)
+
+        for i, time_threshold in enumerate(timeline_injuries_relative):
+            # Initialise with zeros
+            f_severity_aux = np.zeros([f_severity.shape[0]], dtype=int)
+            # Turn to ones the cases where the time threshold is < the N_discharge number of days
+            # (factors of 1 will cause the injured people to be removed from the occupancy)
+            which_one = np.where(time_threshold < f_severity["N_discharged"].to_numpy())[0]
+            f_severity_aux[which_one] = 1
+
+            # Add column for this time threshold
+            col_name = str(timeline_injuries_absolute[i].astype("datetime64[s]"))
+            f_severity[col_name] = f_severity_aux
+
+        # Calculate injured people still away (e.g. in hospital or dead)
+        # per asset ID and time threshold
+        injured_still_away = pd.DataFrame(
+            {
+                "taxonomy": losses_human_per_asset["taxonomy"],
+                "original_asset_id": losses_human_per_asset["original_asset_id"],
+                "building_id": losses_human_per_asset["building_id"],
+            },
+            index=losses_human_per_asset.index  # index is "id"
+        )
+
+        for time_threshold in timeline_injuries_absolute:
+            time_threshold_str = str(time_threshold.astype("datetime64[s]"))
+            injured_still_away_aux = np.zeros([losses_human_per_asset.shape[0]])
+            for i, asset_id in enumerate(losses_human_per_asset.index):
+                remove = 0.0
+                for severity in f_severity.index:  # injury severity level
+                    remove += (
+                        f_severity.loc[severity, time_threshold_str]
+                        * losses_human_per_asset.loc[asset_id, "injuries_%s" % (severity)]
+                    )
+                injured_still_away_aux[i] = remove
+
+            injured_still_away[time_threshold_str] = injured_still_away_aux
+
+        return injured_still_away
+
+    @staticmethod
+    def calculate_repair_recovery_timeline(
+        recovery_damage,
+        longest_time,
+        datetime_earthquake,
+    ):
+        """
+        This method calculates binary factors indicating whether occupants are allowed (1) back
+        into their buildings or not (0), as a function of the damage state of the building and
+        a specific point in UTC time. The latter is defined as a function of
+        'datetime_earthquake' and the number of days relative to the date and time of the
+        earthquake specified in 'recovery_damage'.
+
+        Args:
+            recovery_damage (Pandas DataFrame):
+                Pandas DataFrame indicating the expected number of days that it will take for
+                people to be allowed back in to a building as a function of their damage state.
+                As a minimum, its structure comprises the following:
+                    Index:
+                        dmg_state (str):
+                            Damage state.
+                    Columns:
+                        N_damage (int):
+                            Number of days (as an integer) for people to be allowed back into a
+                            buildings as a function of their damage state (independently from
+                            the health status of the people). If the damage states include
+                            irreparable damage and/or collapse, use a very large number herein.
+            longest_time (int):
+                Maximum number of days since 'datetime_earthquake' that will be used
+                (irrespective of the largest number of days in 'recovery_damage').
+            datetime_earthquake (numpy.datetime64):
+                UTC date and time of the earthquake.
+
+        Returns:
+            occupancy_factors (Pandas DataFrame):
+                Pandas DataFrame indicating whether any occupants are allowed in a building with
+                a certain damage state at a specific point in time, with the following
+                structure:
+                    Index:
+                        dmg_state (str):
+                            Damage state.
+                    Columns:
+                        dates in UTC (int):
+                            The names of the columns are UTC dates and times (as str) at which
+                            the occupancy factors have been calculated, while the contents of
+                            the columns are the factors themselves: 0 if nobody is allowed in
+                            the building yet, 1 if occupants are allowed back in.
+        """
+
+        # Define timeline in UTC
+        timeline_damage_relative = Losses.define_timeline_recovery_relative(
+            recovery_damage["N_damage"].to_numpy(), 0, longest_time
+        )
+        timeline_damage_absolute = (
+            datetime_earthquake
+            + np.array([np.timedelta64(t, "D") for t in timeline_damage_relative])
+        )
+
+        # Define damage_factors: factor to account for whether people are allowed to go back
+        # into the building, irrespective of their health status (e.g. based on inspection times
+        # and damage state). One factor per damage state (index) and time threshold (column).
+        occupancy_factors = pd.DataFrame(
+            index=recovery_damage.index  # index is "dmg_state"
+        )
+
+        for i, time_threshold in enumerate(timeline_damage_relative):
+            # Initialise with zeros
+            occupancy_factors_aux = np.zeros([recovery_damage.shape[0]], dtype=int)
+            # Turn to ones the cases where the time threshold is >= the N_damage number of days
+            which_one = np.where(time_threshold >= recovery_damage["N_damage"].to_numpy())[0]
+            occupancy_factors_aux[which_one] = 1
+
+            # Add column for this time threshold
+            col_name = str(timeline_damage_absolute[i].astype("datetime64[s]"))
+            occupancy_factors[col_name] = occupancy_factors_aux
+
+        return occupancy_factors

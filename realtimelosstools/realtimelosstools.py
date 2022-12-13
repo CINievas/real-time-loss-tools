@@ -22,6 +22,7 @@ import os
 import shutil
 import numpy as np
 import pandas as pd
+from copy import deepcopy
 from realtimelosstools.configuration import Configuration
 from realtimelosstools.rla import RapidLossAssessment
 from realtimelosstools.oelf import OperationalEarthquakeLossForecasting
@@ -54,6 +55,19 @@ def main():
             "File 'exposure_model_current.csv' already exists under %s. The indicated "
             "directory may have already been used by a previous run. The program will stop."
             % (os.path.join(config.main_path, "current"))
+        )
+        logger.critical(error_message)
+        raise OSError(error_message)
+
+    # Create sub-directory to store files associated with number of occupants in time
+    path_to_occupants = os.path.join(config.main_path, "current", "occupants")
+    if not os.path.exists(path_to_occupants):
+        os.mkdir(path_to_occupants)
+    else:
+        error_message = (
+            "The directory 'occupants' already exists under %s/current and may contain "
+            "results from a previous run. The program will stop."
+            % (main_path)
         )
         logger.critical(error_message)
         raise OSError(error_message)
@@ -114,6 +128,24 @@ def main():
             columns=["Taxonomy"]
         )
 
+    # Load the recovery times (used for updating occupants)
+    recovery_damage = pd.read_csv(
+        os.path.join(config.main_path, "static", "recovery_damage.csv"),
+        dtype={"dmg_state": str, "N_inspection": int, "N_repair":int},
+    )
+    recovery_damage.set_index(recovery_damage["dmg_state"], drop=True, inplace=True)
+    recovery_damage = recovery_damage.drop(columns=["dmg_state"])
+    recovery_damage["N_damage"] = np.maximum(
+        recovery_damage["N_inspection"], recovery_damage["N_repair"]
+    )
+
+    recovery_injuries = pd.read_csv(
+        os.path.join(config.main_path, "static", "recovery_injuries.csv"),
+        dtype={"injuries_scale": str, "N_discharged": int},
+    )
+    recovery_injuries.set_index(recovery_injuries["injuries_scale"], drop=True, inplace=True)
+    recovery_injuries = recovery_injuries.drop(columns=["injuries_scale"])
+
     # Load the "initial" exposure model
     exposure_model_undamaged = pd.read_csv(
             os.path.join(config.main_path, "exposure_models", "exposure_model_undamaged.csv")
@@ -129,7 +161,6 @@ def main():
     out_filename = os.path.join(config.main_path, "current", "exposure_model_current.csv")
     _ = shutil.copyfile(in_filename, out_filename)
 
-    # Run RLA or OELF for each trigger
     for i, cat_filename_i in enumerate(triggers["catalogue_filename"].to_numpy()):
         type_analysis_i = triggers["type_analysis"].to_numpy()[i]
 
@@ -148,26 +179,58 @@ def main():
             earthquake_df["datetime"] = pd.to_datetime(earthquake_df["datetime"])
             earthquake_params = earthquake_df.loc[0, :].to_dict()
 
-            exposure_updated, damage_states, losses_economic, losses_human = (
-                RapidLossAssessment.run_rla(
-                    earthquake_params,
-                    config.description_general,
-                    config.main_path,
-                    source_parameters_RLA,
-                    consequence_economic,
-                    consequence_injuries,
-                    exposure_model_undamaged,
-                    config.mapping_damage_states,
-                    damage_results_SHM.loc[:, earthquake_params["event_id"]],
-                    config.store_intermediate,
-                    config.store_openquake,
-                )
+            results = RapidLossAssessment.run_rla(
+                earthquake_params,
+                config.description_general,
+                config.main_path,
+                source_parameters_RLA,
+                consequence_economic,
+                consequence_injuries,
+                recovery_damage,
+                recovery_injuries,
+                config.injuries_longest_time,
+                exposure_model_undamaged,
+                config.mapping_damage_states,
+                damage_results_SHM.loc[:, earthquake_params["event_id"]],
+                config.store_intermediate,
+                config.store_openquake,
             )
+            (
+                exposure_updated,
+                damage_states,
+                losses_economic,
+                losses_human,
+                injured_still_away,
+                occupancy_factors,
+            ) = results
 
             # Update 'exposure_model_current.csv'
             exposure_updated.to_csv(
                 os.path.join(config.main_path, "current", "exposure_model_current.csv"),
                 index=False,
+            )
+
+            # Store number of injured people away from the building in time, per asset ID
+            injured_still_away.to_csv(
+                os.path.join(
+                    config.main_path,
+                    "current",
+                    "occupants",
+                    "injured_still_away_after_RLA_%s.csv" % (cat_name)
+                ),
+                index=True,
+            )
+
+            # Store occupancy factors (0: people not allowed in, 1: people allowed in) as a
+            # function of time and damage state
+            occupancy_factors.to_csv(
+                os.path.join(
+                    config.main_path,
+                    "current",
+                    "occupants",
+                    "occupancy_factors_after_RLA_%s.csv" % (cat_name)
+                ),
+                index=True,
             )
 
             # Store damage states per building ID
