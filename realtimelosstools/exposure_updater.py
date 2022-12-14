@@ -20,6 +20,7 @@ import logging
 from copy import deepcopy
 import numpy as np
 import pandas as pd
+from realtimelosstools.losses import Losses
 
 
 logger = logging.getLogger()
@@ -71,10 +72,10 @@ class ExposureUpdater:
                             Number of buildings in this asset.
                         structural (float):
                             Total replacement cost of this asset (all buildings in "number").
-                        night, day, transit, census (float):
-                            Total number of occupants in this asset at different times of the
-                            day (night, day, transit) and irrespective of the time of the day
-                            (census).
+                        census (float):
+                            Total number of occupants in this asset irrespective of the time of
+                            the day, the damage state of the building or the health status of
+                            its occupants.
                         occupancy (str):
                             "Res" (residential), "Com" (commercial) or "Ind" (industrial).
                         id_X, name_X (str):
@@ -207,6 +208,7 @@ class ExposureUpdater:
         original_exposure_model,
         damage_results_OQ,
         mapping_damage_states,
+        earthquake_time_of_day,
         damage_results_SHM=None,
     ):
         """
@@ -246,10 +248,13 @@ class ExposureUpdater:
                             Number of buildings in this asset.
                         structural (float):
                             Total replacement cost of this asset (all buildings in "number").
-                        night, day, transit, census (float):
-                            Total number of occupants in this asset at different times of the
-                            day (night, day, transit) and irrespective of the time of the day
-                            (census).
+                        census (float):
+                            Total number of occupants in this asset irrespective of the time of
+                            the day, the damage state of the building or the health status of
+                            its occupants.
+                        earthquake_time_of_day (float):
+                            Total number of occupants in this asset at the time indicated by the
+                            input string 'earthquake_time_of_day'.
                         occupancy (str):
                             "Res" (residential), "Com" (commercial) or "Ind" (industrial).
                         id_X, name_X (str):
@@ -283,6 +288,8 @@ class ExposureUpdater:
                     dmg_2           DS2
                     dmg_3           DS3
                     dmg_4           DS4
+            earthquake_time_of_day (str):
+                Time of the day at which the earthquake occurs: "day", "night" or "transit".
             damage_results_SHM (Pandas Series):
                 Pandas Series with probabilities of monitored buildings being in each damage
                 state. This is output from SHM activities. It comprises the following fields:
@@ -328,10 +335,14 @@ class ExposureUpdater:
                             Number of buildings in this asset.
                         structural (float):
                             Total replacement cost of this asset (all buildings in "number").
-                        night, day, transit, census (float):
-                            Total number of occupants in this asset at different times of the
-                            day (night, day, transit) and irrespective of the time of the day
-                            (census).
+                        census (float):
+                            Total number of occupants in this asset irrespective of the time of
+                            the day, the damage state of the building or the health status of
+                            its occupants.
+                        earthquake_time_of_day (float):
+                            Total number of occupants in this asset at the time indicated by the
+                            input string 'earthquake_time_of_day', irrespective of the damage
+                            state of the building or the health status of its occupants.
                         occupancy (str):
                             "Res" (residential), "Com" (commercial) or "Ind" (industrial).
                         id_X, name_X (str):
@@ -357,7 +368,7 @@ class ExposureUpdater:
         new_exposure_model = damage_results_merged.join(previous_exposure_model)
 
         # Re-calculate costs and people
-        for col_name in ["structural", "day", "night", "transit", "census"]:
+        for col_name in ["structural", "census", earthquake_time_of_day]:
             new_exposure_model[col_name] = (
                 new_exposure_model["value"].to_numpy() / new_exposure_model["number"].to_numpy()
             ) * new_exposure_model[col_name].to_numpy()
@@ -442,26 +453,176 @@ class ExposureUpdater:
         ]
 
         # Re-order columns
+        col_names_for_order = list(original_exposure_model.columns)
+        if earthquake_time_of_day not in col_names_for_order:
+            col_names_for_order.append(earthquake_time_of_day)
+
         new_exposure_model = new_exposure_model.reindex(
-            columns=["id", *original_exposure_model.columns]
+            columns=["id", *col_names_for_order]
         )
 
         return new_exposure_model
 
 
     @staticmethod
-    def update_exposure_occupants(exposure_updated_damage, losses_human_per_asset):
+    def update_exposure_occupants(
+        exposure_full_occupants,
+        time_of_day_factors,
+        earthquake_time_of_day,
+        earthquake_datetime,
+        mapping_damage_states,
+        main_path,
+    ):
         """
-        This method is not implemented yet.
+        This method calculates the number of occupants in each asset of
+        'exposure_full_occupants' at the time of 'earthquake_datetime', considering whether
+        people are allowed to return to the buildings, as well as their health status.
+
+        It assumes that files containing the number of injured people still not able to return
+        to their buildings as well as files with factors that define whether people are allowed
+        into the buildings or not as a function of their damage state are available under
+        'main_path'/current/occupants for all earthquakes that have occurred before
+        'earthquake_datetime'. It takes into account as well factors to multiply the number of
+        occupants to represent number of people at different times of the day
+        ('time_of_day_factors', 'earthquake_time_of_day').
+
+        If no such files exist under 'main_path'/current/occupants, which is the case when no
+        previous earthquakes have been run, the method still returns the occupants expected,
+        which result simply from multiplying the census occupants by the corresponding
+        'time_of_day_factors'.
+
+        Args:
+            exposure_full_occupants (Pandas DataFrame):
+                Pandas DataFrame representation of the exposure CSV input for OpenQuake, in
+                which the occupants are all those allocated from distribution of the census
+                population to the buildings, irrespective of the time of the day, the damage
+                state of the building or the health status of its occupants. It comprises the
+                following fields:
+                    Index (simple):
+                        asset_id (str):
+                            ID of the asset (i.e. specific combination of building_id and a
+                            particular building class).
+                    Columns:
+                        building_id (str):
+                            ID of the building. One building_id can be associated with different
+                            values of asset_id.
+                        original_asset_id (str):
+                            ID of the asset in the initial undamaged version of the exposure
+                            model. It can be the value of 'asset_id' in the undamaged version or
+                            any other unique ID per row that refers to a combination of a
+                            building ID and a building class with no initial damage.
+                        lon (float):
+                            Longitude of the asset in degrees.
+                        lat (float):
+                            Latitude of the asset in degrees.
+                        taxonomy (str):
+                            Building class.
+                        number (float):
+                            Number of buildings in this asset.
+                        structural (float):
+                            Total replacement cost of this asset (all buildings in "number").
+                        census (float):
+                            Total number of occupants in this asset irrespective of the time of
+                            the day, the damage state of the building or the health status of
+                            its occupants.
+                        occupancy (str):
+                            "Res" (residential), "Com" (commercial) or "Ind" (industrial).
+                        id_X, name_X (str):
+                            ID and name of the administrative units to which the asset belongs.
+                            "X" is the administrative level.
+            time_of_day_factors (dict):
+                Factors by which the census population per building can be multiplied to obtain
+                an estimate of the people in the building at a certain time of the day. It
+                should contain one key per occupancy case present in the exposure model (e.g.
+                "residential", "commercial", "industrial"), and each key should be subdivided
+                into:
+                    - "day": approx. 10 am to 6 pm;
+                    - "night": approx. 10 pm to 6 am;
+                    - "transit": approx. 6 am to 10 am and 6 pm to 10 pm.
+            earthquake_time_of_day (str):
+                Time of the day of the earthquake, i.e. "day", "night" or "transit".
+            earthquake_datetime (numpy.datetime64):
+                UTC date and time of the earthquake.
+            mapping_damage_states (Pandas DataFrame):
+                Mapping between the names of damage states as output by OpenQuake (index) and as
+                labelled in the fragility model (value). E.g.:
+                              fragility
+                    dmg_state
+                    no_damage       DS0
+                    dmg_1           DS1
+                    dmg_2           DS2
+                    dmg_3           DS3
+                    dmg_4           DS4
+            main_path (str):
+                Path to the main running directory, assumed to have the needed structure.
+
+        Returns:
+            exposure_updated_occupants (Pandas DataFrame):
+                Pandas DataFrame containing all the fields and rows of the input
+                'exposure_full_occupants', plus an additional column whose name is
+                'earthquake_time_of_day' (i.e. "day", "night" or "transit") and whose content is
+                the number of occupants in each asset of 'exposure_full_occupants' at the time
+                of 'earthquake_datetime', considering whether people are allowed to return to
+                the buildings and their health status.
         """
 
-        warning_message = (
-            "The method 'update_exposure_occupants' has not been implemented yet. "
-            "Returning exposure without updated occupants for now."
+        exposure_updated_occupants = deepcopy(exposure_full_occupants)
+
+        # Retrieve c factors for the date+time of the earthquake to run (one key per
+        # damage state, e.g. {"DS0": 1, "DS1": 1, "DS2": 0, "DS3": 0, "DS4": 0}; they will all
+        # be equal to 1 if no earthquake has been run before)
+        occupancy_factors = Losses.get_occupancy_factors(
+            earthquake_datetime, mapping_damage_states, main_path
         )
-        logger.warning(warning_message)
 
-        return exposure_updated_damage
+        # Evaluate if all factors in occupancy_factor are zero (to avoid reading injuries if so)
+        all_factors_null = True
+        for dmg_state in occupancy_factors:
+            if occupancy_factors[dmg_state] > 0.5:
+                all_factors_null = False
+                break  # once one factor is not zero, there is not need to keep on checking
+
+        if not all_factors_null:
+            # Get occupancy factors (0 or 1) per asset of 'exposure_full_occupants'
+            occupancy_factors_per_asset = Losses.get_occupancy_factors_per_asset(
+                exposure_updated_occupants["taxonomy"].to_numpy(), occupancy_factors
+            )
+            non_zero_factors = occupancy_factors_per_asset.astype(bool)
+
+            # Retrieve injuries (only for assets for which 'occupancy_factors_per_asset'=1)
+            # (the method loops through the assets, hence looping only through necessary ones;
+            # they will all be equal to zero if no earthquake has been run before)
+            injured_still_away = Losses.get_injured_still_away(
+                exposure_updated_occupants.index.to_numpy()[non_zero_factors],  # asset IDs
+                earthquake_datetime,
+                main_path,
+            )
+
+            # Get time-of-day factors per asset (only for those for which
+            # 'occupancy_factors_per_asset'=1)
+            time_of_day_factors_per_asset = Losses.get_time_of_day_factors_per_asset(
+                exposure_updated_occupants["occupancy"].to_numpy()[non_zero_factors],
+                earthquake_time_of_day,
+                time_of_day_factors,
+            )
+
+            # Calculate the occupants at the time of the day of 'earthquake_time_of_day'
+            occupants_at_time_of_day = np.zeros([exposure_updated_occupants.shape[0]])
+            occupants_at_time_of_day[non_zero_factors] = (
+                time_of_day_factors_per_asset
+                * occupancy_factors_per_asset[non_zero_factors]
+                * (
+                    exposure_updated_occupants["census"].to_numpy()[non_zero_factors]
+                    - injured_still_away
+                )
+            )
+        else:
+            # Do not retrieve injuries, occupants are zero for all assets
+            occupants_at_time_of_day = np.zeros([exposure_updated_occupants.shape[0]])
+
+        exposure_updated_occupants[earthquake_time_of_day] = occupants_at_time_of_day
+
+        return exposure_updated_occupants
 
 
     @staticmethod

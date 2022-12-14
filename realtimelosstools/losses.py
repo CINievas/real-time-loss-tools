@@ -17,9 +17,12 @@
 # along with this program. If not, see http://www.gnu.org/licenses/.
 
 import logging
+import glob
+import os
 from copy import deepcopy
 import numpy as np
 import pandas as pd
+from realtimelosstools.utils import MultilinearStepFunction
 
 
 logger = logging.getLogger()
@@ -555,3 +558,203 @@ class Losses:
             occupancy_factors[col_name] = occupancy_factors_aux
 
         return occupancy_factors
+
+    @staticmethod
+    def get_occupancy_factors(datetime_earthquake, mapping_damage_states, main_path):
+        """
+        This method goes through the repair recovery timelines of all earthquakes that have
+        occurred before 'datetime_earthquake' (this is done by searching for all the occupancy
+        factors files present in 'main_path'/current/occupants), and determines whether people
+        will be allowed back in (1) or not (0) to buildings with the damage states indicated in
+        'mapping_damage_states'.
+
+        If there are no occupancy factors files in 'main_path'/current/occupants, all returned
+        factors will be equal to 1.
+
+        Args:
+            datetime_earthquake (numpy.datetime64):
+                UTC date and time of the earthquake.
+            mapping_damage_states (Pandas DataFrame):
+                Mapping between the names of damage states as output by OpenQuake (index) and as
+                labelled in the fragility model (value). E.g.:
+                              fragility
+                    dmg_state
+                    no_damage       DS0
+                    dmg_1           DS1
+                    dmg_2           DS2
+                    dmg_3           DS3
+                    dmg_4           DS4
+            main_path (str):
+                Path to the main running directory, assumed to have the needed structure.
+
+        Returns:
+            occupancy_factors (dict of int: 0 or 1):
+                Dictionary whose keys are the elements of the 'fragility' column of
+                'mapping_damage_states', i.e. each damage state, and whose contents are 1 or 0,
+                indicating that by the date of 'datetime_earthquake', people will be allowed
+                back in (1) or not (0) to buildings with the damage state (key).
+                Example output: {"DS0": 1, "DS1": 1, "DS2": 0, "DS3": 0, "DS4": 0}.
+        """
+
+        # Retrieve filenames of occupancy factors due to previous earthquakes
+        path_to_factors = os.path.join(main_path, "current", "occupants")
+        filenames = glob.glob(
+            os.path.join(path_to_factors, "occupancy_factors_after_RLA_*.csv")
+        )  # each file corresponds to one past earthquake
+
+        # Read factors and collect them in a dictionary
+        occupancy_factors = {}
+        for dmg_state in mapping_damage_states.index:
+            # Initiate as 1 because the retrieved factors (0 or 1) will be multiplied
+            occupancy_factors[mapping_damage_states.loc[dmg_state, "fragility"]] = 1
+
+        for filename in filenames:
+            factors = pd.read_csv(os.path.join(path_to_factors, filename))
+            factors.set_index(factors["dmg_state"], drop=True, inplace=True)
+            factors = factors.drop(columns=["dmg_state"])
+
+            for dmg_state in factors.index:
+                occup_function = MultilinearStepFunction(
+                    factors.columns.to_numpy().astype(np.datetime64),  # thresholds
+                    factors.loc[dmg_state, :].to_numpy()  # values
+                )
+                occupancy_factors[dmg_state] = (
+                    occupancy_factors[dmg_state]
+                    * occup_function.evaluate_as_datetime(datetime_earthquake)
+                )
+
+        return occupancy_factors
+
+    @staticmethod
+    def get_occupancy_factors_per_asset(exposure_taxonomies, occupancy_factors):
+        """
+        This method retrieves from 'occupancy_factors' the factor associated with the damage
+        state of each of the taxonomy strings of 'exposure_taxonomies'.
+
+        Args:
+            exposure_taxonomies (arr of str):
+                Array of taxonomy strings as per the GEM Building Taxonomy v3.0, including the
+                damage state as the last attribute (e.g. "CR/LFINF+CDN+LFC:0.0/H:1/DS1").
+            occupancy_factors (dict of int: 0 or 1):
+                Dictionary whose keys are damage states and whose contents are 1 (people are
+                allowed back in) or 0 (people are not allowed back in) to buildings with the
+                damage state (key).
+                Example: {"DS0": 1, "DS1": 1, "DS2": 0, "DS3": 0, "DS4": 0}.
+
+        Returns:
+            occupancy_factors_per_asset (arr of int):
+                Array of occupancy factors for each element of 'exposure_taxonomies'.
+        """
+
+        damage_states = [
+            exposure_taxonomies[i].split("/")[-1] for i in range(len(exposure_taxonomies))
+        ]
+
+        occupancy_factors_per_asset = np.array([
+            occupancy_factors[dmg_state] for dmg_state in damage_states
+        ])
+
+        return occupancy_factors_per_asset
+
+    @staticmethod
+    def get_injured_still_away(exposure_indices, datetime_earthquake, main_path):
+        """
+        This method goes through the injuries recovery timelines of all earthquakes that have
+        occurred before 'datetime_earthquake' (this is done by searching for all the
+        "still-away-injured" files present in 'main_path'/current/occupants), and determines
+        the total number of injured people still away from their buildings by the time of
+        'datetime_earthquake'. The output follows the order of the asset IDs listed in
+        'exposure_indices'.
+
+        If there are no "still-away-injured" files in 'main_path'/current/occupants, all
+        returned values of injured people still away will be 0.
+
+        Args:
+            exposure_indices (arr of str):
+                Array of asset IDs from the OpenQuake exposure CSV files. These should exist in
+                the "still-away-injured" files present in 'main_path'/current/occupants.
+            datetime_earthquake (numpy.datetime64):
+                UTC date and time of the earthquake.
+            main_path (str):
+                Path to the main running directory, assumed to have the needed structure.
+
+        Returns:
+            injured_still_away (arr of float):
+                Array of total number of injured people still away from each of the buildings
+                whose asset ID is listed in 'exposure_indices'.
+        """
+
+        # Retrieve filenames of injured people still away due to previous earthquakes
+        path_to_injured = os.path.join(main_path, "current", "occupants")
+        filenames = glob.glob(
+            os.path.join(path_to_injured, "injured_still_away_after_RLA_*.csv")
+        )  # each file corresponds to one past earthquake
+
+        # Initialise the number of injured people still away (injured due to each earthquake
+        # will be added)
+        injured_still_away = np.zeros([len(exposure_indices)])
+
+        for filename in filenames:
+            injured = pd.read_csv(os.path.join(path_to_injured, filename))
+            injured.set_index(injured["id"], drop=True, inplace=True)
+            injured.index = injured.index.rename("asset_id")
+            injured = injured.drop(columns=["id"])
+
+            # Recover dates of the timeline from names of columns
+            date_thresholds = list(injured.columns)
+            date_thresholds.remove("taxonomy")
+            date_thresholds.remove("original_asset_id")
+            date_thresholds.remove("building_id")
+            date_thresholds = np.array(date_thresholds, dtype=np.datetime64)
+
+            for i, asset_id in enumerate(exposure_indices):
+                injuries_function = MultilinearStepFunction(
+                    date_thresholds,
+                    injured.loc[asset_id, date_thresholds.astype(str)].to_numpy()  # values
+                )
+                injured_still_away[i] += injuries_function.evaluate_as_datetime(
+                    datetime_earthquake
+                )
+
+        return injured_still_away
+
+    @staticmethod
+    def get_time_of_day_factors_per_asset(
+        exposure_occupancies, earthquake_time_of_day, time_of_day_factors
+    ):
+        """
+        This method returns the time-of-day factors from 'time_of_day_factors' for each
+        occupancy case in 'exposure_occupancies', for the time of the day indicated by
+        'earthquake_time_of_day'.
+
+        Args:
+            exposure_occupancies (arr of str):
+                Array of occupancy cases from the OpenQuake exposure CSV files (e.g.
+                "residential", "commercial", "industrial"). These should be keys of
+                'time_of_day_factors'.
+            earthquake_time_of_day (str):
+                Time of the day of the earthquake, i.e. "day", "night" or "transit".
+            time_of_day_factors (dict):
+                Factors by which the census population per building can be multiplied to obtain
+                an estimate of the people in the building at a certain time of the day. It
+                should contain one key per occupancy case present in the exposure model (e.g.
+                "residential", "commercial", "industrial"), and each key should be subdivided
+                into:
+                    - "day": approx. 10 am to 6 pm;
+                    - "night": approx. 10 pm to 6 am;
+                    - "transit": approx. 6 am to 10 am and 6 pm to 10 pm.
+
+        Returns:
+            time_of_day_factors_per_asset (arr of float):
+                Array of factors from 'time_of_day_factors' corresponding to each element of
+                'exposure_occupancies'.
+        """
+
+        time_of_day_factors_per_asset = np.array(
+            [
+                time_of_day_factors[occupancy][earthquake_time_of_day]
+                for occupancy in exposure_occupancies
+            ]
+        )
+
+        return time_of_day_factors_per_asset

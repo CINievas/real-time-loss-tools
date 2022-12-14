@@ -44,6 +44,7 @@ class RapidLossAssessment:
         recovery_damage,
         recovery_injuries,
         recovery_longest_time,
+        time_of_day_occupancy,
         original_exposure_model,
         mapping_damage_states,
         damage_results_SHM,
@@ -161,6 +162,15 @@ class RapidLossAssessment:
             recovery_longest_time (numpy.datetime64):
                 Maximum number of days since the time of the earthquake that will be used to
                 calculate the number of occupants in the future.
+            time_of_day_occupancy (dict):
+                Factors by which the census population per building can be multiplied to obtain
+                an estimate of the people in the building at a certain time of the day. It
+                should contain one key per occupancy case present in the exposure model (e.g.
+                "residential", "commercial", "industrial"), and each key should be subdivided
+                into:
+                    - "day": approx. 10 am to 6 pm;
+                    - "night": approx. 10 pm to 6 am;
+                    - "transit": approx. 6 am to 10 am and 6 pm to 10 pm.
             original_exposure_model (Pandas DataFrame):
                 Pandas DataFrame representation of the exposure CSV input for OpenQuake for the undamaged
                 structures. It comprises the following fields:
@@ -187,10 +197,9 @@ class RapidLossAssessment:
                             Number of buildings in this asset.
                         structural (float):
                             Total replacement cost of this asset (all buildings in "number").
-                        night, day, transit, census (float):
-                            Total number of occupants in this asset at different times of the
-                            day (night, day, transit) and irrespective of the time of the day
-                            (census).
+                        census (float):
+                            Total number of occupants in this asset, irrespective of the time of
+                            the day.
                         occupancy (str):
                             "Res" (residential), "Com" (commercial) or "Ind" (industrial).
                         id_X, name_X (str):
@@ -266,10 +275,9 @@ class RapidLossAssessment:
                             Number of buildings in this asset.
                         structural (float):
                             Total replacement cost of this asset (all buildings in "number").
-                        night, day, transit, census (float):
-                            Total number of occupants in this asset at different times of the
-                            day (night, day, transit) and irrespective of the time of the day
-                            (census).
+                        census (float):
+                            Total number of occupants in this asset  irrespective of the time of
+                            the day.
                         occupancy (str):
                             "Res" (residential), "Com" (commercial) or "Ind" (industrial).
                         id_X, name_X (str):
@@ -353,16 +361,42 @@ class RapidLossAssessment:
             rupture_plane,
         )
 
+        # Load exposure CSV (the exposure model to be used to run OpenQuake now)
+        # (this exposure file contains census occupants not adjusted to reflect the damage
+        # state of the building or the health status of people)
+        exposure_full_occupants = pd.read_csv(
+            os.path.join(main_path, "current", "exposure_model_current.csv"),
+            dtype={"id_3": str, "id_2": str, "id_1": str}
+        )
+        exposure_full_occupants.index = exposure_full_occupants["id"]
+        exposure_full_occupants.index = exposure_full_occupants.index.rename("asset_id")
+        exposure_full_occupants = exposure_full_occupants.drop(columns=["id"])
+
+        # Update exposure to reflect occupants for this earthquake
+        # (reflecting injuries and deaths)
+        exposure_run = ExposureUpdater.update_exposure_occupants(
+            exposure_full_occupants,
+            time_of_day_occupancy,
+            time_of_day,
+            earthquake["datetime"],
+            mapping_damage_states,
+            main_path,
+        )
+
+        # Update 'exposure_model_current.csv' (only update is associated with the column with
+        # the number of occupants appropriate for this earthquake)
+        exposure_run.to_csv(
+            os.path.join(main_path, "current", "exposure_model_current.csv"),
+            index=True,
+            index_label="id",  # the index of 'exposure_run' is "asset_id", but OQ needs "id"
+        )
+
         # Update exposure XML
         Writer.update_exposure_xml(
             os.path.join(main_path, "current", "exposure_model.xml"),
             time_of_day,
             "exposure_model_current.csv",
         )
-
-        # Update exposure to reflect occupants for this earthquake
-        # (reflecting injuries and deaths)
-        # TO DO
 
         # Update job.ini with the description, time of the day and name of the rupture XML
         Writer.update_job_ini(
@@ -416,15 +450,6 @@ class RapidLossAssessment:
                 ),
             )
 
-        # Load exposure CSV (the exposure model just used to run OpenQuake)
-        exposure_run = pd.read_csv(
-            os.path.join(main_path, "current", "exposure_model_current.csv"),
-            dtype={"id_3": str, "id_2": str, "id_1": str}
-        )
-        exposure_run.index = exposure_run["id"]
-        exposure_run.index = exposure_run.index.rename("asset_id")
-        exposure_run = exposure_run.drop(columns=["id"])
-
         # Update exposure to reflect new damage states
         # (occupants not updated yet)
         exposure_updated_damage = ExposureUpdater.update_exposure_with_damage_states(
@@ -432,6 +457,7 @@ class RapidLossAssessment:
             original_exposure_model,
             damage_results_OQ,
             mapping_damage_states,
+            time_of_day,
             damage_results_SHM=damage_results_SHM,
         )
 
@@ -472,6 +498,9 @@ class RapidLossAssessment:
                 os.path.join(main_path, "exposure_models", "rla", name_exposure_csv_file_next),
                 index=False,
             )
+
+        # Get rid of time-of-the-day-specific numbers of occupants
+        exposure_updated_damage = exposure_updated_damage.drop(columns=[time_of_day])
 
         return (
             exposure_updated_damage,

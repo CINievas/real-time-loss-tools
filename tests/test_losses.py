@@ -124,10 +124,10 @@ def test_expected_human_loss_per_building_id():
 
     # Expected output
     building_id = ["osm_1", "tile_8", "shm_1"]
-    injuries_1 = [0.0277947209, 1.6384291018, 0.0096997060]
-    injuries_2 = [0.0053323604, 0.3094905813, 0.0014555932]
-    injuries_3 = [0.0002597158, 0.0148709595, 0.0000560824]
-    injuries_4 = [0.0026484623, 0.1514596842, 0.0005608240]
+    injuries_1 = [0.0277947127, 1.6384286247, 0.0096997012]
+    injuries_2 = [0.0053323589, 0.3094904906, 0.0014555925]
+    injuries_3 = [0.0002597157, 0.0148709547, 0.0000560824]
+    injuries_4 = [0.0026484613, 0.1514596335, 0.0005608237]
 
     expected_losses_human = pd.DataFrame(
         {
@@ -287,8 +287,8 @@ def test_calculate_injuries_recovery_timeline():
     for col in expected_dates:
         for index in expected_injured_still_away.index:
             assert (
-                round(returned_injured_still_away.loc[index, col], 10)
-                == round(expected_injured_still_away.loc[index, col], 10)
+                round(returned_injured_still_away.loc[index, col], 5)
+                == round(expected_injured_still_away.loc[index, col], 5)
             )
 
 
@@ -337,3 +337,122 @@ def test_calculate_repair_recovery_timeline():
                 returned_occupancy_factors.loc[index, col]
                 == expected_occupancy_factors.loc[index, col]
             )
+
+
+def test_get_occupancy_factors():
+    # Test 1: previous earthquakes run
+    datetime_earthquake = np.datetime64("2010-04-10T00:00:00")
+
+    aux = {
+        "dmg_state": ["no_damage", "dmg_1", "dmg_2", "dmg_3", "dmg_4"],
+        "fragility": ["DS0", "DS1", "DS2", "DS3", "DS4"]
+    }
+    mapping_damage_states = pd.DataFrame(aux)
+    mapping_damage_states.set_index(mapping_damage_states["dmg_state"], drop=True, inplace=True)
+    mapping_damage_states = mapping_damage_states.drop(columns=["dmg_state"])
+
+    main_path = os.path.join(os.path.dirname(__file__), "data")
+
+    expected_occupancy_factors = {"DS0": 1, "DS1": 1, "DS2": 1, "DS3": 0, "DS4": 0}
+
+    returned_occupancy_factors = Losses.get_occupancy_factors(
+        datetime_earthquake, mapping_damage_states, main_path
+    )
+
+    for dmg_state in expected_occupancy_factors:
+        assert returned_occupancy_factors[dmg_state] == expected_occupancy_factors[dmg_state]
+
+    # Test 2: no previous earthquakes run
+    main_path = os.path.join(os.path.dirname(__file__), "data", "intentionally_no_files")
+
+    expected_occupancy_factors = {"DS0": 1, "DS1": 1, "DS2": 1, "DS3": 1, "DS4": 1}
+
+    returned_occupancy_factors = Losses.get_occupancy_factors(
+        datetime_earthquake, mapping_damage_states, main_path
+    )
+
+    for dmg_state in expected_occupancy_factors:
+        assert returned_occupancy_factors[dmg_state] == expected_occupancy_factors[dmg_state]
+
+
+def test_get_occupancy_factors_per_asset():
+    exposure_taxonomies = np.array([
+        "CR/LFINF+CDN+LFC:0.0/H:1/DS1",
+        "CR/LFINF+CDN+LFC:0.0/H:1/DS2",
+        "CR/LFINF+CDN+LFC:0.0/H:1/DS3",
+        "CR/LFINF+CDN+LFC:0.0/H:1/DS4",
+        "CR/LFINF+CDN+LFC:0.0/H:1/DS0",
+    ])
+
+    occupancy_factors = {"DS0": 1, "DS1": 1, "DS2": 1, "DS3": 0, "DS4": 0}
+
+    expected_occupancy_factors_per_asset = np.array([1, 1, 0, 0, 1])
+
+    returned_occupancy_factors_per_asset = Losses.get_occupancy_factors_per_asset(
+        exposure_taxonomies, occupancy_factors
+    )
+
+    np.testing.assert_almost_equal(
+        returned_occupancy_factors_per_asset, expected_occupancy_factors_per_asset, decimal=8
+    )
+
+
+def test_get_injured_still_away():
+    # Test 1: previous earthquakes run
+    datetime_earthquake = np.datetime64("2010-04-10T00:00:00")
+    main_path = os.path.join(os.path.dirname(__file__), "data")
+    exposure_indices = np.array(["res_%s" % (i) for i in range(1, 26)])
+
+    expected_injured_still_away = np.array([
+        0.0, 0.0, 0.0000013278, 0.0037317946, 0.0,
+        0.0, 0.0, 0.0000009988, 0.0014675546, 0.0,
+        0.0, 0.0, 0.0000010856, 0.0022090366, 0.0,
+        0.0, 0.0, 0.0000008462, 0.0008446804, 0.0,
+        0.0, 0.0, 0.0000101968, 0.0046522900, 0.0,
+    ])
+
+    returned_injured_still_away = Losses.get_injured_still_away(
+        exposure_indices, datetime_earthquake, main_path
+    )
+
+    np.testing.assert_almost_equal(
+        returned_injured_still_away, expected_injured_still_away, decimal=8
+    )
+
+    # Test 2: no previous earthquakes run
+    main_path = os.path.join(os.path.dirname(__file__), "data", "intentionally_no_files")
+
+    expected_injured_still_away = np.zeros([len(exposure_indices)])
+
+    returned_injured_still_away = Losses.get_injured_still_away(
+        exposure_indices, datetime_earthquake, main_path
+    )
+
+    np.testing.assert_almost_equal(
+        returned_injured_still_away, expected_injured_still_away, decimal=8
+    )
+
+
+def test_get_time_of_day_factors_per_asset():
+    exposure_occupancies = np.array(["commercial", "residential", "residential", "commercial"])
+    earthquake_time_of_day = "transit"
+    time_of_day_factors = {
+        "residential": {
+            "day": 0.242853, "night": 0.9517285, "transit": 0.532079,
+        },
+        "commercial": {
+            "day": 0.4982155, "night": 0.0436495, "transit": 0.090751,
+        }
+    }
+
+    expected_time_of_day_factors_per_asset = np.array([0.090751, 0.532079, 0.532079, 0.090751])
+
+    returned_time_of_day_factors_per_asset = Losses.get_time_of_day_factors_per_asset(
+        exposure_occupancies, earthquake_time_of_day, time_of_day_factors
+    )
+
+    np.testing.assert_almost_equal(
+        returned_time_of_day_factors_per_asset,
+        expected_time_of_day_factors_per_asset,
+        decimal=6
+    )

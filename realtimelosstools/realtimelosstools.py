@@ -189,6 +189,7 @@ def main():
                 recovery_damage,
                 recovery_injuries,
                 config.injuries_longest_time,
+                config.time_of_day_occupancy,
                 exposure_model_undamaged,
                 config.mapping_damage_states,
                 damage_results_SHM.loc[:, earthquake_params["event_id"]],

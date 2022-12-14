@@ -157,7 +157,7 @@ subdivided into `oelf` and `rla`, as well as the original undamaged exposure mod
 `exposure_model_undamaged.csv`, which needs to exist before putting the software to run. This
 file is not modified during the run. The `oelf` sub-directory will be further subdivided as per
 the different catalogue CSV files (see description of `triggering.csv` and `catalogues` above).
-It must contain the following fields:
+`exposure_model_undamaged.csv` must contain the following fields:
   - `id`: Asset ID, unique identifier per row.
   - `lon`: Longitude of the asset, in degrees.
   - `lat`: Latitude of the asset, in degrees.
@@ -165,12 +165,10 @@ It must contain the following fields:
   `static/fragility_model.xml`.
   - `number`: Number of buildings associated with the asset.
   - `structural`: Total replacement cost of the asset.
-  - `census`: Number of occupants in the asset irrespective of the time of the day (see `night`,
-  `day`, and `transit` below).
-  - `night`: Number of occupants in the asset during the night time.
-  - `day`: Number of occupants in the asset during the day time.
-  - `transit`: Number of occupants in the asset during the transit time.
-  - `occupancy`: "Res", "Com", or "Ind"
+  - `census`: Number of occupants in the asset irrespective of the time of the day and the
+  damage state of the building.
+  - `occupancy`: "residential", "commercial", or "industrial" (needs to match the keys used for
+  `time_of_day_occupancy` in `config.yml`).
   - `id_X`, `name_X` (can be several values of X): ID(s) and name(s) of the administrative
   unit(s) to which the asset belongs. "X" is the administrative level.
   - `building_id`: ID of the building. One `building_id `can be associated with different
@@ -211,6 +209,13 @@ remain the same all throughout. These files are:
   - `consequences_injuries_severity_X.csv`: CSV file with human loss ratios (as percentages) per
   building class (row) and damage state (including "DS0", i.e. the no damage case), for every
   injury severity level `X` listed in the `config.yml` file under `injuries_scale`.
+  - `recovery_damage.csv`: CSV file with the number of days that it takes to inspect (column
+  `N_inspection` and to repair or replace (column `N_repair`) a building in each damage state
+  (column `dmg_state`). Each row corresponds to a damage state.
+  - `recovery_injuries.csv`: CSV file with the number of days that it takes for a person with
+  different severities of injury (column `injuries_scale`) to be able to return to their
+  building/s due only to their health condition (column `N_discharged`). If the injuries scale
+  covers death, use a very large number for `N_discharged` under this category.
 
 Before running the software, the user needs to set up the structure under `main_path` as
 follows:
@@ -230,8 +235,9 @@ an XML with the earthquake source model in the OpenQuake format (see description
 - `shm` must contain `damage_results_shm.csv`, only if RLA is indicated at least in one case
 under `triggering.csv`.
 - `static` needs to contain `fragility_model.xml`, `gmpe_logic_tree.xml`, `site_model.csv`,
-`consequences_economic.csv`, and `consequences_injuries_severity_X.csv`, for every injury
-severity level `X` listed in the `config.yml` file under `injuries_scale`.
+`consequences_economic.csv`, `consequences_injuries_severity_X.csv` (for every injury
+severity level `X` listed in the `config.yml` file under `injuries_scale`),
+`recovery_damage.csv`, and `recovery_injuries.csv`. 
 
 ### Effect of `store_intermediate` on output stored
 

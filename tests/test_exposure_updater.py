@@ -195,8 +195,11 @@ def test_update_exposure_with_damage_states():
     but the first cycle does not.
     """
 
+    # Time of the day of the earthquake
+    earthquake_time_of_day = "night"
+
     # Columns to check
-    cols_to_check_numeric = ["lon", "lat", "number", "census", "night", "day", "transit"]
+    cols_to_check_numeric = ["lon", "lat", "number", "census", earthquake_time_of_day]
     cols_to_check_numeric_lower_precision = ["structural"]
     cols_to_check_str = ["taxonomy", "building_id"]
 
@@ -254,6 +257,7 @@ def test_update_exposure_with_damage_states():
         initial_exposure,
         damage_results_OQ,
         mapping_damage_states,
+        earthquake_time_of_day,
         damage_results_SHM=pd.Series(damage_results_SHM.loc[:, "value"]),
     )
 
@@ -277,6 +281,9 @@ def test_update_exposure_with_damage_states():
             assert round(returned_exposure_model_1.loc[multiindex, col], 2) == round(
                 expected_exposure_model_1.loc[multiindex, col], 2
             )
+
+    for col in ["day", "transit"]:
+        assert col not in returned_exposure_model_1
 
     # Initial exposure model, second cycle
     initial_exposure_updated = deepcopy(returned_exposure_model_1)
@@ -321,6 +328,7 @@ def test_update_exposure_with_damage_states():
         initial_exposure,
         damage_results_OQ,
         mapping_damage_states,
+        earthquake_time_of_day,
         damage_results_SHM=pd.Series(damage_results_SHM.loc[:, "value"]),
     )
 
@@ -341,9 +349,12 @@ def test_update_exposure_with_damage_states():
             )
 
         for col in cols_to_check_numeric_lower_precision:
-            assert round(returned_exposure_model_1.loc[multiindex, col], 2) == round(
-                expected_exposure_model_1.loc[multiindex, col], 2
+            assert round(returned_exposure_model_2.loc[multiindex, col], 2) == round(
+                returned_exposure_model_2.loc[multiindex, col], 2
             )
+
+    for col in ["day", "transit"]:
+        assert col not in returned_exposure_model_2
 
 
 def test_ensure_no_negative_damage_results_OQ():
@@ -455,3 +466,197 @@ def test_get_unique_exposure_locations():
 
         assert round(returned_lons[i], 6) == round(expected_lons[i], 6)
         assert round(returned_lats[i], 6) == round(expected_lats[i], 6)
+
+
+def test_update_exposure_occupants():
+    """
+    The test comprises three cases:
+        1) A first earthquake for which no previous earthquakes have been run.
+        2) An earthquake for which previous earthquakes have been run and for which the
+        occupancy factors that take into account damage and inspection times are not all null.
+        3) An earthquake for which previous earthquakes have been run and for which the
+        occupancy factors that take into account damage and inspection times are all null.
+    """
+
+    # PARAMETERS COMMON TO ALL TESTS
+    # Columns to check
+    cols_to_check_numeric = ["lon", "lat", "number", "census", "night"]
+    cols_to_check_numeric_lower_precision = ["structural"]
+    cols_to_check_str = ["taxonomy", "building_id"]
+
+    # Time of day factors
+    time_of_day_factors = {
+        "residential": {"day": 0.242853, "night": 0.9517285, "transit": 0.532079,
+        }
+    }
+
+    # Time of the day of the earthquake
+    earthquake_time_of_day = "night"
+
+    # Mapping between the names of damage states
+    mapping_aux = {
+        "dmg_state": ["no_damage", "dmg_1", "dmg_2", "dmg_3", "dmg_4"],
+        "fragility": ["DS0", "DS1", "DS2", "DS3", "DS4"],
+    }
+    mapping_damage_states = pd.DataFrame(
+        mapping_aux, columns=["fragility"], index=mapping_aux["dmg_state"]
+    )
+    mapping_damage_states.index = mapping_damage_states.index.rename("asset_id")
+
+    # TEST 1
+    # Earthquake UTC
+    earthquake_datetime = np.datetime64("2010-04-10T00:00:00")
+
+    # Read exposure model
+    filepath = os.path.join(os.path.dirname(__file__), "data", "exposure_model.csv")
+    exposure_full_occupants = pd.read_csv(filepath)
+    exposure_full_occupants.index = exposure_full_occupants["id"]
+    exposure_full_occupants.index = exposure_full_occupants.index.rename("asset_id")
+    exposure_full_occupants = exposure_full_occupants.drop(columns=["id", "night"])
+
+    # Expected output
+    expected_output = os.path.join(
+        os.path.dirname(__file__), "data", "exposure_model.csv"
+    )
+    expected_output = pd.read_csv(filepath)
+    expected_output.index = expected_output["id"]
+    expected_output.index = expected_output.index.rename("asset_id")
+    expected_output = expected_output.drop(columns=["id"])
+
+    # Execute the method
+    returned_exposure_updated_occupants = ExposureUpdater.update_exposure_occupants(
+        exposure_full_occupants,
+        time_of_day_factors,
+        earthquake_time_of_day,
+        earthquake_datetime,
+        mapping_damage_states,
+        os.path.join(os.path.dirname(__file__), "data", "intentionally_no_files"),
+    )
+
+    assert returned_exposure_updated_occupants.shape[0] == expected_output.shape[0]
+
+    for multiindex in expected_output.index:
+        assert multiindex in returned_exposure_updated_occupants.index
+
+        for col in cols_to_check_str:
+            assert (
+                returned_exposure_updated_occupants.loc[multiindex, col]
+                == expected_output.loc[multiindex, col]
+            )
+
+        for col in cols_to_check_numeric:
+            assert round(returned_exposure_updated_occupants.loc[multiindex, col], 5) == round(
+                expected_output.loc[multiindex, col], 5
+            )
+
+        for col in cols_to_check_numeric_lower_precision:
+            assert round(returned_exposure_updated_occupants.loc[multiindex, col], 2) == round(
+                expected_output.loc[multiindex, col], 2
+            )
+
+    # TEST 2
+    # Earthquake UTC
+    earthquake_datetime = np.datetime64("2010-04-10T00:00:00")
+
+    # Read exposure model
+    filepath = os.path.join(
+        os.path.dirname(__file__), "data", "expected_exposure_model_cycle_1.csv"
+    )
+    exposure_full_occupants = pd.read_csv(filepath)
+    exposure_full_occupants.index = exposure_full_occupants["id"]
+    exposure_full_occupants.index = exposure_full_occupants.index.rename("asset_id")
+    exposure_full_occupants = exposure_full_occupants.drop(columns=["id", "night"])
+
+    # Expected output
+    filepath = os.path.join(
+        os.path.dirname(__file__), "data", "expected_exposure_model_occupants_update.csv"
+    )
+    expected_output = pd.read_csv(filepath)
+    expected_output.index = expected_output["id"]
+    expected_output.index = expected_output.index.rename("asset_id")
+    expected_output = expected_output.drop(columns=["id"])
+
+    # Execute the method
+    returned_exposure_updated_occupants = ExposureUpdater.update_exposure_occupants(
+        exposure_full_occupants,
+        time_of_day_factors,
+        earthquake_time_of_day,
+        earthquake_datetime,
+        mapping_damage_states,
+        os.path.join(os.path.dirname(__file__), "data"),
+    )
+
+    assert returned_exposure_updated_occupants.shape[0] == expected_output.shape[0]
+
+    for multiindex in expected_output.index:
+        assert multiindex in returned_exposure_updated_occupants.index
+
+        for col in cols_to_check_str:
+            assert (
+                returned_exposure_updated_occupants.loc[multiindex, col]
+                == expected_output.loc[multiindex, col]
+            )
+
+        for col in cols_to_check_numeric:
+            assert round(returned_exposure_updated_occupants.loc[multiindex, col], 5) == round(
+                expected_output.loc[multiindex, col], 5
+            )
+
+        for col in cols_to_check_numeric_lower_precision:
+            assert round(returned_exposure_updated_occupants.loc[multiindex, col], 2) == round(
+                expected_output.loc[multiindex, col], 2
+            )
+
+    # TEST 3
+    # Earthquake UTC
+    earthquake_datetime = np.datetime64("2009-04-06T01:32:00")
+
+    # Read exposure model
+    filepath = os.path.join(
+        os.path.dirname(__file__), "data", "expected_exposure_model_cycle_1.csv"
+    )
+    exposure_full_occupants = pd.read_csv(filepath)
+    exposure_full_occupants.index = exposure_full_occupants["id"]
+    exposure_full_occupants.index = exposure_full_occupants.index.rename("asset_id")
+    exposure_full_occupants = exposure_full_occupants.drop(columns=["id", "night"])
+
+    # Expected output (modified manually in code)
+    filepath = os.path.join(
+        os.path.dirname(__file__), "data", "expected_exposure_model_occupants_update.csv"
+    )
+    expected_output = pd.read_csv(filepath)
+    expected_output.index = expected_output["id"]
+    expected_output.index = expected_output.index.rename("asset_id")
+    expected_output = expected_output.drop(columns=["id"])
+    expected_output["night"] = np.zeros([expected_output.shape[0]])
+
+    # Execute the method
+    returned_exposure_updated_occupants = ExposureUpdater.update_exposure_occupants(
+        exposure_full_occupants,
+        time_of_day_factors,
+        earthquake_time_of_day,
+        earthquake_datetime,
+        mapping_damage_states,
+        os.path.join(os.path.dirname(__file__), "data"),
+    )
+
+    assert returned_exposure_updated_occupants.shape[0] == expected_output.shape[0]
+
+    for multiindex in expected_output.index:
+        assert multiindex in returned_exposure_updated_occupants.index
+
+        for col in cols_to_check_str:
+            assert (
+                returned_exposure_updated_occupants.loc[multiindex, col]
+                == expected_output.loc[multiindex, col]
+            )
+
+        for col in cols_to_check_numeric:
+            assert round(returned_exposure_updated_occupants.loc[multiindex, col], 5) == round(
+                expected_output.loc[multiindex, col], 5
+            )
+
+        for col in cols_to_check_numeric_lower_precision:
+            assert round(returned_exposure_updated_occupants.loc[multiindex, col], 2) == round(
+                expected_output.loc[multiindex, col], 2
+            )
