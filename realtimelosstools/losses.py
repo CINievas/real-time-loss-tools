@@ -33,6 +33,112 @@ class Losses:
     """
 
     @staticmethod
+    def check_consequence_models(consequence_models, exposure_model):
+        """
+        This method verifies that all of the building classes listed in the "taxonomy" column of
+        'exposure_model' are listed as well in each of the 'consequence_models'.
+
+        Args:
+            consequence_models (dict):
+                Dictionary with the following keys and contents:
+                - economic (Pandas DataFrame):
+                    Pandas DataFrame with the consequence model for economic losses in terms of
+                    mean values of loss ratio per damage state. Each row in the
+                    'consequence_model' corresponds to a different building class. The structure
+                    is as follows:
+                        Index:
+                            Taxonomy (str): Building classes.
+                        Columns:
+                            One per damage state (float): They contain the mean loss ratios (as
+                            percentages) for each building class and damage state.
+                - injuries (dict of Pandas DataFrame):
+                    Dictionary whose keys are the injury severity levels and whose contents are
+                    Pandas DataFrames with the consequence models for injuries in terms of mean
+                    values of loss ratio per damage state. Each row in the consequence model
+                    corresponds to a different building class. The structure is as follows:
+                        Index:
+                            Taxonomy (str): Building classes.
+                        Columns:
+                            One per damage state (float): They contain the mean loss ratios (as
+                            percentages) for each building class and damage state.
+            exposure_model (Pandas DataFrame):
+                Pandas DataFrame representation of the exposure CSV input for OpenQuake. It must
+                contain at least a "taxonomy" column with the strings that define the building
+                classes.
+
+        Returns:
+            classes_are_missing (bool):
+                True if there are building classes listed in the "taxonomy" column of
+                'exposure_model' that are not listed in each of the 'consequence_models'.
+            missing_building_classes (dict):
+                Dictionary with the same structure as 'consequence_models'. The contents are
+                lists of building classes listed in the "taxonomy" column of 'exposure_model'
+                that are not listed in each of the 'consequence_models' (i.e. the list of
+                building classes that are missing).
+        """
+
+        # Unique building classes in the exposure model, without the damage state
+        exposure_bdg_classes = np.array(
+            [
+                "/".join(exposure_model["taxonomy"].to_numpy()[i].split("/")[:-1])
+                for i in range(exposure_model.shape[0])
+            ]
+        )
+        exposure_bdg_classes = np.unique(exposure_bdg_classes)
+
+        # Initialise output
+        missing_building_classes = {}
+        classes_are_missing = False
+
+        for loss_type in consequence_models:  # economic, injuries
+            if isinstance(consequence_models[loss_type], dict):
+                missing_building_classes[loss_type] = {}
+                for level in consequence_models[loss_type]:  # injuries: level of severity
+                    missing_building_classes[loss_type][level] = (
+                        Losses.identify_missing_building_classes(
+                            consequence_models[loss_type][level].index.to_numpy(),
+                            exposure_bdg_classes
+                        )
+                    )
+                    if len(missing_building_classes[loss_type][level]) > 0:
+                        classes_are_missing = True
+            else:  # economic
+                missing_building_classes[loss_type] = (
+                    Losses.identify_missing_building_classes(
+                        consequence_models[loss_type].index.to_numpy(),
+                        exposure_bdg_classes
+                    )
+                )
+                if len(missing_building_classes[loss_type]) > 0:
+                    classes_are_missing = True
+
+        return classes_are_missing, missing_building_classes
+
+    @staticmethod
+    def identify_missing_building_classes(available_strings, target_strings):
+        """
+        This method checks if all the strings in 'target_strings' are present in
+        'available_strings' strings too (but not the other way around), and returns a list with
+        the missing strings (empty list if nothing is missing).
+
+        Args:
+            available_strings (arr of str)
+            target_strings (arr of str)
+
+        Returns:
+            missing_strings (list of str):
+                List of strings from 'target_strings' not present in 'available_strings'.
+        """
+
+        missing_strings = []
+
+        for a_string in target_strings:
+            if a_string not in available_strings:
+                missing_strings.append(a_string)
+
+        return missing_strings
+
+    @staticmethod
     def expected_economic_loss(exposure, consequence_model):
         """
         This method returns the expected economic loss per building_id, where building_id refers

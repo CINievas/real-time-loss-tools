@@ -19,6 +19,7 @@
 import os
 import numpy as np
 import pandas as pd
+from copy import deepcopy
 from realtimelosstools.losses import Losses
 
 
@@ -456,3 +457,111 @@ def test_get_time_of_day_factors_per_asset():
         expected_time_of_day_factors_per_asset,
         decimal=6
     )
+
+
+def test_identify_missing_building_classes():
+    available_strings = np.array(["A/B/C", "D/E/F", "G/H/I"])
+    target_strings = np.array(["G/H/I", "A/B/C"])
+
+    expected_missing_strings = []
+
+    returned_missing_strings = Losses.identify_missing_building_classes(
+        available_strings, target_strings
+    )
+
+    assert len(returned_missing_strings) == len(expected_missing_strings)
+
+    target_strings = np.array(["G/H/I", "A/B/C", "X/Y/Z"])
+
+    expected_missing_strings = ["X/Y/Z"]
+
+    returned_missing_strings = Losses.identify_missing_building_classes(
+        available_strings, target_strings
+    )
+
+    assert len(returned_missing_strings) == len(expected_missing_strings)
+    assert returned_missing_strings[0] == expected_missing_strings[0]
+
+
+def test_check_consequence_models():
+    # Read exposure model
+    filepath = os.path.join(
+        os.path.dirname(__file__), "data", "exposure_model.csv"
+    )
+    exposure_model = pd.read_csv(filepath)
+
+    # Read economic consequence model
+    filepath = os.path.join(
+        os.path.dirname(__file__), "data", "consequences_economic.csv"
+    )
+    economic_consequence_model = pd.read_csv(filepath)
+    economic_consequence_model.set_index(
+        economic_consequence_model["Taxonomy"], drop=True, inplace=True
+    )
+    economic_consequence_model = economic_consequence_model.drop(columns=["Taxonomy"])
+
+    # Read human consequence models
+    injuries_scale = ["1", "2", "3", "4"]
+
+    injuries_consequence_model = {}
+    for severity in injuries_scale:
+        injuries_consequence_model[severity] = pd.read_csv(
+            os.path.join(
+                os.path.dirname(__file__),
+                "data",
+                "consequences_injuries_severity_%s.csv" % (severity),
+            )
+        )
+        injuries_consequence_model[severity].set_index(
+            injuries_consequence_model[severity]["Taxonomy"], drop=True, inplace=True
+        )
+        injuries_consequence_model[severity] = injuries_consequence_model[severity].drop(
+            columns=["Taxonomy"]
+        )
+
+    consequence_models = {
+        "economic": economic_consequence_model,
+        "injuries": injuries_consequence_model,
+    }
+
+    # Test 1: all classes are found
+    returned_classes_are_missing, returned_missing_building_classes = (
+        Losses.check_consequence_models(consequence_models, exposure_model)
+    )
+
+    expected_missing_building_classes = {
+        "economic": [],
+        "injuries": {"1": [], "2": [], "3": [], "4": []}
+    }
+
+    assert returned_classes_are_missing is False
+    assert len(returned_missing_building_classes["economic"]) == 0
+
+    for severity in injuries_scale:
+        assert len(returned_missing_building_classes["injuries"][severity]) == 0
+
+    # Test 2: some classes missing
+    ## Modify the exposure model used above so that some classes will not be found
+    exposure_model.loc[0, "taxonomy"] = "WILL/NOT/EXIST/DS0"
+    exposure_model.loc[3, "taxonomy"] = "WILL/NOT/EXIST/EITHER/DS0"
+
+    returned_classes_are_missing, returned_missing_building_classes = (
+        Losses.check_consequence_models(consequence_models, exposure_model)
+    )
+
+    missing_ones = ["WILL/NOT/EXIST", "WILL/NOT/EXIST/EITHER"]
+    expected_missing_building_classes = {
+        "economic": missing_ones,
+        "injuries": {"1": missing_ones, "2": missing_ones, "3": missing_ones, "4": missing_ones}
+    }
+
+    assert returned_classes_are_missing is True
+
+    for loss_type in expected_missing_building_classes:  # economic, injuries
+        if isinstance(expected_missing_building_classes[loss_type], dict):  # injuries
+            for level in expected_missing_building_classes[loss_type]:  # level of severity
+                for bdg_class in expected_missing_building_classes[loss_type][level]:
+                    assert bdg_class in returned_missing_building_classes[loss_type][level]
+        else:  # economic
+            for bdg_class in expected_missing_building_classes[loss_type]:
+                assert bdg_class in returned_missing_building_classes[loss_type]

@@ -154,6 +154,23 @@ def main():
     exposure_model_undamaged.index = exposure_model_undamaged.index.rename("asset_id")
     exposure_model_undamaged = exposure_model_undamaged.drop(columns=["id"])
 
+    # Check that consequence models cover all the building classes in 'exposure_model_undamaged'
+    classes_are_missing, missing_building_classes = Losses.check_consequence_models(
+        {
+            "economic": consequence_economic,
+            "injuries": consequence_injuries,
+        },
+        exposure_model_undamaged
+    )
+
+    if classes_are_missing:
+        error_message = (
+            "The following building classes are missing from the consequence models: %s"
+            % (missing_building_classes)
+        )
+        logger.critical(error_message)
+        raise OSError(error_message)
+
     # Copy the "initial" exposure model to the 'current' sub-directory to initialise the process
     in_filename = os.path.join(
         config.main_path, "exposure_models", "exposure_model_undamaged.csv"
