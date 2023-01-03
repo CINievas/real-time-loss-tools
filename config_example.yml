@@ -27,5 +27,6 @@ time_of_day_occupancy:  # Factors by which the census population can be multipli
     day: 0.4982155
     night: 0.0436495
     transit: 0.090751
+timezone: "Europe/Rome"  # Local time zone in the format of the IANA Time Zone Database (https://www.iana.org/time-zones)
 store_intermediate: True  # If True, intermediate results including intermediate exposure models and damage states will be stored. Intended for debugging.
 store_openquake: True  # If True, OpenQuake HDF5 files will be stored and jobs will be kept in OpenQuake's database. Intended for debugging.

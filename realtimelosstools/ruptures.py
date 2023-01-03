@@ -30,46 +30,6 @@ class Rupture:
     """
 
     @staticmethod
-    def determine_local_time_from_utc(utc_time, timezone):
-        """This method converts UTC time into local time.
-
-        WARNING: THIS METHOD IS NOT IMPLEMENTED YET AND WILL RETURN THE INPUT UTC TIME.
-        """
-
-        return utc_time
-
-    @staticmethod
-    def interpret_time_of_the_day(local_hour):
-        """This method interprets a time of the day as corresponding to the "day", "night" or
-        "transit" period, in the following way:
-            Day: 10 am (inclusive) to 6 pm (exclusive).
-            Night: 10 pm (inclusive) to 6 am (exclusive).
-            Transit: 6 am (inclusive) to 10 am (exclusive), and 6 pm (inclusive) to 10 pm
-                (exclusive).
-
-        Args:
-            local_hour (int):
-                Hour of the day (in local time), as an integer equal to or larger than 0 and smaller
-                than 24.
-
-        Returns:
-            time_of_day (str):
-                "day", "night", "transit", "error" (if local_hour is an integer smaller than 0 or
-                equal to or larger than 24).
-        """
-
-        if local_hour >= 10 and local_hour < 18:
-            time_of_day = "day"
-        elif (local_hour >= 22 and local_hour < 24) or (local_hour >= 0 and local_hour < 6):
-            time_of_day = "night"
-        elif (local_hour >= 6 and local_hour < 10) or (local_hour >= 18 and local_hour < 22):
-            time_of_day = "transit"
-        else:
-            time_of_day = "error"
-
-        return time_of_day
-
-    @staticmethod
     def define_rupture(event_id, source_params):
         """This method defines the strike, dip, rake, hypocenter and rupture plane of the rupture
         associated with earthquake with ID 'event_id'.

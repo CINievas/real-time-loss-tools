@@ -19,11 +19,13 @@
 import logging
 import os
 import pandas as pd
+from datetime import datetime
 from openquake.commands.run import main
 from realtimelosstools.ruptures import Rupture
 from realtimelosstools.exposure_updater import ExposureUpdater
 from realtimelosstools.losses import Losses
 from realtimelosstools.writers import Writer
+from realtimelosstools.utils import Time
 
 
 logger = logging.getLogger()
@@ -45,6 +47,7 @@ class RapidLossAssessment:
         recovery_injuries,
         recovery_longest_time,
         time_of_day_occupancy,
+        local_timezone,
         original_exposure_model,
         mapping_damage_states,
         damage_results_SHM,
@@ -171,9 +174,12 @@ class RapidLossAssessment:
                     - "day": approx. 10 am to 6 pm;
                     - "night": approx. 10 pm to 6 am;
                     - "transit": approx. 6 am to 10 am and 6 pm to 10 pm.
+            local_timezone (str):
+                Local time zone in the format of the IANA Time Zone Database.
+                E.g. "Europe/Rome".
             original_exposure_model (Pandas DataFrame):
-                Pandas DataFrame representation of the exposure CSV input for OpenQuake for the undamaged
-                structures. It comprises the following fields:
+                Pandas DataFrame representation of the exposure CSV input for OpenQuake for the
+                undamaged structures. It comprises the following fields:
                     Index (simple):
                         asset_id (str):
                             ID of the asset (i.e. specific combination of building_id and a
@@ -324,10 +330,10 @@ class RapidLossAssessment:
         description = "%s, event ID %s" % (description_general, earthquake["event_id"])
 
         # Determine time of the day (used for number of occupants)
-        local_hour = Rupture.determine_local_time_from_utc(
-            earthquake["datetime"], "timezone"
+        local_hour = Time.determine_local_time_from_utc(
+            datetime.fromtimestamp(earthquake["datetime"].timestamp()), local_timezone
         )
-        time_of_day = Rupture.interpret_time_of_the_day(local_hour.hour)
+        time_of_day = Time.interpret_time_of_the_day(local_hour.hour)
 
         if time_of_day == "error":
             error_message = (

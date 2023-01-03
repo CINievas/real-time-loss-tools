@@ -22,12 +22,14 @@ import shutil
 from copy import deepcopy
 import numpy as np
 import pandas as pd
+from datetime import datetime
 from openquake.commands.run import main
 from openquake.hazardlib import geo
 from realtimelosstools.ruptures import Rupture
 from realtimelosstools.exposure_updater import ExposureUpdater
 from realtimelosstools.losses import Losses
 from realtimelosstools.writers import Writer
+from realtimelosstools.utils import Time
 
 
 logger = logging.getLogger()
@@ -49,6 +51,7 @@ class OperationalEarthquakeLossForecasting():
         original_exposure_model,
         consequence_economic,
         consequence_injuries,
+        local_timezone,
         mapping_damage_states,
         store_intermediate,
         store_openquake,
@@ -167,6 +170,9 @@ class OperationalEarthquakeLossForecasting():
                     Columns:
                         One per damage state (float): They contain the mean loss ratios (as
                         percentages) for each building class and damage state.
+            local_timezone (str):
+                Local time zone in the format of the IANA Time Zone Database.
+                E.g. "Europe/Rome".
             mapping_damage_states (Pandas DataFrame):
                 Mapping between the names of damage states as output by OpenQuake (index) and as
                 labelled in the fragility model (value). E.g.:
@@ -375,10 +381,13 @@ class OperationalEarthquakeLossForecasting():
                 )
 
                 # Determine time of the day (used for number of occupants)
-                local_hour = Rupture.determine_local_time_from_utc(
-                    events_in_ses.loc[eq_id, "datetime"], "timezone"
+                local_hour = Time.determine_local_time_from_utc(
+                    datetime.fromtimestamp(events_in_ses.loc[eq_id, "datetime"].timestamp()),
+                    local_timezone
                 )
-                time_of_day = Rupture.interpret_time_of_the_day(local_hour.hour)
+                time_of_day = Time.interpret_time_of_the_day(
+                    local_hour.hour
+                )
 
                 if time_of_day == "error":
                     error_message = (

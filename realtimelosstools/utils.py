@@ -18,6 +18,7 @@
 
 import logging
 import numpy as np
+import pytz
 
 
 logger = logging.getLogger()
@@ -70,3 +71,65 @@ class MultilinearStepFunction():
 
         which = np.searchsorted(self.thresholds, x)
         return self.values[which-1]
+
+
+class Time():
+    """This class handles operations associated with time.
+    """
+
+    @staticmethod
+    def determine_local_time_from_utc(utc_time_naive, local_timezone):
+        """
+        This method converts the datetime object 'utc_time', assumed to be in UTC, into the
+        specified 'local_timezone'.
+
+        Args:
+            utc_time_naive (datetime object):
+                Datetime object, assumed to be in UTC, with no timezone defined.
+            local_timezone (str):
+                Local time zone in the format of the IANA Time Zone Database.
+                E.g. "Europe/Rome".
+
+        Returns:
+            local_time (datetime object):
+                Datetime object equivalent to 'utc_time' in the target 'local_timezone'.
+        """
+
+        # Assume time zone of 'utc_time' is UTC (assign it)
+        utc_time_aware = utc_time_naive.replace(tzinfo=pytz.UTC)
+
+        # Convert into local time
+        local_time_aware = utc_time_aware.astimezone(pytz.timezone(local_timezone))
+
+        return local_time_aware
+
+    @staticmethod
+    def interpret_time_of_the_day(local_hour):
+        """This method interprets a time of the day as corresponding to the "day", "night" or
+        "transit" period, in the following way:
+            Day: 10 am (inclusive) to 6 pm (exclusive).
+            Night: 10 pm (inclusive) to 6 am (exclusive).
+            Transit: 6 am (inclusive) to 10 am (exclusive), and 6 pm (inclusive) to 10 pm
+                (exclusive).
+
+        Args:
+            local_hour (int):
+                Hour of the day (in local time), as an integer equal to or larger than 0 and smaller
+                than 24.
+
+        Returns:
+            time_of_day (str):
+                "day", "night", "transit", "error" (if local_hour is an integer smaller than 0 or
+                equal to or larger than 24).
+        """
+
+        if local_hour >= 10 and local_hour < 18:
+            time_of_day = "day"
+        elif (local_hour >= 22 and local_hour < 24) or (local_hour >= 0 and local_hour < 6):
+            time_of_day = "night"
+        elif (local_hour >= 6 and local_hour < 10) or (local_hour >= 18 and local_hour < 22):
+            time_of_day = "transit"
+        else:
+            time_of_day = "error"
+
+        return time_of_day

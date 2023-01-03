@@ -85,6 +85,9 @@ class Configuration:
                 - "day": approx. 10 am to 6 pm;
                 - "night": approx. 10 pm to 6 am;
                 - "transit": approx. 6 am to 10 am and 6 pm to 10 pm.
+        self.timezone (str):
+            Local time zone in the format of the IANA Time Zone Database. E.g. "Europe/Rome".
+            Further info: https://www.iana.org/time-zones.
         self.store_intermediate (bool):
             If True, intermediate results including updated exposure files and damage states
             after each earthquake will be stored. If False, these intermediate results will not
@@ -104,6 +107,7 @@ class Configuration:
         "injuries_scale",
         "injuries_longest_time",
         "time_of_day_occupancy",
+        "timezone",
         "store_intermediate",
         "store_openquake"
     ]
@@ -169,6 +173,8 @@ class Configuration:
         self.time_of_day_occupancy = self.assign_hierarchical_parameters(
             config, "time_of_day_occupancy"
         )
+
+        self.timezone = self.assign_parameter(config, "timezone")
 
         self.store_intermediate = self.assign_boolean_parameter(config, "store_intermediate")
 

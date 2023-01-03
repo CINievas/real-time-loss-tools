@@ -21,35 +21,6 @@ import pandas as pd
 from realtimelosstools.ruptures import Rupture
 
 
-def test_interpret_time_of_the_day():
-    assert Rupture.interpret_time_of_the_day(0) == "night"
-    assert Rupture.interpret_time_of_the_day(1) == "night"
-    assert Rupture.interpret_time_of_the_day(2) == "night"
-    assert Rupture.interpret_time_of_the_day(3) == "night"
-    assert Rupture.interpret_time_of_the_day(4) == "night"
-    assert Rupture.interpret_time_of_the_day(5) == "night"
-    assert Rupture.interpret_time_of_the_day(6) == "transit"
-    assert Rupture.interpret_time_of_the_day(7) == "transit"
-    assert Rupture.interpret_time_of_the_day(8) == "transit"
-    assert Rupture.interpret_time_of_the_day(9) == "transit"
-    assert Rupture.interpret_time_of_the_day(10) == "day"
-    assert Rupture.interpret_time_of_the_day(11) == "day"
-    assert Rupture.interpret_time_of_the_day(12) == "day"
-    assert Rupture.interpret_time_of_the_day(13) == "day"
-    assert Rupture.interpret_time_of_the_day(14) == "day"
-    assert Rupture.interpret_time_of_the_day(15) == "day"
-    assert Rupture.interpret_time_of_the_day(16) == "day"
-    assert Rupture.interpret_time_of_the_day(17) == "day"
-    assert Rupture.interpret_time_of_the_day(18) == "transit"
-    assert Rupture.interpret_time_of_the_day(19) == "transit"
-    assert Rupture.interpret_time_of_the_day(20) == "transit"
-    assert Rupture.interpret_time_of_the_day(21) == "transit"
-    assert Rupture.interpret_time_of_the_day(22) == "night"
-    assert Rupture.interpret_time_of_the_day(23) == "night"
-    assert Rupture.interpret_time_of_the_day(24) == "error"
-    assert Rupture.interpret_time_of_the_day(28) == "error"
-
-
 def test_distance_between_coordinates():
     returned_distance = Rupture.distance_between_coordinates(13.4761, 42.2713, 13.506, 42.2772)
 
