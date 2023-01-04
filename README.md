@@ -70,6 +70,7 @@ The virtual environment can be deactivated by typing:
 - `pyproj`
 - `rtree`
 - `geopandas`
+- `pytz`
 - `openquake.engine 3.15`
 
 ## Running
@@ -121,6 +122,8 @@ associated with one (RLA) or more (OELF) earthquakes. The names of these files n
     - `general:calculation_mode`: `scenario_damage`.
     - `general:ses_seed`: A positive integer to ensure reproducibility of the results.
     - `exposure:exposure_file`: Relative path to the XML file of the exposure model.
+    - `exposure:taxonomy_mapping_csv`: Relative path to the CSV file with the
+    exposure-to-vulnerability mapping (if desired).
     - `exposure:time_event`: `day`, `night` or `transit`.
     - `fragility:structural_fragility_file`: Relative path to the XML file of the fragility
     model.
@@ -202,6 +205,8 @@ following fields:
 - `static`: Directory with input files that need to be defined by the user before the run and
 remain the same all throughout. These files are:
   - `fragility_model.xml`: XML file of the fragility model, in OpenQuake input format.
+  - `exposure_vulnerability_mapping.csv`: CSV file with the exposure-to-vulnerability mapping,
+  if desired and specified in the `job.ini` file that it needs to be used.
   - `gmpe_logic_tree.xml`: XML file of the ground motion logic tree, in OpenQuake input format.
   - `site_model.csv`: CSV file of the site model, in OpenQuake input format.
   - `consequences_economic.csv`: CSV file with economic loss ratios (as percentages) per
