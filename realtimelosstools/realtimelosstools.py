@@ -29,6 +29,7 @@ from realtimelosstools.oelf import OperationalEarthquakeLossForecasting
 from realtimelosstools.stochastic_rupture_generator import StochasticRuptureSet
 from realtimelosstools.exposure_updater import ExposureUpdater
 from realtimelosstools.losses import Losses
+from realtimelosstools.postprocessor import PostProcessor
 
 
 logger = logging.getLogger()
@@ -178,6 +179,9 @@ def main():
     out_filename = os.path.join(config.main_path, "current", "exposure_model_current.csv")
     _ = shutil.copyfile(in_filename, out_filename)
 
+    processed_rla = []
+    processed_oelf = []
+
     for i, cat_filename_i in enumerate(triggers["catalogue_filename"].to_numpy()):
         type_analysis_i = triggers["type_analysis"].to_numpy()[i]
 
@@ -188,6 +192,7 @@ def main():
 
         if type_analysis_i == "RLA":
             cat_name = cat_filename_i.split(".")[0]  # Get rid of ".csv"
+            processed_rla.append(cat_name)
 
             # Read earthquake parameters
             earthquake_df = pd.read_csv(
@@ -316,6 +321,7 @@ def main():
             forecast_name = (
                 "_".join(cat_filename_i.split(".")[:-1]).replace("-", "_").replace(":", "_")
             )
+            processed_oelf.append(forecast_name)
 
             # Create sub-directory to store stochastically-generated rupture XML files
             path_to_ruptures = os.path.join(config.main_path, "ruptures", "oelf", forecast_name)
@@ -390,6 +396,20 @@ def main():
                 ),
                 index=True,
             )
+
+    # Post-process individual outputs
+    if config.post_process["collect_csv"]:
+        PostProcessor.export_collected_output_damage(
+            config.main_path, processed_rla, processed_oelf
+        )
+
+        PostProcessor.export_collected_output_losses_economic(
+            config.main_path, processed_rla, processed_oelf
+        )
+
+        PostProcessor.export_collected_output_losses_human(
+            config.main_path, config.injuries_scale, processed_rla, processed_oelf
+        )
 
     # Leave the program
     logger.info("Real-Time Loss Tools has finished")

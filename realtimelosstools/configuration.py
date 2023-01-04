@@ -96,6 +96,11 @@ class Configuration:
             If True, OpenQuake HDF5 files will be stored and jobs will be kept in OpenQuake's
             database. If false, OpenQuake's database will be purged of the last job after each
             run. True option is intended for debugging.
+        self.post_process (dict):
+            Booleans indicating whether to carry out specific post-processing tasks. Keys:
+                collect_csv (bool):
+                    If True, individual damage and loss output CSVs will be collected under one
+                    RLA and one OELF CSV file.
     """
 
     REQUIRES = [
@@ -109,7 +114,8 @@ class Configuration:
         "time_of_day_occupancy",
         "timezone",
         "store_intermediate",
-        "store_openquake"
+        "store_openquake",
+        "post_process"
     ]
 
     def __init__(self, filepath):
@@ -179,6 +185,12 @@ class Configuration:
         self.store_intermediate = self.assign_boolean_parameter(config, "store_intermediate")
 
         self.store_openquake = self.assign_boolean_parameter(config, "store_openquake")
+
+        self.post_process = self.assign_hierarchical_parameters(
+            config,
+            "post_process",
+            requested_nested = ["collect_csv"]
+        )
 
         # Terminate if critical parameters are missing (not all parameters are critical)
         for key_parameter in self.REQUIRES:

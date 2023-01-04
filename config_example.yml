@@ -30,3 +30,5 @@ time_of_day_occupancy:  # Factors by which the census population can be multipli
 timezone: "Europe/Rome"  # Local time zone in the format of the IANA Time Zone Database (https://www.iana.org/time-zones)
 store_intermediate: True  # If True, intermediate results including intermediate exposure models and damage states will be stored. Intended for debugging.
 store_openquake: True  # If True, OpenQuake HDF5 files will be stored and jobs will be kept in OpenQuake's database. Intended for debugging.
+post_process:
+  collect_csv: True  ## If True, individual damage and loss output CSVs will be collected under one RLA and one OELF CSV file.

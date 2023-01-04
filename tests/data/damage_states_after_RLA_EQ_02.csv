@@ -1,0 +1,16 @@
+building_id,damage_state,number
+building_1,DS0,0.27
+building_1,DS1,0.2
+building_1,DS2,0.4
+building_1,DS3,0.1
+building_1,DS4,0.03
+building_2,DS0,6.75
+building_2,DS1,10
+building_2,DS2,5
+building_2,DS3,2.5
+building_2,DS4,0.75
+building_3,DS0,0.71
+building_3,DS1,1.25
+building_3,DS2,2.841
+building_3,DS3,1.916
+building_3,DS4,0.383
