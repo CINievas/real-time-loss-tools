@@ -67,7 +67,7 @@ def main():
         error_message = (
             "The directory 'occupants' already exists under %s/current and may contain "
             "results from a previous run. The program will stop."
-            % (main_path)
+            % (config.main_path)
         )
         logger.critical(error_message)
         raise OSError(error_message)
