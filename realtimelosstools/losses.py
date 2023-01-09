@@ -864,3 +864,49 @@ class Losses:
         )
 
         return time_of_day_factors_per_asset
+
+    @staticmethod
+    def get_expected_costs_occupants(exposure_model):
+        """
+        This method calculates the expected total replacement cost and total number of census
+        occupants (i.e. occupants irrespective of the time of the day) per building_id of the
+        input 'exposure_model', whose structure is that on the OpenQuake exposure CSV format.
+
+        Args:
+            exposure_model (Pandas DataFrame):
+                Pandas DataFrame representation of the exposure CSV input for OpenQuake for the
+                undamaged structures. It comprises at least the following fields:
+                    Index (simple):
+                        asset_id (str):
+                            ID of the asset (i.e. specific combination of building_id and a
+                            particular building class).
+                    Columns:
+                        building_id (str):
+                            ID of the building. One building_id can be associated with different
+                            values of asset_id.
+                        number (float):
+                            Number of buildings in this asset.
+                        structural (float):
+                            Total replacement cost of this asset (all buildings in "number").
+                        census (float):
+                            Total number of occupants in this asset (all buildings in "number"),
+                            irrespective of the time of the day.
+
+        Returns:
+            expected_costs_occupants (Pandas DataFrame):
+                Pandas DataFrame with the following structure:
+                    Index (simple):
+                        building_id (str):
+                            ID of the building. One building_id can be associated with different
+                            values of asset_id of the input 'exposure_model'.
+                    Columns:
+                        structural (float):
+                            Total replacement cost of this 'building_id'.
+                        census (float):
+                            Total number of occupants in this 'building_id'.
+        """
+
+        expected_costs_occupants = exposure_model.groupby(["building_id"]).sum()
+        expected_costs_occupants = expected_costs_occupants[["structural", "census"]]
+
+        return expected_costs_occupants

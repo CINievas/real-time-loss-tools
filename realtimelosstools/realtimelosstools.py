@@ -397,6 +397,9 @@ def main():
 
     # Post-process individual outputs
     if config.post_process["collect_csv"]:
+        exposure_expected_costs_occupants = Losses.get_expected_costs_occupants(
+            exposure_model_undamaged
+        )
         PostProcessor.export_collected_output_damage(
             config.main_path, processed_rla, processed_oelf
         )

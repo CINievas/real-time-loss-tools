@@ -563,3 +563,32 @@ def test_check_consequence_models():
         else:  # economic
             for bdg_class in expected_missing_building_classes[loss_type]:
                 assert bdg_class in returned_missing_building_classes[loss_type]
+
+
+def test_check_consequence_models():
+    # Read exposure model
+    filepath = os.path.join(os.path.dirname(__file__), "data", "exposure_model.csv")
+    exposure_model = pd.read_csv(filepath)
+    exposure_model.index = exposure_model["id"]
+    exposure_model.index = exposure_model.index.rename("asset_id")
+    exposure_model = exposure_model.drop(columns=["id"])
+
+    returned_costs_occupants = Losses.get_expected_costs_occupants(exposure_model)
+
+    expected_costs_occupants = pd.read_csv(
+        os.path.join(
+            os.path.dirname(__file__), "data", "expected_costs_occupants_per_building.csv"
+        )
+    )
+    expected_costs_occupants.index = expected_costs_occupants["building_id"]
+    expected_costs_occupants = expected_costs_occupants.drop(columns=["building_id"])
+
+    assert returned_costs_occupants.shape == expected_costs_occupants.shape
+
+    for building_id in expected_costs_occupants.index:
+        assert round(returned_costs_occupants.loc[building_id, "structural"], 2) == round(
+            expected_costs_occupants.loc[building_id, "structural"], 2
+        )
+        assert round(returned_costs_occupants.loc[building_id, "census"], 8) == round(
+            expected_costs_occupants.loc[building_id, "census"], 8
+        )
