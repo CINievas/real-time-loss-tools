@@ -158,25 +158,42 @@ class PostProcessor:
         return collected_output
 
     @staticmethod
-    def export_collected_output_losses_economic(main_path, list_rla, list_oelf):
+    def export_collected_output_losses_economic(
+        main_path, list_rla, list_oelf, exposure_costs_occupants
+    ):
         """
         This method calls 'PostProcessor._collect_output_losses_economic()' to open all
         individual output files of economic losses asociated with each earthquake in 'list_rla'
         and each earthquake forecast listed in 'list_oelf', and exports all results to:
-            - 'main_path'/output/all_losses_economic_after_RLA_cumulative.csv: Cumulative
-            economic losses after each earthquake for which a rapid loss assessment (RLA) was
-            run ("cumulative" is used herein to indicate that the output economic loss results
-            from all earthquakes run until that point in time).
-            - 'main_path'/output/all_losses_economic_after_RLA_incremental.csv: Incremental
+
+            - 'main_path'/output/all_losses_economic_RLA_cumulative_absolute.csv:
+            Cumulative economic losses after each earthquake for which a rapid loss assessment
+            (RLA) was run ("cumulative" is used herein to indicate that the output economic loss
+            results from all earthquakes run until that point in time), in absolute value (e.g.
+            EUR or USD, the currency used in the input exposure model).
+
+            - 'main_path'/output/all_losses_economic_RLA_cumulative_ratio.csv: Same as above
+            but as a percentage of the total replacement cost of each building ID.
+
+            - 'main_path'/output/all_losses_economic_RLA_incremental_absolute.csv: Incremental
             economic losses after each earthquake for which a rapid loss assessment (RLA) was
             run ("incremental" is used herein to indicate the contribution of each earthquake to
             the economic loss results; incremental economic losses can only be equal to or
-            larger than zero).
-            - 'main_path'/output/all_losses_economic_after_OELF_cumulative.csv: Incremental
+            larger than zero), in absolute value (e.g. EUR or USD, the currency used in the
+            input exposure model).
+
+            - 'main_path'/output/all_losses_economic_RLA_incremental_ratio.csv: Same as above
+            but as a percentage of the total replacement cost of each building ID.
+
+            - 'main_path'/output/all_losses_economic_OELF_cumulative_absolute.csv: Incremental
             economic losses after each earthquake forecast for which an operational earthquake
-            loss forecasting (OELF) calculation was run. In the case of OELF, "cumulative" means
+            loss forecasting (OELF) calculation was run, in absolute value (e.g. EUR USD, the
+            currency used in the input exposure model). In the case of OELF, "cumulative" means
             considering all "real" (RLA) earthquakes run so far plus the earthquake forecast,
             not all earthquake forecasts after one another.
+
+            - 'main_path'/output/all_losses_economic_OELF_cumulative_ratio.csv: Same as
+            above but as a percentage of the total replacement cost of each building ID.
 
         No file is exported when the list of earthquakes is empty.
 
@@ -187,45 +204,99 @@ class PostProcessor:
                 List of names of the RLA earthquakes that have been processed.
             list_oelf (list of str, can be empty):
                 List of names of the OELF earthquakes that have been processed.
+            exposure_costs_occupants (Pandas DataFrame):
+                Pandas DataFrame with the expected total replacement cost and total number of
+                census occupants (i.e. occupants irrespective of the time of the day) per
+                building_id. It must have the following structure:
+                    Index (simple):
+                        building_id (str):
+                            ID of the building (this is NOT the asset ID; one building_id can be
+                            associated with several different asset IDs).
+                    Columns:
+                        structural (float):
+                            Total replacement cost of this 'building_id'.
+                        census (float):
+                            Total number of occupants in this 'building_id'.
         """
 
         # RLA economic losses output
         if len(list_rla) > 0:
-            collected_rla = PostProcessor._collect_output_losses_economic(
+            # RLA, absolute loss, cumulative (what natually comes out of the RLA calculation)
+            collected_rla_absolute = PostProcessor._collect_output_losses_economic(
                 os.path.join(main_path, "output"),
                 list_rla,
                 "losses_economic_after_RLA_%s.csv",
             )
-            collected_rla.to_csv(
+            collected_rla_absolute.to_csv(
                 os.path.join(
                     main_path,
                     "output",
-                    "all_losses_economic_after_RLA_cumulative.csv",
+                    "all_losses_economic_RLA_cumulative_absolute.csv",
                 ),
                 index=True,
             )
-            collected_rla_incremental = PostProcessor._get_incremental_from_cumulative(
-                collected_rla, list_rla
+
+            # RLA, loss ratio, cumulative
+            collected_rla_ratio = PostProcessor._get_loss_ratio(
+                collected_rla_absolute, exposure_costs_occupants, "structural"
             )
-            collected_rla_incremental.to_csv(
+            collected_rla_ratio.to_csv(
                 os.path.join(
                     main_path,
                     "output",
-                    "all_losses_economic_after_RLA_incremental.csv",
+                    "all_losses_economic_RLA_cumulative_ratio.csv",
+                ),
+                index=True,
+            )
+
+            # RLA, absolute loss, incremental (difference between successive earthquakes)
+            collected_rla_absolute_incremental = PostProcessor._get_incremental_from_cumulative(
+                collected_rla_absolute, list_rla
+            )
+            collected_rla_absolute_incremental.to_csv(
+                os.path.join(
+                    main_path,
+                    "output",
+                    "all_losses_economic_RLA_incremental_absolute.csv",
+                ),
+                index=True,
+            )
+
+            # RLA, loss ratio, incremental (difference between successive earthquakes)
+            collected_rla_ratio_incremental = PostProcessor._get_incremental_from_cumulative(
+                collected_rla_ratio, list_rla
+            )
+            collected_rla_ratio_incremental.to_csv(
+                os.path.join(
+                    main_path,
+                    "output",
+                    "all_losses_economic_RLA_incremental_ratio.csv",
                 ),
                 index=True,
             )
 
         # OELF economic losses output
         if len(list_oelf) > 0:
-            collected_oelf = PostProcessor._collect_output_losses_economic(
+            # OELF, absolute loss, cumulative (what natually comes out of the OELF calculation)
+            collected_oelf_absolute = PostProcessor._collect_output_losses_economic(
                 os.path.join(main_path, "output"),
                 list_oelf,
                 "losses_economic_after_OELF_%s.csv",
             )
-            collected_oelf.to_csv(
+            collected_oelf_absolute.to_csv(
                 os.path.join(
-                    main_path,"output", "all_losses_economic_after_OELF_cumulative.csv"
+                    main_path,"output", "all_losses_economic_OELF_cumulative_absolute.csv"
+                ),
+                index=True,
+            )
+
+            # OELF, loss ratio, cumulative
+            collected_oelf_ratio = PostProcessor._get_loss_ratio(
+                collected_oelf_absolute, exposure_costs_occupants, "structural"
+            )
+            collected_oelf_ratio.to_csv(
+                os.path.join(
+                    main_path,"output", "all_losses_economic_OELF_cumulative_ratio.csv"
                 ),
                 index=True,
             )
@@ -296,26 +367,44 @@ class PostProcessor:
         return collected_output
 
     @staticmethod
-    def export_collected_output_losses_human(main_path, injuries_scale, list_rla, list_oelf):
+    def export_collected_output_losses_human(
+        main_path, injuries_scale, list_rla, list_oelf, exposure_costs_occupants
+    ):
         """
         This method calls 'PostProcessor._collect_output_losses_human()' to open all
         individual output files of human losses asociated with each earthquake in 'list_rla'
         and each earthquake forecast listed in 'list_oelf', and exports all results of each case
         (RLA, OELF) and severity (as per 'injuries_scale') to:
-            - 'main_path'/output/all_losses_human_severity_X_after_RLA_incremental.csv:
+
+            - 'main_path'/output/all_losses_human_severity_X_RLA_incremental_absolute.csv:
             Incremental human losses after each earthquake for which a rapid loss assessment
             (RLA) was run ("incremental" is used herein to indicate the contribution of each
             earthquake to the human loss results; incremental human losses can only be equal to
-            or larger than zero).
-            - 'main_path'/output/all_losses_human_severity_X_after_RLA_cumulative.csv:
+            or larger than zero), in absolute value (number of people).
+
+            - 'main_path'/output/all_losses_human_severity_X_RLA_incremental_ratio.csv: Same as
+            above but as a percentage of the total occupants of each building ID (occupants
+            irrespective of the time of the day).
+
+            - 'main_path'/output/all_losses_human_severity_X_RLA_cumulative_absolute.csv:
             Cumulative human losses after each earthquake for which a rapid loss assessment
             (RLA) was run ("cumulative" is used herein to indicate that the output human loss
-            results from all earthquakes run until that point in time).
-            - 'main_path'/output/all_losses_human_severity_X_after_OELF_incremental.csv:
+            results from all earthquakes run until that point in time), in absolute value
+            (number of people).
+
+            - 'main_path'/output/all_losses_human_severity_X_RLA_cumulative_ratio.csv: Same as
+            above but as a percentage of the total occupants of each building ID (occupants
+            irrespective of the time of the day).
+
+            - 'main_path'/output/all_losses_human_severity_X_OELF_incremental_absolute.csv:
             Incremental human losses after each earthquake forecast for which an operational
-            earthquake loss forecasting (OELF) calculation was run. In the case of OELF,
-            "incremental" means with respect to the last "real" (RLA) earthquakes run, not
-            between earthquake forecasts.
+            earthquake loss forecasting (OELF) calculation was run, in absolute value (number of
+            people). In the case of OELF, "incremental" means with respect to the last "real"
+            (RLA) earthquakes run, not between earthquake forecasts.
+
+            - 'main_path'/output/all_losses_human_severity_X_OELF_incremental_ratio.csv: Same as
+            above but as a percentage of the total occupants of each building ID (occupants
+            irrespective of the time of the day).
 
         No file is exported when the list of earthquakes is empty.
 
@@ -328,51 +417,107 @@ class PostProcessor:
                 List of names of the RLA earthquakes that have been processed.
             list_oelf (list of str, can be empty):
                 List of names of the OELF earthquakes that have been processed.
+            exposure_costs_occupants (Pandas DataFrame):
+                Pandas DataFrame with the expected total replacement cost and total number of
+                census occupants (i.e. occupants irrespective of the time of the day) per
+                building_id. It must have the following structure:
+                    Index (simple):
+                        building_id (str):
+                            ID of the building (this is NOT the asset ID; one building_id can be
+                            associated with several different asset IDs).
+                    Columns:
+                        structural (float):
+                            Total replacement cost of this 'building_id'.
+                        census (float):
+                            Total number of occupants in this 'building_id'.
         """
 
         # RLA human losses output
         if len(list_rla) > 0:
-            collected_rla = PostProcessor._collect_output_losses_human(
+            # RLA, absolute loss, incremental (what natually comes out of the RLA calculation)
+            collected_rla_absolute = PostProcessor._collect_output_losses_human(
                 os.path.join(main_path, "output"),
                 injuries_scale,
                 list_rla,
                 "losses_human_after_RLA_%s.csv",
             )
-            for severity in collected_rla:
-                collected_rla[severity].to_csv(
+            for severity in collected_rla_absolute:
+                collected_rla_absolute[severity].to_csv(
                     os.path.join(
                         main_path,
                         "output",
-                        "all_losses_human_severity_%s_after_RLA_incremental.csv" % (severity),
+                        "all_losses_human_severity_%s_RLA_incremental_absolute.csv" % (severity),
                     ),
                     index=True,
                 )
-                collected_rla_cumulative = PostProcessor._get_cumulative_from_incremental(
-                    collected_rla[severity], list_rla
+
+                # RLA, loss ratio, incremental
+                collected_rla_ratio = PostProcessor._get_loss_ratio(
+                    collected_rla_absolute[severity], exposure_costs_occupants, "census"
                 )
-                collected_rla_cumulative.to_csv(
+                collected_rla_ratio.to_csv(
                     os.path.join(
                         main_path,
                         "output",
-                        "all_losses_human_severity_%s_after_RLA_cumulative.csv" % (severity),
+                        "all_losses_human_severity_%s_RLA_incremental_ratio.csv" % (severity),
+                    ),
+                    index=True,
+                )
+
+                # RLA, absolute loss, cumulative
+                collected_rla_absolute_cumulative = PostProcessor._get_cumulative_from_incremental(
+                    collected_rla_absolute[severity], list_rla
+                )
+                collected_rla_absolute_cumulative.to_csv(
+                    os.path.join(
+                        main_path,
+                        "output",
+                        "all_losses_human_severity_%s_RLA_cumulative_absolute.csv" % (severity),
+                    ),
+                    index=True,
+                )
+
+                # RLA, loss ratio, cumulative
+                collected_rla_ratio_cumulative = PostProcessor._get_cumulative_from_incremental(
+                    collected_rla_ratio, list_rla
+                )
+                collected_rla_ratio_cumulative.to_csv(
+                    os.path.join(
+                        main_path,
+                        "output",
+                        "all_losses_human_severity_%s_RLA_cumulative_ratio.csv" % (severity),
                     ),
                     index=True,
                 )
 
         # OELF human losses output
         if len(list_oelf) > 0:
-            collected_oelf = PostProcessor._collect_output_losses_human(
+            # OELF, absolute loss, incremental
+            collected_oelf_absolute = PostProcessor._collect_output_losses_human(
                 os.path.join(main_path, "output"),
                 injuries_scale,
                 list_oelf,
                 "losses_human_after_OELF_%s.csv",
             )
             for severity in collected_rla:
-                collected_oelf[severity].to_csv(
+                collected_oelf_absolute[severity].to_csv(
                     os.path.join(
                         main_path,
                         "output",
-                        "all_losses_human_severity_%s_after_OELF_incremental.csv" % (severity),
+                        "all_losses_human_severity_%s_OELF_incremental_absolute.csv" % (severity),
+                    ),
+                    index=True,
+                )
+
+                # OELF, loss ratio, incremental
+                collected_oelf_ratio = PostProcessor._get_loss_ratio(
+                    collected_oelf_absolute[severity], exposure_costs_occupants, "census"
+                )
+                collected_oelf_ratio.to_csv(
+                    os.path.join(
+                        main_path,
+                        "output",
+                        "all_losses_human_severity_%s_OELF_incremental_ratio.csv" % (severity),
                     ),
                     index=True,
                 )
@@ -527,3 +672,53 @@ class PostProcessor:
             )
 
         return cumulative
+
+    @staticmethod
+    def _get_loss_ratio(absolute_losses, exposure_costs_occupants, loss_type):
+        """
+        This method calculates loss ratios associated with the absolute losses in
+        'absolute_losses', which can be either economic losses (in terms of the currency used in
+        'exposure_costs_occupants', e.g. EUR) or injuries/deaths (in terms of number of people).
+        The loss ratios are expressed in terms of percentages.
+
+        Args:
+            absolute_losses (Pandas DataFrame):
+                Pandas DataFrame with absolute loss results, with the following structure:
+                    Index:
+                        building_id (str): ID of the building.
+                    Columns named as per each earthquake run:
+                        Absolute economic/human loss associated with 'building_id' after the
+                        earthquake associated with the column name.
+            exposure_costs_occupants (Pandas DataFrame):
+                Pandas DataFrame with the expected total replacement cost and total number of
+                census occupants (i.e. occupants irrespective of the time of the day) per
+                building_id. It must have the following structure:
+                    Index (simple):
+                        building_id (str):
+                            ID of the building (this is NOT the asset ID; one building_id can be
+                            associated with several different asset IDs).
+                    Columns:
+                        structural (float):
+                            Total replacement cost of this 'building_id'. Needed if
+                            'absolute_losses' contains economic losses.
+                        census (float):
+                            Total number of occupants in this 'building_id'. Needed if
+                            'absolute_losses' contains human losses.
+            loss_type (str):
+                String indicating the type of loss in 'absolute_losses':
+                    - economic losses: "structural";
+                    - human losses: "census".
+
+        Returns:
+            relative_losses (Pandas DataFrame):
+                Pandas DataFrame with loss ratios, with the same structure as 'absolute_losses'.
+        """
+
+        relative_losses = deepcopy(absolute_losses)
+
+        for building_id in relative_losses.index:
+            relative_losses.loc[building_id, :] = (
+                relative_losses.loc[building_id, :] / exposure_costs_occupants.loc[building_id, loss_type]
+            ) * 100.0
+
+        return relative_losses

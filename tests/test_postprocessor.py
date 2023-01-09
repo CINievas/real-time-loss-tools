@@ -294,3 +294,44 @@ def test_get_cumulative_from_incremental():
     )
 
     assert returned_cumulative_output is None
+
+
+def test_get_loss_ratio():
+    loss_type = "structural"  # economic losses
+
+    absolute_losses = pd.DataFrame(
+        {
+            "EQ_01": [19143.54, 95131.12, 3335.29],
+            "EQ_02": [21702.05, 104658.52, 5651.97],
+        },
+        index=["building_1", "building_2", "building_3"],
+    )
+    absolute_losses.index = absolute_losses.index.rename("building_id")
+
+    exposure_costs_occupants = pd.DataFrame(
+        {
+            "structural": [150000.0, 250000.0, 100000.0],
+        },
+        index=["building_1", "building_2", "building_3"],
+    )
+    exposure_costs_occupants.index = exposure_costs_occupants.index.rename("building_id")
+
+    returned_loss_ratios = PostProcessor._get_loss_ratio(absolute_losses, exposure_costs_occupants, loss_type)
+
+    expected_loss_ratios = pd.DataFrame(
+        {
+            "EQ_01": [12.762360, 38.052448, 3.335290],
+            "EQ_02": [14.468033, 41.863408, 5.651970],
+        },
+        index=["building_1", "building_2", "building_3"],
+    )
+    expected_loss_ratios.index = expected_loss_ratios.index.rename("building_id")
+
+    assert returned_loss_ratios.index.all() == expected_loss_ratios.index.all()
+    assert returned_loss_ratios.shape == expected_loss_ratios.shape
+
+    for col in expected_loss_ratios.columns:
+        for bdg_id in expected_loss_ratios.index:
+            assert round(returned_loss_ratios.loc[bdg_id, col], 6) == round(
+                expected_loss_ratios.loc[bdg_id, col], 6
+            )

@@ -405,11 +405,15 @@ def main():
         )
 
         PostProcessor.export_collected_output_losses_economic(
-            config.main_path, processed_rla, processed_oelf
+            config.main_path, processed_rla, processed_oelf, exposure_expected_costs_occupants
         )
 
         PostProcessor.export_collected_output_losses_human(
-            config.main_path, config.injuries_scale, processed_rla, processed_oelf
+            config.main_path,
+            config.injuries_scale,
+            processed_rla,
+            processed_oelf,
+            exposure_expected_costs_occupants,
         )
 
     # Leave the program
