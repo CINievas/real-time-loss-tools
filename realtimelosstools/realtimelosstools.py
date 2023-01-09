@@ -136,9 +136,7 @@ def main():
     )
     recovery_damage.set_index(recovery_damage["dmg_state"], drop=True, inplace=True)
     recovery_damage = recovery_damage.drop(columns=["dmg_state"])
-    recovery_damage["N_damage"] = np.maximum(
-        recovery_damage["N_inspection"], recovery_damage["N_repair"]
-    )
+    recovery_damage["N_damage"] = recovery_damage["N_inspection"] + recovery_damage["N_repair"]
 
     recovery_injuries = pd.read_csv(
         os.path.join(config.main_path, "static", "recovery_injuries.csv"),
