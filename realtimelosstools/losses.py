@@ -900,7 +900,9 @@ class Losses:
                             Total number of occupants in this 'building_id'.
         """
 
-        expected_costs_occupants = exposure_model.groupby(["building_id"]).sum()
+        expected_costs_occupants = exposure_model.groupby(["building_id"]).sum(
+            numeric_only=True
+        )
         expected_costs_occupants = expected_costs_occupants[["structural", "census"]]
 
         return expected_costs_occupants

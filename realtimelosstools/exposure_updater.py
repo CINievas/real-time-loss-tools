@@ -407,9 +407,10 @@ class ExposureUpdater:
             "building_id",
         ]
         new_exposure_model = new_exposure_model.drop(columns=columns_by_original_asset_id)
+        # Sum number of buildings, people, costs for rows that need to be grouped
         new_exposure_model = new_exposure_model.groupby(
             ["original_asset_id", "taxonomy"]
-        ).sum()  # sum number of buildings, people, costs for rows that need to be grouped
+        ).sum(numeric_only=True)
         # Re-assign values of columns that only depend on original_asset_id (retrieve from the
         # original exposure model)
         for col in columns_by_original_asset_id:

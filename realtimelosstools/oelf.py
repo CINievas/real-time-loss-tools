@@ -528,7 +528,9 @@ class OperationalEarthquakeLossForecasting():
                     original_exposure_model, list(consequence_injuries.keys())
                 )
             else:
-                losses_human_all_events = losses_human_all_events.groupby(["building_id"]).sum()
+                losses_human_all_events = losses_human_all_events.groupby(["building_id"]).sum(
+                    numeric_only=True
+                )
 
             # Store damage states, economic losses and human losses per building ID
             if store_intermediate:
@@ -592,13 +594,17 @@ class OperationalEarthquakeLossForecasting():
         # Average damage states per building ID for all stochastic event sets
         damage_states_all_ses = damage_states_all_ses.groupby(
             ["building_id", "damage_state"]
-        ).mean()
+        ).mean(numeric_only=True)
 
         # Average economic losses per building ID for all stochastic event sets
-        losses_economic_all_ses = losses_economic_all_ses.groupby(["building_id"]).mean()
+        losses_economic_all_ses = losses_economic_all_ses.groupby(["building_id"]).mean(
+            numeric_only=True
+        )
 
         # Average human losses per building ID for all stochastic event sets
-        losses_human_all_ses = losses_human_all_ses.groupby(["building_id"]).mean()
+        losses_human_all_ses = losses_human_all_ses.groupby(["building_id"]).mean(
+            numeric_only=True
+        )
 
         return damage_states_all_ses, losses_economic_all_ses, losses_human_all_ses
 
