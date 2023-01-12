@@ -223,11 +223,11 @@ class Losses:
         return loss_summary
 
     @staticmethod
-    def expected_human_loss_per_asset_id(exposure, time_of_day, consequence_model):
+    def expected_human_loss_per_original_asset_id(exposure, time_of_day, consequence_model):
         """
-        This method returns the expected human loss per ID of the asset in 'exposure', i.e. one
-        by one the rows of 'exposure', as per the damage states therein specified and the human
-        loss ratios dicated by 'consequence_model' for a specific 'time_of_day'.
+        This method returns the expected human loss per 'original_asset_id' of the asset in
+        'exposure', as per the damage states therein specified and the human loss ratios dicated
+        by 'consequence_model' for a specific 'time_of_day'.
 
         Args:
             exposure (Pandas DataFrame):
@@ -269,91 +269,94 @@ class Losses:
                         One per damage state (float): They contain the mean loss ratios (as
                         percentages) for each building class and damage state.
         Returns:
-            losses_per_asset (Pandas DataFrame):
+            losses_per_orig_asset (Pandas DataFrame):
                 Pandas DataFrame with the following structure:
                     Index:
-                        id (str):
-                            ID of the asset as in the 'id' column of input 'exposure'.
-                    Columns:
-                        taxonomy (str):
-                            Building class.
                         original_asset_id (str):
                             ID of the asset in the initial undamaged version of the exposure
                             model.
+                    Columns:
                         building_id (str):
                             ID of the building. One building_id can be associated with different
-                            values of original_asset_id and id.
+                            values of original_asset_id.
                         injuries_X (float):
-                            Expected injuries of severity X for 'id'.
+                            Expected injuries of severity X for 'original_asset_id'.
         """
 
         # Initialise output
-        losses_per_asset = deepcopy(exposure)
+        losses_per_orig_asset = deepcopy(exposure)
 
         # Create separate columns for building class and damage state
-        taxonomy = losses_per_asset["taxonomy"].to_numpy()
-        losses_per_asset["building_class"] = [
-            "/".join(taxonomy[i].split("/")[:-1]) for i in range(losses_per_asset.shape[0])
+        taxonomy = losses_per_orig_asset["taxonomy"].to_numpy()
+        losses_per_orig_asset["building_class"] = [
+            "/".join(taxonomy[i].split("/")[:-1]) for i in range(losses_per_orig_asset.shape[0])
         ]
-        losses_per_asset["damage_state"] = [
-            taxonomy[i].split("/")[-1] for i in range(losses_per_asset.shape[0])
+        losses_per_orig_asset["damage_state"] = [
+            taxonomy[i].split("/")[-1] for i in range(losses_per_orig_asset.shape[0])
         ]
 
         injuries_columns = []
 
         for severity in consequence_model:
-            losses_per_asset_aux = deepcopy(losses_per_asset)
+            losses_per_orig_asset_aux = deepcopy(losses_per_orig_asset)
 
-            # Join the 'losses_per_asset_aux' with the consequence model
-            losses_per_asset_aux = losses_per_asset_aux.join(
+            # Join the 'losses_per_orig_asset_aux' with the consequence model
+            losses_per_orig_asset_aux = losses_per_orig_asset_aux.join(
                 consequence_model[severity], on="building_class"
             )
 
             # Calculate the losses
-            losses = np.zeros([losses_per_asset_aux.shape[0]])
-            for i, row in enumerate(losses_per_asset_aux.index):
+            losses = np.zeros([losses_per_orig_asset_aux.shape[0]])
+            for i, row in enumerate(losses_per_orig_asset_aux.index):
                 loss_ratio = (
-                    losses_per_asset_aux.loc[row, losses_per_asset_aux.loc[row, "damage_state"]]
-                    / 100.0
+                    losses_per_orig_asset_aux.loc[
+                        row, losses_per_orig_asset_aux.loc[row, "damage_state"]
+                    ] / 100.0
                 )
-                losses[i] = loss_ratio * losses_per_asset_aux.loc[row, time_of_day]
+                losses[i] = loss_ratio * losses_per_orig_asset_aux.loc[row, time_of_day]
 
-            losses_per_asset["injuries_%s" % (severity)] = losses
+            losses_per_orig_asset["injuries_%s" % (severity)] = losses
             injuries_columns.append("injuries_%s" % (severity))
 
-        losses_per_asset.set_index(
-            losses_per_asset["id"], drop=True, inplace=True
-        )
+        losses_per_orig_asset = losses_per_orig_asset.groupby(
+            ["original_asset_id"]
+        ).sum(numeric_only=True)  # original_asset_id becomes index
 
-        losses_per_asset = losses_per_asset[
-            ["taxonomy", "original_asset_id", "building_id", *injuries_columns]
-        ]
+        losses_per_orig_asset = losses_per_orig_asset[[*injuries_columns]]
 
-        return losses_per_asset
+        # "Recover" building_id (gets lost when using pd.groupby)
+        building_id_recovered = []
+
+        for i, original_asset_id in enumerate(losses_per_orig_asset.index):
+            bdg_id_i = exposure[
+                exposure.original_asset_id == original_asset_id
+            ]["building_id"].to_numpy()[0]
+            building_id_recovered.append(bdg_id_i)
+
+        losses_per_orig_asset["building_id"] = building_id_recovered
+
+        return losses_per_orig_asset
 
     @staticmethod
-    def expected_human_loss_per_building_id(human_losses_per_asset):
+    def expected_human_loss_per_building_id(human_losses_per_original_asset_id):
         """
         This method returns the expected human loss per building ID, starting from expected
-        human losses per asset (the output of method "expected_human_loss_per_asset_id").
+        human losses per original asset ID (the output of method
+        "expected_human_loss_per_original_asset_id").
 
         Args:
-            human_losses_per_asset (Pandas DataFrame):
+            human_losses_per_original_asset_id (Pandas DataFrame):
                 Pandas DataFrame with the following structure:
                     Index:
-                        id (str):
-                            ID of the asset as in the 'id' column of input 'exposure'.
-                    Columns:
-                        taxonomy (str):
-                            Building class.
                         original_asset_id (str):
                             ID of the asset in the initial undamaged version of the exposure
                             model.
+                    Columns:
                         building_id (str):
                             ID of the building. One building_id can be associated with different
-                            values of original_asset_id and id.
+                            values of original_asset_id.
                         injuries_X (float):
-                            Expected injuries of severity X for '_id'.
+                            Expected injuries of severity X for 'original_asset_id'.
         Returns:
             loss_summary (Pandas DataFrame):
                 Pandas DataFrame with the following structure:
@@ -367,7 +370,9 @@ class Losses:
                             respective probabilities.
         """
 
-        loss_summary = human_losses_per_asset.groupby(["building_id"]).sum(numeric_only=True)
+        loss_summary = human_losses_per_original_asset_id.groupby(
+            ["building_id"]
+        ).sum(numeric_only=True)
 
         return loss_summary
 
@@ -463,7 +468,7 @@ class Losses:
 
     @staticmethod
     def calculate_injuries_recovery_timeline(
-        losses_human_per_asset,
+        losses_human_per_orig_asset_id,
         recovery_injuries,
         longest_time,
         datetime_earthquake,
@@ -475,23 +480,18 @@ class Losses:
         numbers of days in 'recovery_injuries'.
 
         Args:
-            losses_human_per_asset (Pandas DataFrame):
-                Pandas DataFrame indicating number of injured people (with different severity
-                levels) and the following structure:
+            losses_human_per_orig_asset_id (Pandas DataFrame):
+                Pandas DataFrame with the following structure:
                     Index:
-                        id (str):
-                            ID of the asset.
-                    Columns:
-                        taxonomy (str):
-                            Building class.
                         original_asset_id (str):
                             ID of the asset in the initial undamaged version of the exposure
                             model.
+                    Columns:
                         building_id (str):
                             ID of the building. One building_id can be associated with different
-                            values of original_asset_id and id.
+                            values of original_asset_id.
                         injuries_X (float):
-                            Expected injuries of severity X for 'id'.
+                            Expected injuries of severity X for 'original_asset_id'.
             recovery_injuries (Pandas DataFrame):
                 Pandas DataFrame indicating the expected number of days that a person suffering
                 from injuries of each level of severity will spend in hospital before being
@@ -515,17 +515,13 @@ class Losses:
             injured_still_away (Pandas DataFrame):
                 Pandas DataFrame with the following structure:
                     Index:
-                        id (str):
-                            ID of the asset.
-                    Columns:
-                        taxonomy (str):
-                            Building class.
                         original_asset_id (str):
                             ID of the asset in the initial undamaged version of the exposure
                             model.
+                    Columns:
                         building_id (str):
                             ID of the building. One building_id can be associated with different
-                            values of original_asset_id and id.
+                            values of original_asset_id.
                         dates in UTC (float):
                             The names of the columns are UTC dates and times (as str) at which
                             the number of injured people still unable to return to their
@@ -564,22 +560,20 @@ class Losses:
         # per asset ID and time threshold
         injured_still_away = pd.DataFrame(
             {
-                "taxonomy": losses_human_per_asset["taxonomy"],
-                "original_asset_id": losses_human_per_asset["original_asset_id"],
-                "building_id": losses_human_per_asset["building_id"],
+                "building_id": losses_human_per_orig_asset_id["building_id"],
             },
-            index=losses_human_per_asset.index  # index is "id"
+            index=losses_human_per_orig_asset_id.index  # index is "original_asset_id"
         )
 
         for time_threshold in timeline_injuries_absolute:
             time_threshold_str = str(time_threshold.astype("datetime64[s]"))
-            injured_still_away_aux = np.zeros([losses_human_per_asset.shape[0]])
-            for i, asset_id in enumerate(losses_human_per_asset.index):
+            injured_still_away_aux = np.zeros([losses_human_per_orig_asset_id.shape[0]])
+            for i, orig_asset_id in enumerate(losses_human_per_orig_asset_id.index):
                 remove = 0.0
                 for severity in f_severity.index:  # injury severity level
                     remove += (
                         f_severity.loc[severity, time_threshold_str]
-                        * losses_human_per_asset.loc[asset_id, "injuries_%s" % (severity)]
+                        * losses_human_per_orig_asset_id.loc[orig_asset_id, "injuries_%s" % (severity)]
                     )
                 injured_still_away_aux[i] = remove
 
@@ -763,22 +757,24 @@ class Losses:
         return occupancy_factors_per_asset
 
     @staticmethod
-    def get_injured_still_away(exposure_indices, datetime_earthquake, main_path):
+    def get_injured_still_away(exposure_orig_asset_ids, datetime_earthquake, main_path):
         """
         This method goes through the injuries recovery timelines of all earthquakes that have
         occurred before 'datetime_earthquake' (this is done by searching for all the
         "still-away-injured" files present in 'main_path'/current/occupants), and determines
         the total number of injured people still away from their buildings by the time of
-        'datetime_earthquake'. The output follows the order of the asset IDs listed in
-        'exposure_indices'.
+        'datetime_earthquake'. The output follows the order of the original asset IDs listed in
+        'exposure_orig_asset_ids'.
 
         If there are no "still-away-injured" files in 'main_path'/current/occupants, all
         returned values of injured people still away will be 0.
 
         Args:
-            exposure_indices (arr of str):
-                Array of asset IDs from the OpenQuake exposure CSV files. These should exist in
-                the "still-away-injured" files present in 'main_path'/current/occupants.
+            exposure_orig_asset_ids (arr of str):
+                Array of original asset IDs from the OpenQuake exposure CSV files (i.e. the
+                asset IDs of the undamaged exposure model, stored as the original_asset_id
+                column). These should exist in the "still-away-injured" files present in
+                'main_path'/current/occupants.
             datetime_earthquake (numpy.datetime64):
                 UTC date and time of the earthquake.
             main_path (str):
@@ -787,7 +783,7 @@ class Losses:
         Returns:
             injured_still_away (arr of float):
                 Array of total number of injured people still away from each of the buildings
-                whose asset ID is listed in 'exposure_indices'.
+                whose original asset ID is listed in 'exposure_orig_asset_ids'.
         """
 
         # Retrieve filenames of injured people still away due to previous earthquakes
@@ -798,22 +794,20 @@ class Losses:
 
         # Initialise the number of injured people still away (injured due to each earthquake
         # will be added)
-        injured_still_away = np.zeros([len(exposure_indices)])
+        injured_still_away = np.zeros([len(exposure_orig_asset_ids)])
 
         for filename in filenames:
             injured = pd.read_csv(os.path.join(path_to_injured, filename))
-            injured.set_index(injured["id"], drop=True, inplace=True)
-            injured.index = injured.index.rename("asset_id")
-            injured = injured.drop(columns=["id"])
+            injured.set_index(injured["original_asset_id"], drop=True, inplace=True)
+            injured = injured.drop(columns=["original_asset_id"])
+            # 'injured' has as columns: "building_id" and the dates of the timeline
 
             # Recover dates of the timeline from names of columns
             date_thresholds = list(injured.columns)
-            date_thresholds.remove("taxonomy")
-            date_thresholds.remove("original_asset_id")
             date_thresholds.remove("building_id")
             date_thresholds = np.array(date_thresholds, dtype=np.datetime64)
 
-            for i, asset_id in enumerate(exposure_indices):
+            for i, asset_id in enumerate(exposure_orig_asset_ids):
                 injuries_function = MultilinearStepFunction(
                     date_thresholds,
                     injured.loc[asset_id, date_thresholds.astype(str)].to_numpy()  # values

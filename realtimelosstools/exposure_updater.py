@@ -587,33 +587,71 @@ class ExposureUpdater:
             occupancy_factors_per_asset = Losses.get_occupancy_factors_per_asset(
                 exposure_updated_occupants["taxonomy"].to_numpy(), occupancy_factors
             )
-            non_zero_factors = occupancy_factors_per_asset.astype(bool)
 
             # Retrieve injuries (only for assets for which 'occupancy_factors_per_asset'=1)
             # (the method loops through the assets, hence looping only through necessary ones;
             # they will all be equal to zero if no earthquake has been run before)
-            injured_still_away = Losses.get_injured_still_away(
-                exposure_updated_occupants.index.to_numpy()[non_zero_factors],  # asset IDs
+            original_asset_ids_unique = (
+                exposure_updated_occupants["original_asset_id"].unique()
+            )
+            injured_still_away_vals = Losses.get_injured_still_away(
+                original_asset_ids_unique,
                 earthquake_datetime,
                 main_path,
+            )  # 'injured_still_away_vals' in the order of 'original_asset_ids_unique'
+            injured_still_away = pd.DataFrame(
+                {"number_injured": injured_still_away_vals},
+                index=original_asset_ids_unique
             )
+            injured_still_away.index.rename("original_asset_id")
 
-            # Get time-of-day factors per asset (only for those for which
-            # 'occupancy_factors_per_asset'=1)
+            # Get time-of-day factors per asset
             time_of_day_factors_per_asset = Losses.get_time_of_day_factors_per_asset(
-                exposure_updated_occupants["occupancy"].to_numpy()[non_zero_factors],
+                exposure_updated_occupants["occupancy"].to_numpy(),
                 earthquake_time_of_day,
                 time_of_day_factors,
             )
 
+            # Calculate number of injured still away per asset of 'exposure_updated_occupants',
+            # done going one by one the 'original_asset_id' in the exposure model, and
+            # distributing the number of injured still away for that 'original_asset_id' into
+            # the different damage states (i.e. different rows of exposure associated with
+            # 'original_asset_id') proportionally to the distribution of 'census' occupants
+            injured_still_away_per_asset = pd.DataFrame(
+                {
+                    "number_injured": np.zeros([exposure_updated_occupants.shape[0]])
+                },
+                index=exposure_updated_occupants.index
+            )
+            for original_asset_id in original_asset_ids_unique:
+                # Filter 'exposure_updated_occupants' for this 'original_asset_id'
+                orig_asset_id_filter = (
+                    exposure_updated_occupants.original_asset_id == original_asset_id
+                )
+                # Get census occupants for all assets of this 'original_asset_id'
+                census_all = exposure_updated_occupants[orig_asset_id_filter].loc[:, "census"]
+                # Calculate proportions
+                proportions = census_all / census_all.sum()
+
+                # Distribute 'number_injured' of this 'original_asset_id' across all assets
+                # associated with 'original_asset_id' as per 'proportions'
+                by_asset_aux = (
+                    injured_still_away.loc[original_asset_id, "number_injured"] * proportions
+                )
+                # Store in 'injured_still_away_per_asset', so that they become associated with
+                # each asset ID of 'exposure_updated_occupants'
+                injured_still_away_per_asset.loc[
+                    exposure_updated_occupants[orig_asset_id_filter].index, "number_injured"
+                ] = by_asset_aux
+
             # Calculate the occupants at the time of the day of 'earthquake_time_of_day'
             occupants_at_time_of_day = np.zeros([exposure_updated_occupants.shape[0]])
-            occupants_at_time_of_day[non_zero_factors] = (
+            occupants_at_time_of_day = (
                 time_of_day_factors_per_asset
-                * occupancy_factors_per_asset[non_zero_factors]
+                * occupancy_factors_per_asset
                 * (
-                    exposure_updated_occupants["census"].to_numpy()[non_zero_factors]
-                    - injured_still_away
+                    exposure_updated_occupants["census"].to_numpy()
+                    - injured_still_away_per_asset["number_injured"].to_numpy()
                 )
             )
         else:

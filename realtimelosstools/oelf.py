@@ -473,7 +473,7 @@ class OperationalEarthquakeLossForecasting():
                 )
 
                 # Calculate human losses per asset of 'exposure_updated_damage'
-                losses_human_per_asset = Losses.expected_human_loss_per_asset_id(
+                losses_human_per_asset = Losses.expected_human_loss_per_original_asset_id(
                     exposure_updated_damage, time_of_day, consequence_injuries
                 )
                 # Calculate human losses per building ID

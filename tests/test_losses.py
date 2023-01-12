@@ -60,7 +60,7 @@ def test_expected_economic_loss():
         )
 
 
-def test_expected_human_loss_per_asset_id():
+def test_expected_human_loss_per_original_asset_id():
     # Read exposure model
     filepath = os.path.join(
         os.path.dirname(__file__), "data", "expected_exposure_model_cycle_2.csv"
@@ -86,7 +86,7 @@ def test_expected_human_loss_per_asset_id():
             columns=["Taxonomy"]
         )
 
-    returned_losses_per_asset = Losses.expected_human_loss_per_asset_id(
+    returned_losses_per_orig_asset_id = Losses.expected_human_loss_per_original_asset_id(
         exposure, "night", consequence_injuries
     )
 
@@ -94,19 +94,27 @@ def test_expected_human_loss_per_asset_id():
     filepath = os.path.join(
         os.path.dirname(__file__), "data", "expected_injuries_cycle_2.csv"
     )
-    expected_losses_per_asset = pd.read_csv(filepath)
-    expected_losses_per_asset.set_index(
-        expected_losses_per_asset["id"], drop=True, inplace=True
+    expected_losses_per_orig_asset_id = pd.read_csv(filepath)
+    expected_losses_per_orig_asset_id.set_index(
+        expected_losses_per_orig_asset_id["original_asset_id"], drop=True, inplace=True
     )
-    expected_losses_per_asset = expected_losses_per_asset.drop(columns=["id"])
+    expected_losses_per_orig_asset_id = expected_losses_per_orig_asset_id.drop(
+        columns=["original_asset_id"]
+    )
 
-    assert len(returned_losses_per_asset.columns) == len(expected_losses_per_asset.columns)
-    assert len(returned_losses_per_asset.index) == len(expected_losses_per_asset.index)
+    assert (
+        len(returned_losses_per_orig_asset_id.columns)
+        == len(expected_losses_per_orig_asset_id.columns)
+    )
+    assert (
+        len(returned_losses_per_orig_asset_id.index)
+        == len(expected_losses_per_orig_asset_id.index)
+    )
 
-    for index in expected_losses_per_asset.index:
+    for index in expected_losses_per_orig_asset_id.index:
         for col in ["injuries_1", "injuries_2", "injuries_3", "injuries_4"]:
-            assert round(returned_losses_per_asset.loc[index, col], 8) == round(
-                expected_losses_per_asset.loc[index, col], 8
+            assert round(returned_losses_per_orig_asset_id.loc[index, col], 8) == round(
+                expected_losses_per_orig_asset_id.loc[index, col], 8
             )
 
 
@@ -115,13 +123,17 @@ def test_expected_human_loss_per_building_id():
     filepath = os.path.join(
         os.path.dirname(__file__), "data", "expected_injuries_cycle_2.csv"
     )
-    human_losses_per_asset = pd.read_csv(filepath)
-    human_losses_per_asset.set_index(
-        human_losses_per_asset["id"], drop=True, inplace=True
+    human_losses_per_orig_asset_id = pd.read_csv(filepath)
+    human_losses_per_orig_asset_id.set_index(
+        human_losses_per_orig_asset_id["original_asset_id"], drop=True, inplace=True
     )
-    human_losses_per_asset = human_losses_per_asset.drop(columns=["id"])
+    human_losses_per_orig_asset_id = human_losses_per_orig_asset_id.drop(
+        columns=["original_asset_id"]
+    )
 
-    returned_losses_human = Losses.expected_human_loss_per_building_id(human_losses_per_asset)
+    returned_losses_human = Losses.expected_human_loss_per_building_id(
+        human_losses_per_orig_asset_id
+    )
 
     # Expected output
     building_id = ["osm_1", "tile_8", "shm_1"]
@@ -237,11 +249,13 @@ def test_calculate_injuries_recovery_timeline():
     filepath = os.path.join(
         os.path.dirname(__file__), "data", "expected_injuries_cycle_2.csv"
     )
-    losses_human_per_asset = pd.read_csv(filepath)
-    losses_human_per_asset.set_index(
-        losses_human_per_asset["id"], drop=True, inplace=True
+    losses_human_per_orig_asset_id = pd.read_csv(filepath)
+    losses_human_per_orig_asset_id.set_index(
+        losses_human_per_orig_asset_id["original_asset_id"], drop=True, inplace=True
     )
-    losses_human_per_asset = losses_human_per_asset.drop(columns=["id"])
+    losses_human_per_orig_asset_id = losses_human_per_orig_asset_id.drop(
+        columns=["original_asset_id"]
+    )
 
     # Load the recovery times dependent on health
     recovery_injuries = pd.read_csv(
@@ -256,12 +270,14 @@ def test_calculate_injuries_recovery_timeline():
         os.path.join(os.path.dirname(__file__), "data", "expected_injured_still_away.csv"),
     )
     expected_injured_still_away.set_index(
-        expected_injured_still_away["id"], drop=True, inplace=True
+        expected_injured_still_away["original_asset_id"], drop=True, inplace=True
     )
-    expected_injured_still_away = expected_injured_still_away.drop(columns=["id"])
+    expected_injured_still_away = expected_injured_still_away.drop(
+        columns=["original_asset_id"]
+    )
 
     returned_injured_still_away = Losses.calculate_injuries_recovery_timeline(
-        losses_human_per_asset,
+        losses_human_per_orig_asset_id,
         recovery_injuries,
         longest_time,
         datetime_earthquake,
@@ -272,12 +288,11 @@ def test_calculate_injuries_recovery_timeline():
     for index in expected_injured_still_away.index:
         assert index in returned_injured_still_away.index
 
-    for col in ["taxonomy", "original_asset_id", "building_id"]:
-        for index in expected_injured_still_away.index:
-            assert (
-                returned_injured_still_away.loc[index, col]
-                == expected_injured_still_away.loc[index, col]
-            )
+    for index in expected_injured_still_away.index:
+        assert (
+            returned_injured_still_away.loc[index, "building_id"]
+            == expected_injured_still_away.loc[index, "building_id"]
+        )
 
     expected_dates = [
         "2009-04-06T01:32:00",
@@ -398,20 +413,16 @@ def test_get_occupancy_factors_per_asset():
 
 def test_get_injured_still_away():
     # Test 1: previous earthquakes run
-    datetime_earthquake = np.datetime64("2010-04-10T00:00:00")
+    target_datetime = np.datetime64("2010-04-10T00:00:00")
     main_path = os.path.join(os.path.dirname(__file__), "data")
-    exposure_indices = np.array(["res_%s" % (i) for i in range(1, 26)])
+    exposure_orig_asset_ids = np.array(["res_%s" % (i) for i in range(1, 6)])
 
     expected_injured_still_away = np.array([
-        0.0, 0.0, 0.0000013278, 0.0037317946, 0.0,
-        0.0, 0.0, 0.0000009988, 0.0014675546, 0.0,
-        0.0, 0.0, 0.0000010856, 0.0022090366, 0.0,
-        0.0, 0.0, 0.0000008462, 0.0008446804, 0.0,
-        0.0, 0.0, 0.0000101968, 0.0046522900, 0.0,
+        0.0037331224, 0.0014685534, 0.0022101222, 0.0008455265, 0.0046624868,
     ])
 
     returned_injured_still_away = Losses.get_injured_still_away(
-        exposure_indices, datetime_earthquake, main_path
+        exposure_orig_asset_ids, target_datetime, main_path
     )
 
     np.testing.assert_almost_equal(
@@ -421,10 +432,10 @@ def test_get_injured_still_away():
     # Test 2: no previous earthquakes run
     main_path = os.path.join(os.path.dirname(__file__), "data", "intentionally_no_files")
 
-    expected_injured_still_away = np.zeros([len(exposure_indices)])
+    expected_injured_still_away = np.zeros([len(exposure_orig_asset_ids)])
 
     returned_injured_still_away = Losses.get_injured_still_away(
-        exposure_indices, datetime_earthquake, main_path
+        exposure_orig_asset_ids, target_datetime, main_path
     )
 
     np.testing.assert_almost_equal(
