@@ -41,7 +41,7 @@ def test_create_mapping_asset_id_building_id():
     # Expected mapping
     expected_mapping = pd.DataFrame(
         {"building_id": ["osm_1", "osm_1", "tile_8", "tile_8", "shm_1"]},
-        index=["res_1", "res_2", "res_3", "res_4", "res_5"],
+        index=["exp_1", "exp_2", "exp_3", "exp_4", "exp_5"],
     )
     expected_mapping.index = expected_mapping.index.rename("asset_id")
 
@@ -85,14 +85,14 @@ def test_merge_damage_results_OQ_SHM():
     # Mapping of asset_id and building_id
     id_asset_building_mapping = pd.DataFrame(
         {"building_id": ["osm_1", "osm_1", "tile_8", "tile_8", "shm_1"]},
-        index=["res_1", "res_2", "res_3", "res_4", "res_5"],
+        index=["exp_1", "exp_2", "exp_3", "exp_4", "exp_5"],
     )
     id_asset_building_mapping.index = id_asset_building_mapping.index.rename("asset_id")
 
     # Expected merged damage results
     expected_damage_results_merged = deepcopy(damage_results_OQ)
     for dmg in ["no_damage", "dmg_1", "dmg_2", "dmg_3", "dmg_4"]:
-        expected_damage_results_merged.loc[("res_5", dmg), "value"] = damage_results_SHM.loc[
+        expected_damage_results_merged.loc[("exp_5", dmg), "value"] = damage_results_SHM.loc[
             ("shm_1", dmg), "value"
         ]
 
@@ -145,9 +145,9 @@ def test_merge_damage_results_OQ_SHM():
             ]
         },
         index=[
-            "res_1", "res_2", "res_3", "res_4", "res_5", "res_6", "res_7", "res_8", "res_9",
-            "res_10", "res_11", "res_12", "res_13", "res_14", "res_15", "res_16", "res_17",
-            "res_18", "res_19", "res_20", "res_21", "res_22", "res_23", "res_24", "res_25",
+            "exp_1", "exp_2", "exp_3", "exp_4", "exp_5", "exp_6", "exp_7", "exp_8", "exp_9",
+            "exp_10", "exp_11", "exp_12", "exp_13", "exp_14", "exp_15", "exp_16", "exp_17",
+            "exp_18", "exp_19", "exp_20", "exp_21", "exp_22", "exp_23", "exp_24", "exp_25",
         ],
     )
     id_asset_building_mapping.index = id_asset_building_mapping.index.rename("asset_id")
@@ -155,19 +155,19 @@ def test_merge_damage_results_OQ_SHM():
     # Expected merged damage results
     expected_damage_results_merged = deepcopy(damage_results_OQ)
     for dmg in ["no_damage", "dmg_1", "dmg_2", "dmg_3", "dmg_4"]:
-        expected_damage_results_merged.loc[("res_21", dmg), "value"] = (
+        expected_damage_results_merged.loc[("exp_21", dmg), "value"] = (
             damage_results_SHM.loc[("shm_1", dmg), "value"] / 5.0
         )
-        expected_damage_results_merged.loc[("res_22", dmg), "value"] = (
+        expected_damage_results_merged.loc[("exp_22", dmg), "value"] = (
             damage_results_SHM.loc[("shm_1", dmg), "value"] / 5.0
         )
-        expected_damage_results_merged.loc[("res_23", dmg), "value"] = (
+        expected_damage_results_merged.loc[("exp_23", dmg), "value"] = (
             damage_results_SHM.loc[("shm_1", dmg), "value"] / 5.0
         )
-        expected_damage_results_merged.loc[("res_24", dmg), "value"] = (
+        expected_damage_results_merged.loc[("exp_24", dmg), "value"] = (
             damage_results_SHM.loc[("shm_1", dmg), "value"] / 5.0
         )
-        expected_damage_results_merged.loc[("res_25", dmg), "value"] = (
+        expected_damage_results_merged.loc[("exp_25", dmg), "value"] = (
             damage_results_SHM.loc[("shm_1", dmg), "value"] / 5.0
         )
 
@@ -368,16 +368,16 @@ def test_ensure_no_negative_damage_results_OQ():
     damage_results_OQ = damage_results_OQ.drop(columns=["asset_id", "dmg_state"])
 
     expected_damage_results_OQ = deepcopy(damage_results_OQ)
-    expected_damage_results_OQ.loc[("res_11", "no_damage"), "value"] = 0.0
-    expected_damage_results_OQ.loc[("res_11", "dmg_1"), "value"] = 18.47959741
-    expected_damage_results_OQ.loc[("res_11", "dmg_2"), "value"] = 0.113728624
-    expected_damage_results_OQ.loc[("res_11", "dmg_3"), "value"] = 0.011640353
-    expected_damage_results_OQ.loc[("res_11", "dmg_4"), "value"] = 0.010561345
-    expected_damage_results_OQ.loc[("res_13", "no_damage"), "value"] = 0.0
-    expected_damage_results_OQ.loc[("res_13", "dmg_1"), "value"] = 0.0
-    expected_damage_results_OQ.loc[("res_13", "dmg_2"), "value"] = 0.0
-    expected_damage_results_OQ.loc[("res_13", "dmg_3"), "value"] = 1.588763707
-    expected_damage_results_OQ.loc[("res_13", "dmg_4"), "value"] = 0.321509105
+    expected_damage_results_OQ.loc[("exp_11", "no_damage"), "value"] = 0.0
+    expected_damage_results_OQ.loc[("exp_11", "dmg_1"), "value"] = 18.47959741
+    expected_damage_results_OQ.loc[("exp_11", "dmg_2"), "value"] = 0.113728624
+    expected_damage_results_OQ.loc[("exp_11", "dmg_3"), "value"] = 0.011640353
+    expected_damage_results_OQ.loc[("exp_11", "dmg_4"), "value"] = 0.010561345
+    expected_damage_results_OQ.loc[("exp_13", "no_damage"), "value"] = 0.0
+    expected_damage_results_OQ.loc[("exp_13", "dmg_1"), "value"] = 0.0
+    expected_damage_results_OQ.loc[("exp_13", "dmg_2"), "value"] = 0.0
+    expected_damage_results_OQ.loc[("exp_13", "dmg_3"), "value"] = 1.588763707
+    expected_damage_results_OQ.loc[("exp_13", "dmg_4"), "value"] = 0.321509105
 
     returned_damage_results_OQ = ExposureUpdater.ensure_no_negative_damage_results_OQ(
         damage_results_OQ, tolerance=0.0001

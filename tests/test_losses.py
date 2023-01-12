@@ -415,7 +415,7 @@ def test_get_injured_still_away():
     # Test 1: previous earthquakes run
     target_datetime = np.datetime64("2010-04-10T00:00:00")
     main_path = os.path.join(os.path.dirname(__file__), "data")
-    exposure_orig_asset_ids = np.array(["res_%s" % (i) for i in range(1, 6)])
+    exposure_orig_asset_ids = np.array(["exp_%s" % (i) for i in range(1, 6)])
 
     expected_injured_still_away = np.array([
         0.0037331224, 0.0014685534, 0.0022101222, 0.0008455265, 0.0046624868,

@@ -449,7 +449,7 @@ class ExposureUpdater:
 
         # Create new asset_id for the next calculation
         new_exposure_model["id"] = [
-            "res_%s" % (j) for j in range(1, new_exposure_model.shape[0] + 1)
+            "exp_%s" % (j) for j in range(1, new_exposure_model.shape[0] + 1)
         ]
 
         # Re-order columns
