@@ -30,11 +30,15 @@ from realtimelosstools.stochastic_rupture_generator import StochasticRuptureSet
 from realtimelosstools.exposure_updater import ExposureUpdater
 from realtimelosstools.losses import Losses
 from realtimelosstools.postprocessor import PostProcessor
+from realtimelosstools.utils import Files
+from realtimelosstools.writers import Writer
 
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 logger.addHandler(logging.StreamHandler(sys.stdout))
+
+log_summary = []
 
 
 def main():
@@ -45,6 +49,18 @@ def main():
 
     # Read configuration parameters
     config = Configuration("config.yml")
+
+    # Log relevant summary parameters (to create log file that allows
+    # for a quick check of correct input)
+    log_summary.append("Real-Time Loss Tools has started")
+    log_summary.append("General description: %s" % (config.description_general))
+    log_summary.append("%s is path in config file" % (config.main_path))
+    log_summary.append("%s is current path" % (os.getcwd()))
+
+    state_dep = Files.find_string_in_file(
+        os.path.join(config.main_path, "current", "job.ini"), "state_dependent"
+    )
+    log_summary.append("State dependent: %s" %(state_dep))
 
     # If 'exposure_model_current.csv' already exists, code cannot run (the 'main_path' indicated
     # in the configuration file may refer to a directory from a previous run that the user may
@@ -76,6 +92,9 @@ def main():
     # Read input to simulate triggering (calculations after an earthquake of interest and/or
     # at specific points in time, e.g. mid-night)
     triggers = pd.read_csv(os.path.join(config.main_path, "triggering.csv"))
+    log_summary.append(
+        "First filename in triggering.csv is '%s'" % (triggers.loc[0, "catalogue_filename"])
+    )
 
     # Check that 'triggers' only refers to RLA or OELF, abort otherwise
     for type_analysis in triggers["type_analysis"].to_numpy():
@@ -138,12 +157,24 @@ def main():
     recovery_damage = recovery_damage.drop(columns=["dmg_state"])
     recovery_damage["N_damage"] = recovery_damage["N_inspection"] + recovery_damage["N_repair"]
 
+    sum_days = recovery_damage["N_damage"].sum()
+    if sum_days < 0.1:
+        log_summary.append("No update of occupants in 'recovery_damage'")
+    else:
+        log_summary.append("With update of occupants in 'recovery_damage'")
+
     recovery_injuries = pd.read_csv(
         os.path.join(config.main_path, "static", "recovery_injuries.csv"),
         dtype={"injuries_scale": str, "N_discharged": int},
     )
     recovery_injuries.set_index(recovery_injuries["injuries_scale"], drop=True, inplace=True)
     recovery_injuries = recovery_injuries.drop(columns=["injuries_scale"])
+
+    sum_days = recovery_injuries["N_discharged"].sum()
+    if sum_days < 0.1:
+        log_summary.append("No update of occupants in 'recovery_injuries'")
+    else:
+        log_summary.append("With update of occupants in 'recovery_injuries'")
 
     # Load the "initial" exposure model
     exposure_model_undamaged = pd.read_csv(
@@ -415,6 +446,12 @@ def main():
             processed_oelf,
             exposure_expected_costs_occupants,
         )
+
+    # Save 'log_summary' (to create log file that allows for a quick check of correct input)
+    log_summary.append("Real-Time Loss Tools has finished")
+    Writer.write_txt_from_list(
+        log_summary, os.path.join(config.main_path, "quick_input_check.txt")
+    )
 
     # Leave the program
     logger.info("Real-Time Loss Tools has finished")

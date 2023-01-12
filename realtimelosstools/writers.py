@@ -28,7 +28,8 @@ logger = logging.getLogger()
 
 
 class Writer:
-    """This class handles methods associated with writing/updating files (.csv, .xml, .ini).
+    """This class handles methods associated with writing/updating files (.csv, .xml, .ini,
+    .txt).
     """
 
     @staticmethod
@@ -227,3 +228,19 @@ class Writer:
         purge_one(calc_id[-1], getpass.getuser(), True)
 
         return
+
+    @staticmethod
+    def write_txt_from_list(list_to_write, filepath):
+        """
+        This method writes the contents of 'list_to_write' to 'filepath'.
+
+        Args:
+            list_to_write (list of str): Content to be written.
+            filepath (str): Full file to output file to be written.
+        """
+
+        f= open(filepath, "w")
+        f.write("LOG FILE\n")
+        for element in list_to_write:
+            f.write(element+'\n')
+        f.close()

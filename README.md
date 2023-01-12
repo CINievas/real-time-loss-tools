@@ -279,6 +279,54 @@ is between the parentheses and one in which it does not.
 4. `trig_name` refers to each of the CSV files contained in `catalogues` and listed in the
 `triggering.csv` file.
 
+### Log for quick checks
+
+The code creates a file named `quick_input_check.txt` under `main_path`. The purpose of this
+file is to allow the user to quickly check certain parameters of the run. This is useful, for
+example, when running the `Real Time Loss Tools` in a large batch in which different jobs
+correspond to different combinations of input files.
+
+Example of `quick_input_check.txt`:
+
+```
+LOG FILE
+Real-Time Loss Tools has started
+General description: Run 03 a
+/my/local/path/run_03_a is path in config file
+/my/local/path/run_03_a is current path
+State dependent: True
+First filename in triggering.csv is 'EQ_01.csv'
+With update of occupants in 'recovery_damage'
+With update of occupants in 'recovery_injuries'
+Real-Time Loss Tools has finished
+```
+
+The contents of `quick_input_check.txt` should be interpreted as follows (referring to the
+example above):
+
+- `General description: ...`: The `description_general` entered by the user in the
+`config.yml` file.
+- `/my/local/path/run_03_a is path in config file`: The `main_path` entered by the user in the
+`config.yml` file.
+- `/my/local/path/run_03_a is current path`: Path from which the job is being run. This path
+should match the `path in config file`; if not, the file structure should be checked.
+- `State dependent: True/False`: It is True if the string "state_dependent" exists in the file
+`main_path/current/job.ini` and False otherwise. The code does not actually check if the
+fragility model inside `fragility_model.xml` is state-dependent or state-independent. This check
+assumes that, when running an analysis with a state-dependent fragility model, the string
+"state-dependent" exists in `main_path/current/job.ini`.
+- `First filename in triggering.csv is 'EQ_01.csv'`: The first file name in the `triggering.csv`
+file. This is useful if the file names contain a reference to the overall case being run within
+a batch job, to make sure the correct files have been passed as input.
+- `With update of occupants in 'recovery_damage'`: The code adds up the number of days input by
+the user in `recovery_damage.csv`. If the sum is larger than zero, the user sees the message
+`With update of occupants in 'recovery_damage'`, while if the sum is zero, the user sees the
+message `No update of occupants in 'recovery_damage'`. When all zeros are input to
+`recovery_damage.csv` and `recovery_injuries.csv`, the code does not carry out the updating of
+occupants as per previous damage/human losses.
+- `With update of occupants in 'recovery_injuries'`: The code adds up the number of days input by
+the user in `recovery_injuries.csv`. See explanation above.
+
 ## Acknowledgements
 
 These tools have been developed within the [RISE project](http://rise-eu.org/home/), which has

@@ -133,3 +133,24 @@ class Time():
             time_of_day = "error"
 
         return time_of_day
+
+
+class Files():
+    """This class handles operations associated with data/text files.
+    """
+
+    @staticmethod
+    def find_string_in_file(path_to_file, target_str):
+        """
+        This method searches for the string 'target_str' within the text file 'path_to_file' and
+        returns True if it finds it and false otherwise.
+        """
+
+        exists = False  # initialise
+
+        with open(path_to_file, "r") as file:
+            content = file.read()
+            if target_str in content:
+                exists = True
+
+        return exists

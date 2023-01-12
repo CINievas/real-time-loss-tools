@@ -16,10 +16,11 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see http://www.gnu.org/licenses/.
 
+import os
 import pytz
 import numpy as np
 from datetime import datetime
-from realtimelosstools.utils import MultilinearStepFunction, Time
+from realtimelosstools.utils import MultilinearStepFunction, Time, Files
 
 
 def test_MultilinearStepFunction():
@@ -218,3 +219,13 @@ def test_integration_determine_local_time_from_utc_and_interpret_time_of_the_day
     )
 
     assert Time.interpret_time_of_the_day(returned_datetime.hour) == "transit"
+
+
+def test_find_string_in_file():
+
+    filepath = os.path.join(
+        os.path.dirname(__file__), "data", "job.ini"
+    )
+
+    assert Files.find_string_in_file(filepath, "gmpe_logic_tree") is True
+    assert Files.find_string_in_file(filepath, "something_else") is False
