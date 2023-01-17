@@ -472,6 +472,7 @@ class ExposureUpdater:
         earthquake_time_of_day,
         earthquake_datetime,
         mapping_damage_states,
+        include_oelf,
         main_path,
     ):
         """
@@ -554,6 +555,9 @@ class ExposureUpdater:
                     dmg_2           DS2
                     dmg_3           DS3
                     dmg_4           DS4
+            include_oelf (bool):
+                If True, the method will also search for occupancy factors files under
+                'main_path'/current/occupants/oelf.
             main_path (str):
                 Path to the main running directory, assumed to have the needed structure.
 
@@ -573,7 +577,7 @@ class ExposureUpdater:
         # damage state, e.g. {"DS0": 1, "DS1": 1, "DS2": 0, "DS3": 0, "DS4": 0}; they will all
         # be equal to 1 if no earthquake has been run before)
         occupancy_factors = Losses.get_occupancy_factors(
-            earthquake_datetime, mapping_damage_states, main_path
+            earthquake_datetime, mapping_damage_states, include_oelf, main_path
         )
 
         # Evaluate if all factors in occupancy_factor are zero (to avoid reading injuries if so)
@@ -598,6 +602,7 @@ class ExposureUpdater:
             injured_still_away_vals = Losses.get_injured_still_away(
                 original_asset_ids_unique,
                 earthquake_datetime,
+                include_oelf,
                 main_path,
             )  # 'injured_still_away_vals' in the order of 'original_asset_ids_unique'
             injured_still_away = pd.DataFrame(
@@ -783,8 +788,10 @@ class ExposureUpdater:
         # Initialise output
         damage_summary = deepcopy(exposure)
         damage_summary = damage_summary.drop(
-            columns=["id", "lon", "lat", "occupancy", "original_asset_id"]
+            columns=["lon", "lat", "occupancy", "original_asset_id"]
         )
+        if "id" in damage_summary.columns:
+            damage_summary = damage_summary.drop(columns=["id"])
 
         # Create separate column for damage state
         building_classes = damage_summary["taxonomy"].to_numpy()

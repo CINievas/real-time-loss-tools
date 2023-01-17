@@ -194,8 +194,10 @@ class Losses:
         # Initialise output
         loss_summary = deepcopy(exposure)
         loss_summary = loss_summary.drop(
-            columns=["id", "lon", "lat", "occupancy", "original_asset_id"]
+            columns=["lon", "lat", "occupancy", "original_asset_id"]
         )
+        if "id" in loss_summary.columns:
+            loss_summary = loss_summary.drop(columns=["id"])
 
         # Create separate columns for building class and damage state
         taxonomy = loss_summary["taxonomy"].to_numpy()
@@ -660,13 +662,16 @@ class Losses:
         return occupancy_factors
 
     @staticmethod
-    def get_occupancy_factors(datetime_earthquake, mapping_damage_states, main_path):
+    def get_occupancy_factors(
+        datetime_earthquake, mapping_damage_states, include_oelf, main_path
+    ):
         """
         This method goes through the repair recovery timelines of all earthquakes that have
         occurred before 'datetime_earthquake' (this is done by searching for all the occupancy
-        factors files present in 'main_path'/current/occupants), and determines whether people
-        will be allowed back in (1) or not (0) to buildings with the damage states indicated in
-        'mapping_damage_states'.
+        factors files present in 'main_path'/current/occupants, including
+        'main_path'/current/occupants/oelf if 'include_oelf' is True), and determines whether
+        people will be allowed back in (1) or not (0) to buildings with the damage states
+        indicated in 'mapping_damage_states'.
 
         If there are no occupancy factors files in 'main_path'/current/occupants, all returned
         factors will be equal to 1.
@@ -684,6 +689,9 @@ class Losses:
                     dmg_2           DS2
                     dmg_3           DS3
                     dmg_4           DS4
+            include_oelf (bool):
+                If True, the method will also search for occupancy factors files under
+                'main_path'/current/occupants/oelf.
             main_path (str):
                 Path to the main running directory, assumed to have the needed structure.
 
@@ -702,6 +710,13 @@ class Losses:
             os.path.join(path_to_factors, "occupancy_factors_after_RLA_*.csv")
         )  # each file corresponds to one past earthquake
 
+        if include_oelf:
+            # Retrieve filenames of occupancy factors due to previous OELF earthquakes
+            filenames_oelf = glob.glob(
+                os.path.join(path_to_factors, "oelf", "occupancy_factors_after_OELF_*.csv")
+            )  # each file corresponds to one past earthquake
+            filenames = filenames + filenames_oelf  # concatenate
+
         # Read factors and collect them in a dictionary
         occupancy_factors = {}
         for dmg_state in mapping_damage_states.index:
@@ -709,7 +724,10 @@ class Losses:
             occupancy_factors[mapping_damage_states.loc[dmg_state, "fragility"]] = 1
 
         for filename in filenames:
-            factors = pd.read_csv(os.path.join(path_to_factors, filename))
+            if "RLA" in filename:
+                factors = pd.read_csv(os.path.join(path_to_factors, filename))
+            elif "OELF" in filename:
+                factors = pd.read_csv(os.path.join(path_to_factors, "oelf", filename))
             factors.set_index(factors["dmg_state"], drop=True, inplace=True)
             factors = factors.drop(columns=["dmg_state"])
 
@@ -757,11 +775,14 @@ class Losses:
         return occupancy_factors_per_asset
 
     @staticmethod
-    def get_injured_still_away(exposure_orig_asset_ids, datetime_earthquake, main_path):
+    def get_injured_still_away(
+        exposure_orig_asset_ids, datetime_earthquake, include_oelf, main_path
+    ):
         """
         This method goes through the injuries recovery timelines of all earthquakes that have
         occurred before 'datetime_earthquake' (this is done by searching for all the
-        "still-away-injured" files present in 'main_path'/current/occupants), and determines
+        "still-away-injured" files present in 'main_path'/current/occupants, including
+        'main_path'/current/occupants/oelf if 'include_oelf' is True), and determines
         the total number of injured people still away from their buildings by the time of
         'datetime_earthquake'. The output follows the order of the original asset IDs listed in
         'exposure_orig_asset_ids'.
@@ -777,6 +798,9 @@ class Losses:
                 'main_path'/current/occupants.
             datetime_earthquake (numpy.datetime64):
                 UTC date and time of the earthquake.
+            include_oelf (bool):
+                If True, the method will also search for "still-away-injured" files under
+                'main_path'/current/occupants/oelf.
             main_path (str):
                 Path to the main running directory, assumed to have the needed structure.
 
@@ -792,12 +816,23 @@ class Losses:
             os.path.join(path_to_injured, "injured_still_away_after_RLA_*.csv")
         )  # each file corresponds to one past earthquake
 
+        if include_oelf:
+            # Retrieve filenames of occupancy factors due to previous OELF earthquakes
+            filenames_oelf = glob.glob(
+                os.path.join(path_to_injured, "oelf", "injured_still_away_after_OELF_*.csv")
+            )  # each file corresponds to one past earthquake
+            filenames = filenames + filenames_oelf  # concatenate
+
         # Initialise the number of injured people still away (injured due to each earthquake
         # will be added)
         injured_still_away = np.zeros([len(exposure_orig_asset_ids)])
 
         for filename in filenames:
-            injured = pd.read_csv(os.path.join(path_to_injured, filename))
+            if "RLA" in filename:
+                injured = pd.read_csv(os.path.join(path_to_injured, filename))
+            elif "OELF" in filename:
+                injured = pd.read_csv(os.path.join(path_to_injured, "oelf", filename))
+
             injured.set_index(injured["original_asset_id"], drop=True, inplace=True)
             injured = injured.drop(columns=["original_asset_id"])
             # 'injured' has as columns: "building_id" and the dates of the timeline

@@ -155,6 +155,10 @@ class PostProcessor:
                 # NaNs may arise from damage states missing in the output --> transform to zero
                 collected_output = collected_output.fillna(0)
 
+        # Sort 'collected_output' by index (first by 'building_id', then by 'damage_state')
+        if collected_output is not None:
+            collected_output = collected_output.sort_index()
+
         return collected_output
 
     @staticmethod
@@ -499,7 +503,7 @@ class PostProcessor:
                 list_oelf,
                 "losses_human_after_OELF_%s.csv",
             )
-            for severity in collected_rla:
+            for severity in collected_oelf_absolute:
                 collected_oelf_absolute[severity].to_csv(
                     os.path.join(
                         main_path,

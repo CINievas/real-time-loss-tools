@@ -19,6 +19,7 @@
 import logging
 import os
 import shutil
+import pytz
 from copy import deepcopy
 import numpy as np
 import pandas as pd
@@ -44,6 +45,7 @@ class OperationalEarthquakeLossForecasting():
     def run_oelf(
         forecast_catalogue,
         forecast_name,
+        there_can_be_occupants,
         forecast_continuous_ses_numbering,
         forecast_ses_range,
         description_general,
@@ -51,6 +53,10 @@ class OperationalEarthquakeLossForecasting():
         original_exposure_model,
         consequence_economic,
         consequence_injuries,
+        recovery_damage,
+        recovery_injuries,
+        recovery_longest_time,
+        time_of_day_occupancy,
         local_timezone,
         mapping_damage_states,
         store_intermediate,
@@ -104,6 +110,13 @@ class OperationalEarthquakeLossForecasting():
             forecast_name (str):
                 Name of the forecast. It is used for the description of the OpenQuake job.ini
                 file and to create sub-directories to store files associated with this forecast.
+            there_can_be_occupants (bool):
+                If True, the occupants of the buildings will be calculated considering the
+                injured people still away (from all previous "real" RLA earthquakes and all
+                previous OELF earthquakes of each individual stochastic event set). If False,
+                the occupants of the buildings will be set to zero (set this parameter to False
+                if you assume that 'forecast_catalogue' spans too short a duration to allow for
+                occupants to return to buildings after previous earthquakes).
             forecast_continuous_ses_numbering (bool):
                 If True, the method will assume there are as many stochastic event sets as
                 indicated in 'forecast_ses_range', with an increment of 1. If False, the IDs of
@@ -170,6 +183,44 @@ class OperationalEarthquakeLossForecasting():
                     Columns:
                         One per damage state (float): They contain the mean loss ratios (as
                         percentages) for each building class and damage state.
+            recovery_damage (Pandas DataFrame):
+                Pandas DataFrame indicating the expected number of days that it will take for
+                people to be allowed back in to a building as a function of their damage state.
+                As a minimum, its structure comprises the following:
+                    Index:
+                        dmg_state (str):
+                            Damage state.
+                    Columns:
+                        N_damage (int):
+                            Number of days (as an integer) for people to be allowed back into a
+                            buildings as a function of their damage state (independently from
+                            the health status of the people). If the damage states include
+                            irreparable damage and/or collapse, use a very large number herein.
+            recovery_injuries (Pandas DataFrame):
+                Pandas DataFrame indicating the expected number of days that a person suffering
+                from injuries of each level of severity will spend in hospital before being
+                allowed to leave (i.e. before being medically discharged). It has the following
+                structure:
+                    Index:
+                        injuries_scale (int or str):
+                            Severity of the injury according to a scale.
+                    Columns:
+                        N_discharged (int):
+                            Number of days (as an integer) for a person with each level of
+                            injury to be allowed to return to their building. If the injuries
+                            scale includes death, use a very large number herein.
+            recovery_longest_time (numpy.datetime64):
+                Maximum number of days since the time of the earthquake that will be used to
+                calculate the number of occupants in the future.
+            time_of_day_occupancy (dict):
+                Factors by which the census population per building can be multiplied to obtain
+                an estimate of the people in the building at a certain time of the day. It
+                should contain one key per occupancy case present in the exposure model (e.g.
+                "residential", "commercial", "industrial"), and each key should be subdivided
+                into:
+                    - "day": approx. 10 am to 6 pm;
+                    - "night": approx. 10 pm to 6 am;
+                    - "transit": approx. 6 am to 10 am and 6 pm to 10 pm.
             local_timezone (str):
                 Local time zone in the format of the IANA Time Zone Database.
                 E.g. "Europe/Rome".
@@ -325,6 +376,20 @@ class OperationalEarthquakeLossForecasting():
                 % (np.datetime64('now'), k+1, len(oef_ses_ids))
             )
 
+            # Create sub-directory to store "injured_still_away" and "occupancy_factors" files
+            # (this sub-directory and all its contents will be erased at the end of this SES)
+            path_to_occupants_oelf = os.path.join(main_path, "current", "occupants", "oelf")
+            if not os.path.exists(path_to_occupants_oelf):
+                os.mkdir(path_to_occupants_oelf)
+            else:
+                error_message = (
+                    "The directory %s already exists and may contain results from "
+                    "a previous run. The program will stop."
+                    % (path_to_occupants_oelf)
+                )
+                logger.critical(error_message)
+                raise OSError(error_message)
+
             # Earthquakes that belong only to this realisation of seismicity (SES)
             filter_realisation = (forecast_catalogue["ses_id"] == oef_ses_id)
             aux = forecast_catalogue[filter_realisation]
@@ -344,36 +409,16 @@ class OperationalEarthquakeLossForecasting():
             damage_states = None
             losses_human_all_events = None
             # Initialise exposure, in case there are no elements in 'events_in_ses'
-            exposure_updated = pd.read_csv(
+            exposure_updated_damage = pd.read_csv(
                 os.path.join(path_to_exposure, current_exposure_filename),
                 dtype={"id_3": str, "id_2": str, "id_1": str}
             )
-            exposure_updated.index = exposure_updated["id"]
-            exposure_updated.index = exposure_updated.index.rename("asset_id")
+            exposure_updated_damage.index = exposure_updated_damage["id"]
+            exposure_updated_damage.index = exposure_updated_damage.index.rename("asset_id")
+            exposure_updated_damage = exposure_updated_damage.drop(columns=["id"])
 
             # Run earthquake by earthquake of this stochastic event set
             for eq_id in events_in_ses.index:  # EQID is index of DataFrame
-
-                # Load exposure CSV (the exposure model to be used to run OpenQuake with this
-                # earthquake)
-                exposure_run = pd.read_csv(
-                    os.path.join(path_to_exposure, current_exposure_filename),
-                    dtype={"id_3": str, "id_2": str, "id_1": str}
-                )
-                exposure_run.index = exposure_run["id"]
-                exposure_run.index = exposure_run.index.rename("asset_id")
-
-                if not events_in_ses.loc[eq_id, "to_run"]:
-                    # Magnitude too small or too far away from all exposure sites
-                    # --> skip this earthquake and go on to the next one
-                    # The 'exposure_updated' is the same as the exposure so far
-                    exposure_updated = deepcopy(exposure_run)
-                    # No need to add zeros to losses_human_all_events (i.e. no injuries)
-                    continue
-
-                # Drop "id" but only after checking min_magnitude
-                # ("id" col needed in 'exposure_updated')
-                exposure_run = exposure_run.drop(columns=["id"])
 
                 # Description
                 description = "%s, %s, event ID %s" % (
@@ -382,7 +427,7 @@ class OperationalEarthquakeLossForecasting():
 
                 # Determine time of the day (used for number of occupants)
                 local_hour = Time.determine_local_time_from_utc(
-                    datetime.fromtimestamp(events_in_ses.loc[eq_id, "datetime"].timestamp()),
+                    (events_in_ses.loc[eq_id, "datetime"]).to_pydatetime(),
                     local_timezone
                 )
                 time_of_day = Time.interpret_time_of_the_day(
@@ -403,6 +448,53 @@ class OperationalEarthquakeLossForecasting():
                     )
                     logger.critical(error_message)
                     raise OSError(error_message)
+
+                # Load exposure CSV (the exposure model to be used to run OpenQuake with this
+                # earthquake). This exposure file contains census occupants not adjusted to
+                # reflect the damage state of the building or the health status of people
+                exposure_full_occupants = pd.read_csv(
+                    os.path.join(path_to_exposure, current_exposure_filename),
+                    dtype={"id_3": str, "id_2": str, "id_1": str}
+                )
+                exposure_full_occupants.index = exposure_full_occupants["id"]
+                exposure_full_occupants.index = exposure_full_occupants.index.rename("asset_id")
+                exposure_full_occupants = exposure_full_occupants.drop(columns=["id"])
+
+                if there_can_be_occupants:
+                    # Update exposure to reflect occupants for this earthquake
+                    # (reflecting injuries and deaths)
+                    exposure_run = ExposureUpdater.update_exposure_occupants(
+                        exposure_full_occupants,
+                        time_of_day_occupancy,
+                        time_of_day,
+                        events_in_ses.loc[eq_id, "datetime"],
+                        mapping_damage_states,
+                        True,  # include OELF previous earthquakes (not just RLA)
+                        main_path,
+                    )
+                else:
+                    # Assume all occupants are zero
+                    exposure_run = deepcopy(exposure_full_occupants)
+                    exposure_run[time_of_day] = np.zeros([exposure_run.shape[0]])
+
+                # Update 'exposure_model_current.csv' (only update is associated with the column with
+                # the number of occupants appropriate for this earthquake)
+                exposure_run.to_csv(
+                    os.path.join(path_to_exposure, current_exposure_filename),
+                    index=True,
+                    index_label="id",  # the index of 'exposure_run' is "asset_id", but OQ needs "id"
+                )
+
+                if not events_in_ses.loc[eq_id, "to_run"]:
+                    # Magnitude too small or too far away from all exposure sites
+                    # --> skip this earthquake and go on to the next one
+                    # The 'exposure_updated_damage' is the same as the exposure so far
+                    exposure_updated_damage = deepcopy(exposure_run)
+                    exposure_updated_damage = exposure_updated_damage.drop(
+                        columns=[time_of_day]
+                    )
+                    # No need to add zeros to losses_human_all_events (i.e. no injuries)
+                    continue
 
                 # Identify rupture XML
                 name_rupture_file = "RUP_%s-%s.xml" % (
@@ -470,6 +562,7 @@ class OperationalEarthquakeLossForecasting():
                     original_exposure_model,
                     damage_results_OQ,
                     mapping_damage_states,
+                    time_of_day,
                 )
 
                 # Calculate human losses per asset of 'exposure_updated_damage'
@@ -490,33 +583,67 @@ class OperationalEarthquakeLossForecasting():
                         [losses_human_all_events, losses_human_per_building_id]
                     )
 
-                # Update exposure to reflect new occupants (reflecting injuries and deaths)
-                exposure_updated = ExposureUpdater.update_exposure_occupants(
-                    exposure_updated_damage,
-                    losses_human_per_asset,
-                )
+                # Calculate timeline of recovery (to define occupants for next earthquake)
+                # (only if there could be occupants for this earthquake, otherwise skip)
+                if there_can_be_occupants:
+                    # Calculate number of injured people still away in time
+                    injured_still_away = Losses.calculate_injuries_recovery_timeline(
+                        losses_human_per_asset,
+                        recovery_injuries,
+                        recovery_longest_time,
+                        events_in_ses.loc[eq_id, "datetime"],
+                    )
+                    # Calculate factors regarding people being allowed to go back to buildings
+                    occupancy_factors = Losses.calculate_repair_recovery_timeline(
+                        recovery_damage,
+                        recovery_longest_time,
+                        events_in_ses.loc[eq_id, "datetime"],
+                    )
+
+                    # Store number of injured people away from the building in time, per asset ID
+                    injured_still_away.to_csv(
+                        os.path.join(
+                            path_to_occupants_oelf,
+                            "injured_still_away_after_OELF_%s.csv" % (eq_id)
+                        ),
+                        index=True,
+                    )
+
+                    # Store occupancy factors (0: people not allowed in, 1: people allowed in) as a
+                    # function of time and damage state
+                    occupancy_factors.to_csv(
+                        os.path.join(
+                            path_to_occupants_oelf,
+                            "occupancy_factors_after_OELF_%s.csv" % (eq_id)
+                        ),
+                        index=True,
+                    )
 
                 # Store new exposure CSV
                 if store_intermediate:
                     name_exposure_csv_file_next = "exposure_model_after_%s.csv" % (eq_id)
                     # Named after the earthquake
-                    exposure_updated.to_csv(
+                    exposure_updated_damage.to_csv(
                         os.path.join(path_to_exposure, name_exposure_csv_file_next),
                         index=False,
                     )
+
+                # Get rid of time-of-the-day-specific numbers of occupants
+                exposure_updated_damage = exposure_updated_damage.drop(columns=[time_of_day])
+
                 # Replace current exposure for this stochastic event set
-                exposure_updated.to_csv(
+                exposure_updated_damage.to_csv(
                     os.path.join(path_to_exposure, current_exposure_filename),
                     index=False,
                 )
 
             # Get damage states per building ID for this stochastic event set (OELF realisation)
             damage_states = ExposureUpdater.summarise_damage_states_per_building_id(
-                exposure_updated
+                exposure_updated_damage
             )
             # Get economic losses per building ID for this stochastic event set (realisation)
             losses_economic = Losses.expected_economic_loss(
-                exposure_updated, consequence_economic
+                exposure_updated_damage, consequence_economic
             )
 
             # Add human losses due to all events
@@ -590,6 +717,10 @@ class OperationalEarthquakeLossForecasting():
                 losses_human_all_ses = pd.concat(
                     [losses_human_all_ses, losses_human_all_events]
                 )
+
+            # Erase 'path_to_occupants_oelf' and all its contents
+            # (next SES needs to start clean)
+            shutil.rmtree(path_to_occupants_oelf)
 
         # Average damage states per building ID for all stochastic event sets
         damage_states_all_ses = damage_states_all_ses.groupby(
@@ -775,3 +906,58 @@ class OperationalEarthquakeLossForecasting():
         earthquakes_kept[earthquakes_kept == True] = np.array(keep)
 
         return forecast_cat_filtered, earthquakes_kept
+
+    @staticmethod
+    def can_there_be_occupants(
+        forecast_catalogue, date_latest_rla, shortest_recovery_span, tolerance=0.0
+    ):
+        """
+        This method calculates the difference between the newest date of 'forecast_catalogue'
+        and 'date_latest_rla' and compares it against 'shortest_recovery_span' (+ 'tolerance').
+        If the difference is smaller than 'shortest_recovery_span' (+ 'tolerance'), it returns
+        False (i.e. occupants are not allowed to return to buildings before the end of the
+        seismicity catalogue). If the difference is larger than 'shortest_recovery_span'
+        (+ 'tolerance'), it returns True (i.e. occupants are allowed to return to buildings
+        before the end of the seismicity catalogue).
+
+        If 'date_latest_rla' it is interpreted as no "real" earthquake having been run before,
+        which results in occupants being allowed in their buildings, and the method returns
+        True.
+
+        The purpose of 'tolerance' is to allow for discrepancies due to precision in the time of
+        "real" earthquakes and those in the seismicity forecast.
+
+        Args:
+            forecast_catalogue (Pandas DataFrame):
+                DataFrame containing a seismicity forecast for a period of time of interest. It
+                must contain at least the following field:
+                    datetime (Numpy datetime64): Date and time.
+            date_latest_rla (datetime.datetime object):
+                Date and time of the last "real" (RLA) earthquake run. Use None to indicate that
+                no "real" earthquake has been run before.
+            shortest_recovery_span (int):
+                Shortest number of days before occupants are allowed back into buildings.
+            tolerance (float):
+                Tolerance for the comparison (in number of days). Default: 0.0.
+        """
+
+        if date_latest_rla is None:
+            # Used to indicate no "real" earthquake has been run before
+            return True
+
+        # Newest earthquake in 'forecast_catalogue'
+        #newest_date_in_forecast = pd.Timestamp(
+        #    forecast_catalogue["datetime"].max()
+        #).to_pydatetime()
+        newest_date_in_forecast = (forecast_catalogue["datetime"].max()).to_pydatetime()
+
+        # Difference in time
+        time_diff = newest_date_in_forecast - date_latest_rla
+        time_diff_days = time_diff.total_seconds()/(3600.*24.)
+
+        if time_diff_days < (shortest_recovery_span + tolerance):
+            there_can_be_occupants = False
+        else:
+            there_can_be_occupants = True
+
+        return there_can_be_occupants

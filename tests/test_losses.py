@@ -354,7 +354,7 @@ def test_calculate_repair_recovery_timeline():
 
 
 def test_get_occupancy_factors():
-    # Test 1: previous earthquakes run
+    # Test 1: previous earthquakes run, without OELF
     datetime_earthquake = np.datetime64("2010-04-10T00:00:00")
 
     aux = {
@@ -365,24 +365,40 @@ def test_get_occupancy_factors():
     mapping_damage_states.set_index(mapping_damage_states["dmg_state"], drop=True, inplace=True)
     mapping_damage_states = mapping_damage_states.drop(columns=["dmg_state"])
 
+    include_oelf = False
+
     main_path = os.path.join(os.path.dirname(__file__), "data")
 
     expected_occupancy_factors = {"DS0": 1, "DS1": 1, "DS2": 1, "DS3": 0, "DS4": 0}
 
     returned_occupancy_factors = Losses.get_occupancy_factors(
-        datetime_earthquake, mapping_damage_states, main_path
+        datetime_earthquake, mapping_damage_states, include_oelf, main_path
     )
 
     for dmg_state in expected_occupancy_factors:
         assert returned_occupancy_factors[dmg_state] == expected_occupancy_factors[dmg_state]
 
-    # Test 2: no previous earthquakes run
+    # Test 2: previous earthquakes run, include OELF
+    include_oelf = True
+
+    expected_occupancy_factors = {"DS0": 1, "DS1": 1, "DS2": 0, "DS3": 0, "DS4": 0}
+
+    returned_occupancy_factors = Losses.get_occupancy_factors(
+        datetime_earthquake, mapping_damage_states, include_oelf, main_path
+    )
+
+    for dmg_state in expected_occupancy_factors:
+        assert returned_occupancy_factors[dmg_state] == expected_occupancy_factors[dmg_state]
+
+    # Test 3: no previous earthquakes run
+    include_oelf = False
+
     main_path = os.path.join(os.path.dirname(__file__), "data", "intentionally_no_files")
 
     expected_occupancy_factors = {"DS0": 1, "DS1": 1, "DS2": 1, "DS3": 1, "DS4": 1}
 
     returned_occupancy_factors = Losses.get_occupancy_factors(
-        datetime_earthquake, mapping_damage_states, main_path
+        datetime_earthquake, mapping_damage_states, include_oelf, main_path
     )
 
     for dmg_state in expected_occupancy_factors:
@@ -412,8 +428,9 @@ def test_get_occupancy_factors_per_asset():
 
 
 def test_get_injured_still_away():
-    # Test 1: previous earthquakes run
+    # Test 1: previous earthquakes run, without OELF
     target_datetime = np.datetime64("2010-04-10T00:00:00")
+    include_oelf = False
     main_path = os.path.join(os.path.dirname(__file__), "data")
     exposure_orig_asset_ids = np.array(["exp_%s" % (i) for i in range(1, 6)])
 
@@ -422,20 +439,36 @@ def test_get_injured_still_away():
     ])
 
     returned_injured_still_away = Losses.get_injured_still_away(
-        exposure_orig_asset_ids, target_datetime, main_path
+        exposure_orig_asset_ids, target_datetime, include_oelf, main_path
     )
 
     np.testing.assert_almost_equal(
         returned_injured_still_away, expected_injured_still_away, decimal=8
     )
 
-    # Test 2: no previous earthquakes run
+    # Test 2: previous earthquakes run, include OELF
+    include_oelf = True
+
+    expected_injured_still_away = np.array([
+        0.0055996836, 0.0022028301, 0.0033151833, 0.0012682898, 0.0069937302
+    ])
+
+    returned_injured_still_away = Losses.get_injured_still_away(
+        exposure_orig_asset_ids, target_datetime, include_oelf, main_path
+    )
+
+    np.testing.assert_almost_equal(
+        returned_injured_still_away, expected_injured_still_away, decimal=8
+    )
+
+    # Test 3: no previous earthquakes run
     main_path = os.path.join(os.path.dirname(__file__), "data", "intentionally_no_files")
+    include_oelf = False
 
     expected_injured_still_away = np.zeros([len(exposure_orig_asset_ids)])
 
     returned_injured_still_away = Losses.get_injured_still_away(
-        exposure_orig_asset_ids, target_datetime, main_path
+        exposure_orig_asset_ids, target_datetime, include_oelf, main_path
     )
 
     np.testing.assert_almost_equal(

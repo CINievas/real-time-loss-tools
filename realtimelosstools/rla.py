@@ -331,7 +331,7 @@ class RapidLossAssessment:
 
         # Determine time of the day (used for number of occupants)
         local_hour = Time.determine_local_time_from_utc(
-            datetime.fromtimestamp(earthquake["datetime"].timestamp()), local_timezone
+            (earthquake["datetime"]).to_pydatetime(), local_timezone
         )
         time_of_day = Time.interpret_time_of_the_day(local_hour.hour)
 
@@ -386,6 +386,7 @@ class RapidLossAssessment:
             time_of_day,
             earthquake["datetime"],
             mapping_damage_states,
+            False,  # do not search for OELF earthquakes
             main_path,
         )
 

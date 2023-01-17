@@ -23,6 +23,7 @@ import shutil
 import numpy as np
 import pandas as pd
 from copy import deepcopy
+from datetime import datetime
 from realtimelosstools.configuration import Configuration
 from realtimelosstools.rla import RapidLossAssessment
 from realtimelosstools.oelf import OperationalEarthquakeLossForecasting
@@ -163,6 +164,9 @@ def main():
     else:
         log_summary.append("With update of occupants in 'recovery_damage'")
 
+    # Smallest number of days to allow people back into buildings
+    shortest_recovery_span = recovery_damage["N_damage"].min()  # days
+
     recovery_injuries = pd.read_csv(
         os.path.join(config.main_path, "static", "recovery_injuries.csv"),
         dtype={"injuries_scale": str, "N_discharged": int},
@@ -210,6 +214,8 @@ def main():
 
     processed_rla = []
     processed_oelf = []
+
+    date_latest_rla = None
 
     for i, cat_filename_i in enumerate(triggers["catalogue_filename"].to_numpy()):
         type_analysis_i = triggers["type_analysis"].to_numpy()[i]
@@ -316,6 +322,9 @@ def main():
                 index=True,
             )
 
+            # Update 'date_latest_rla'
+            date_latest_rla = (earthquake_params["datetime"]).to_pydatetime()
+
         elif type_analysis_i == "OELF":
             # Read forecast earthquake catalogue
             forecast_cat = pd.read_csv(
@@ -378,10 +387,27 @@ def main():
                 export_type='xml', # Type of file for export
             )
 
+            # Determine if occupants need to be updated (or considered zero), based on the time
+            # ellapsed since the last real (RLA) earthquake and the shortest recovery span
+            # specified by the user (shortest time to allow occupants back in)
+            there_can_be_occupants = (
+                OperationalEarthquakeLossForecasting.can_there_be_occupants(
+                    forecast_cat, date_latest_rla, shortest_recovery_span, (59./(3600.*24.))
+                )
+            )
+            if there_can_be_occupants:
+                logger.info("There might be occupants in buildings during OELF calculation.")
+            else:
+                logger.info(
+                    "Occupants are all zero during OELF calculation "
+                    "(too short time since last real earthquake)"
+                )
+
             damage_states, losses_economic, losses_human = (
                 OperationalEarthquakeLossForecasting.run_oelf(
                     forecast_cat,
                     forecast_name,
+                    there_can_be_occupants,
                     config.oelf["continuous_ses_numbering"],
                     config.oelf["ses_range"],
                     config.description_general,
@@ -389,6 +415,10 @@ def main():
                     exposure_model_undamaged,
                     consequence_economic,
                     consequence_injuries,
+                    recovery_damage,
+                    recovery_injuries,
+                    config.injuries_longest_time,
+                    config.time_of_day_occupancy,
                     config.timezone,
                     config.mapping_damage_states,
                     config.store_intermediate,

@@ -19,6 +19,7 @@
 import os
 import numpy as np
 import pandas as pd
+from datetime import datetime
 from realtimelosstools.oelf import OperationalEarthquakeLossForecasting
 
 
@@ -151,3 +152,42 @@ def test_filter_forecast():
 
     for aux_id in expected_filtered_cat["aux_id"].to_numpy():
         assert aux_id in returned_filtered_cat["aux_id"].to_numpy()
+
+
+def test_can_there_be_occupants():
+    # Read a seismicity catalogue
+    filepath = os.path.join(os.path.dirname(__file__), "data", "oef_catalogue.csv")
+    forecast_cat = pd.read_csv(filepath)
+    forecast_cat = OperationalEarthquakeLossForecasting.format_seismicity_forecast(
+        forecast_cat, add_event_id=True, add_depth=False
+    )
+    # Newest date of 'forecast_cat' is 2009-04-07T01:33:02
+
+    # Date of latest "real" earthquake
+    date_latest_rla = datetime(2009, 4, 5, 1, 38)  # almost two days earlier
+
+    # Test case in which output should be True
+    shortest_recovery_span = 1  # days
+
+    there_can_be_occupants = OperationalEarthquakeLossForecasting.can_there_be_occupants(
+        forecast_cat, date_latest_rla, shortest_recovery_span
+    )
+
+    assert there_can_be_occupants is True
+
+    # Test case in which output should be False
+    shortest_recovery_span = 3  # days
+
+    there_can_be_occupants = OperationalEarthquakeLossForecasting.can_there_be_occupants(
+        forecast_cat, date_latest_rla, shortest_recovery_span
+    )
+
+    assert there_can_be_occupants is False
+
+    # Test case in which date_latest_rla is None (i.e. no real earthquake has been run)
+
+    there_can_be_occupants = OperationalEarthquakeLossForecasting.can_there_be_occupants(
+        forecast_cat, None, shortest_recovery_span
+    )
+
+    assert there_can_be_occupants is True
