@@ -845,3 +845,91 @@ class ExposureUpdater:
         ]).astype(float)
 
         return unique_lons, unique_lats
+
+    @staticmethod
+    def create_OQ_no_damage(exposure, mapping_damage_states, loss_type="structural"):
+        """
+        This method simulates the output of OpenQuake's DataStore.read_df() assigning no damage
+        (apart from the pre-existing damage) to all asset IDs in 'exposure'.
+
+        OpenQuake's DataStore.read_df() raises a KeyError when asked to retrieve the damage
+        results of a calculation that has resulted in no damage (for which OpenQuake logs the
+        warning "There is no damage, perhaps the hazard is too small?").
+
+        Args:
+            exposure (Pandas DataFrame):
+                Pandas DataFrame representation of the exposure CSV input for OpenQuake whose
+                damage results are to be simulated. It must comprise at least the following
+                fields:
+                    Index (simple):
+                        asset_id (str):
+                            ID of the asset (i.e. specific combination of building_id and a
+                            particular building class).
+                    Columns:
+                        taxonomy (str):
+                            Building class.
+                        number (float):
+                            Number of buildings in this asset.
+            mapping_damage_states (Pandas DataFrame):
+                Mapping between the names of damage states as output by OpenQuake (index) and as
+                labelled in the fragility model (value). E.g.:
+                              fragility
+                    asset_id
+                    no_damage       DS0
+                    dmg_1           DS1
+                    dmg_2           DS2
+                    dmg_3           DS3
+                    dmg_4           DS4
+            loss_type (str):
+                Type of loss to be output by OpenQuake. Default: "structural".
+
+        Returns:
+            damage_results_no_damage (DataFrame):
+                DataFrame with the following structure:
+                    Index: consecutive integers starting with 0.
+                    Columns:
+                        asset_id (str): Asset IDs from 'exposure'.
+                        rlz (int): All zeroes.
+                        loss_type (str): All as per 'loss_type'.
+                        dmg_state (str): Damage states as per 'mapping_damage_states' and
+                            'exposure'.
+                        value (float): Number of buildings of 'asset_id' in each
+                            'dmg_state', as per 'exposure'.
+        """
+
+        asset_ids = list(exposure.index)
+        buildings_per_asset_id = exposure["number"].to_numpy()
+        dmg_states_exposure = [
+            exposure["taxonomy"][i].split("/")[-1] for i in range(exposure.shape[0])
+        ]
+
+        dmg_states_oq = list(mapping_damage_states.index)
+
+        number_rows = len(asset_ids) * len(dmg_states_oq)
+
+        asset_ids_all = []
+        dmg_states_oq_all = []
+        values_all = []
+
+        for i, asset_id in enumerate(asset_ids):
+            for dmg_state in dmg_states_oq:
+                asset_ids_all.append(asset_id)
+                dmg_states_oq_all.append(dmg_state)
+                # Assign all buildings to the damage state of the exposure model
+                # (i.e. keep pre-existing damage)
+                if mapping_damage_states.loc[dmg_state, "fragility"] == dmg_states_exposure[i]:
+                    values_all.append(buildings_per_asset_id[i])
+                else:
+                    values_all.append(0.0)
+
+        damage_results_no_damage = pd.DataFrame(
+            {
+                "asset_id": asset_ids_all,
+                "rlz": [0 for i in range(number_rows)],
+                "loss_type": [loss_type for i in range(number_rows)],
+                "dmg_state": dmg_states_oq_all,
+                "value": values_all,
+            }
+        )
+
+        return damage_results_no_damage

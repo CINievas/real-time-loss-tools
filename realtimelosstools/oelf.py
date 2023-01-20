@@ -525,8 +525,27 @@ class OperationalEarthquakeLossForecasting():
 
                 # Retrieve damage states from OpenQuake output
                 dstore = calc.datastore.open("r")
-                damage_results_OQ = dstore.read_df("damages-rlzs")
+
+                try:
+                    damage_results_OQ = dstore.read_df("damages-rlzs")
+                except KeyError as ke:
+                    if (len(ke.args) == 1) and ("damages-rlzs" in ke.args):
+                        # OpenQuake's "There is no damage, perhaps the hazard is too small?"
+                        damage_results_OQ = ExposureUpdater.create_OQ_no_damage(
+                                exposure_run,
+                                mapping_damage_states,
+                                loss_type="structural"
+                        )
+                    else:
+                        error_message = (
+                            "OpenQuake has not found 'damages-rlzs' for %s "
+                            "and Real-Time Loss Tools has not been able to solve it"
+                            % (description)
+                        )
+                        logger.critical(error_message)
+                        raise OSError(error_message)
                 dstore.close()
+
                 new_index = pd.MultiIndex.from_arrays(
                     [damage_results_OQ["asset_id"], damage_results_OQ["dmg_state"]]
                 )
