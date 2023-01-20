@@ -744,17 +744,17 @@ class OperationalEarthquakeLossForecasting():
         # Average damage states per building ID for all stochastic event sets
         damage_states_all_ses = damage_states_all_ses.groupby(
             ["building_id", "damage_state"]
-        ).mean(numeric_only=True)
+        ).sum(numeric_only=True) / len(oef_ses_ids)
 
         # Average economic losses per building ID for all stochastic event sets
-        losses_economic_all_ses = losses_economic_all_ses.groupby(["building_id"]).mean(
+        losses_economic_all_ses = losses_economic_all_ses.groupby(["building_id"]).sum(
             numeric_only=True
-        )
+        ) / len(oef_ses_ids)
 
         # Average human losses per building ID for all stochastic event sets
-        losses_human_all_ses = losses_human_all_ses.groupby(["building_id"]).mean(
+        losses_human_all_ses = losses_human_all_ses.groupby(["building_id"]).sum(
             numeric_only=True
-        )
+        ) / len(oef_ses_ids)
 
         return damage_states_all_ses, losses_economic_all_ses, losses_human_all_ses
 
