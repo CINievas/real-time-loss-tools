@@ -179,6 +179,14 @@ class PostProcessor:
             - 'main_path'/output/all_losses_economic_RLA_cumulative_ratio.csv: Same as above
             but as a percentage of the total replacement cost of each building ID.
 
+            - 'main_path'/output/all_portfolio_losses_economic_RLA_cumulative_absolute.csv: Same
+            as all_losses_economic_RLA_cumulative_absolute.csv but for all buildings in the
+            portfolio together.
+
+            - 'main_path'/output/all_portfolio_losses_economic_RLA_cumulative_ratio.csv: Same as
+            all_losses_economic_RLA_cumulative_ratio.csv but for all buildings in the portfolio
+            together.
+
             - 'main_path'/output/all_losses_economic_RLA_incremental_absolute.csv: Incremental
             economic losses after each earthquake for which a rapid loss assessment (RLA) was
             run ("incremental" is used herein to indicate the contribution of each earthquake to
@@ -188,6 +196,14 @@ class PostProcessor:
 
             - 'main_path'/output/all_losses_economic_RLA_incremental_ratio.csv: Same as above
             but as a percentage of the total replacement cost of each building ID.
+
+            - 'main_path'/output/all_portfolio_losses_economic_RLA_incremental_absolute.csv:
+            Same as all_losses_economic_RLA_incremental_absolute.csv but for all buildings in
+            the portfolio together.
+
+            - 'main_path'/output/all_portfolio_losses_economic_RLA_incremental_ratio.csv: Same
+            as all_losses_economic_RLA_incremental_ratio.csv but for all buildings in the
+            portfolio together.
 
             - 'main_path'/output/all_losses_economic_OELF_cumulative_absolute.csv: Incremental
             economic losses after each earthquake forecast for which an operational earthquake
@@ -226,12 +242,12 @@ class PostProcessor:
         # RLA economic losses output
         if len(list_rla) > 0:
             # RLA, absolute loss, cumulative (what natually comes out of the RLA calculation)
-            collected_rla_absolute = PostProcessor._collect_output_losses_economic(
+            collected_rla_abs_cumul = PostProcessor._collect_output_losses_economic(
                 os.path.join(main_path, "output"),
                 list_rla,
                 "losses_economic_after_RLA_%s.csv",
             )
-            collected_rla_absolute.to_csv(
+            collected_rla_abs_cumul.to_csv(
                 os.path.join(
                     main_path,
                     "output",
@@ -240,11 +256,22 @@ class PostProcessor:
                 index=True,
             )
 
-            # RLA, loss ratio, cumulative
-            collected_rla_ratio = PostProcessor._get_loss_ratio(
-                collected_rla_absolute, exposure_costs_occupants, "structural"
+            # RLA, absolute loss, cumulative, added up for whole portfolio
+            portfolio_rla_abs_cumul = collected_rla_abs_cumul.sum(axis=0)
+            portfolio_rla_abs_cumul.to_csv(
+                os.path.join(
+                    main_path,
+                    "output",
+                    "all_portfolio_losses_economic_RLA_cumulative_absolute.csv",
+                ),
+                header=False,
             )
-            collected_rla_ratio.to_csv(
+
+            # RLA, loss ratio, cumulative
+            collected_rla_ratio_cumul = PostProcessor._get_loss_ratio(
+                collected_rla_abs_cumul, exposure_costs_occupants, "structural"
+            )
+            collected_rla_ratio_cumul.to_csv(
                 os.path.join(
                     main_path,
                     "output",
@@ -253,11 +280,24 @@ class PostProcessor:
                 index=True,
             )
 
-            # RLA, absolute loss, incremental (difference between successive earthquakes)
-            collected_rla_absolute_incremental = PostProcessor._get_incremental_from_cumulative(
-                collected_rla_absolute, list_rla
+            # RLA, loss ratio, cumulative, added up for whole portfolio
+            portfolio_rla_ratio_cumul = (
+                portfolio_rla_abs_cumul / exposure_costs_occupants.loc[:, "structural"].sum()
             )
-            collected_rla_absolute_incremental.to_csv(
+            portfolio_rla_ratio_cumul.to_csv(
+                os.path.join(
+                    main_path,
+                    "output",
+                    "all_portfolio_losses_economic_RLA_cumulative_ratio.csv",
+                ),
+                header=False,
+            )
+
+            # RLA, absolute loss, incremental (difference between successive earthquakes)
+            collected_rla_abs_increment = PostProcessor._get_incremental_from_cumulative(
+                collected_rla_abs_cumul, list_rla
+            )
+            collected_rla_abs_increment.to_csv(
                 os.path.join(
                     main_path,
                     "output",
@@ -266,11 +306,22 @@ class PostProcessor:
                 index=True,
             )
 
-            # RLA, loss ratio, incremental (difference between successive earthquakes)
-            collected_rla_ratio_incremental = PostProcessor._get_incremental_from_cumulative(
-                collected_rla_ratio, list_rla
+            # RLA, absolute loss, incremental, added up for whole portfolio
+            portfolio_rla_abs_increment = collected_rla_abs_increment.sum(axis=0)
+            portfolio_rla_abs_increment.to_csv(
+                os.path.join(
+                    main_path,
+                    "output",
+                    "all_portfolio_losses_economic_RLA_incremental_absolute.csv",
+                ),
+                header=False,
             )
-            collected_rla_ratio_incremental.to_csv(
+
+            # RLA, loss ratio, incremental (difference between successive earthquakes)
+            collected_rla_ratio_increment = PostProcessor._get_incremental_from_cumulative(
+                collected_rla_ratio_cumul, list_rla
+            )
+            collected_rla_ratio_increment.to_csv(
                 os.path.join(
                     main_path,
                     "output",
@@ -279,15 +330,29 @@ class PostProcessor:
                 index=True,
             )
 
+            # RLA, loss ratio, incremental, added up for whole portfolio
+            portfolio_rla_ratio_increment = (
+                portfolio_rla_abs_increment
+                / exposure_costs_occupants.loc[:, "structural"].sum()
+            )
+            portfolio_rla_ratio_increment.to_csv(
+                os.path.join(
+                    main_path,
+                    "output",
+                    "all_portfolio_losses_economic_RLA_incremental_ratio.csv",
+                ),
+                header=False,
+            )
+
         # OELF economic losses output
         if len(list_oelf) > 0:
             # OELF, absolute loss, cumulative (what natually comes out of the OELF calculation)
-            collected_oelf_absolute = PostProcessor._collect_output_losses_economic(
+            collected_oelf_abs_cumul = PostProcessor._collect_output_losses_economic(
                 os.path.join(main_path, "output"),
                 list_oelf,
                 "losses_economic_after_OELF_%s.csv",
             )
-            collected_oelf_absolute.to_csv(
+            collected_oelf_abs_cumul.to_csv(
                 os.path.join(
                     main_path,"output", "all_losses_economic_OELF_cumulative_absolute.csv"
                 ),
@@ -295,10 +360,10 @@ class PostProcessor:
             )
 
             # OELF, loss ratio, cumulative
-            collected_oelf_ratio = PostProcessor._get_loss_ratio(
-                collected_oelf_absolute, exposure_costs_occupants, "structural"
+            collected_oelf_ratio_cumul = PostProcessor._get_loss_ratio(
+                collected_oelf_abs_cumul, exposure_costs_occupants, "structural"
             )
-            collected_oelf_ratio.to_csv(
+            collected_oelf_ratio_cumul.to_csv(
                 os.path.join(
                     main_path,"output", "all_losses_economic_OELF_cumulative_ratio.csv"
                 ),
@@ -390,6 +455,14 @@ class PostProcessor:
             above but as a percentage of the total occupants of each building ID (occupants
             irrespective of the time of the day).
 
+            - .../all_portfolio_losses_human_severity_X_RLA_incremental_absolute.csv: Same as
+            all_losses_human_severity_X_RLA_incremental_absolute.csv but for all buildings in
+            the portfolio together.
+
+            - .../all_portfolio_losses_human_severity_X_RLA_incremental_ratio.csv: Same as
+            all_losses_human_severity_X_RLA_incremental_ratio.csv but for all buildings in the
+            portfolio together.
+
             - 'main_path'/output/all_losses_human_severity_X_RLA_cumulative_absolute.csv:
             Cumulative human losses after each earthquake for which a rapid loss assessment
             (RLA) was run ("cumulative" is used herein to indicate that the output human loss
@@ -399,6 +472,14 @@ class PostProcessor:
             - 'main_path'/output/all_losses_human_severity_X_RLA_cumulative_ratio.csv: Same as
             above but as a percentage of the total occupants of each building ID (occupants
             irrespective of the time of the day).
+
+            - .../all_portfolio_losses_human_severity_X_RLA_cumulative_absolute.csv: Same as
+            all_losses_human_severity_X_RLA_cumulative_absolute.csv but for all buildings in
+            the portfolio together.
+
+            - .../all_portfolio_losses_human_severity_X_RLA_cumulative_ratio.csv: Same as
+            all_losses_human_severity_X_RLA_cumulative_ratio.csv but for all buildings in the
+            portfolio together.
 
             - 'main_path'/output/all_losses_human_severity_X_OELF_incremental_absolute.csv:
             Incremental human losses after each earthquake forecast for which an operational
@@ -439,14 +520,14 @@ class PostProcessor:
         # RLA human losses output
         if len(list_rla) > 0:
             # RLA, absolute loss, incremental (what natually comes out of the RLA calculation)
-            collected_rla_absolute = PostProcessor._collect_output_losses_human(
+            collected_rla_abs_increment = PostProcessor._collect_output_losses_human(
                 os.path.join(main_path, "output"),
                 injuries_scale,
                 list_rla,
                 "losses_human_after_RLA_%s.csv",
             )
-            for severity in collected_rla_absolute:
-                collected_rla_absolute[severity].to_csv(
+            for severity in collected_rla_abs_increment:
+                collected_rla_abs_increment[severity].to_csv(
                     os.path.join(
                         main_path,
                         "output",
@@ -455,9 +536,23 @@ class PostProcessor:
                     index=True,
                 )
 
+                # RLA, absolute loss, incremental, added up for whole portfolio
+                portfolio_rla_abs_increment = collected_rla_abs_increment[severity].sum(axis=0)
+                portfolio_rla_abs_increment.to_csv(
+                    os.path.join(
+                        main_path,
+                        "output",
+                        (
+                            "all_portfolio_losses_human_severity_%s_RLA_incremental_absolute.csv"
+                            % (severity))
+                        ,
+                    ),
+                    header=False,
+                )
+
                 # RLA, loss ratio, incremental
                 collected_rla_ratio = PostProcessor._get_loss_ratio(
-                    collected_rla_absolute[severity], exposure_costs_occupants, "census"
+                    collected_rla_abs_increment[severity], exposure_costs_occupants, "census"
                 )
                 collected_rla_ratio.to_csv(
                     os.path.join(
@@ -468,17 +563,44 @@ class PostProcessor:
                     index=True,
                 )
 
-                # RLA, absolute loss, cumulative
-                collected_rla_absolute_cumulative = PostProcessor._get_cumulative_from_incremental(
-                    collected_rla_absolute[severity], list_rla
+                # RLA, loss ratio, incremental, added up for whole portfolio
+                portfolio_rla_ratio_increment = (
+                    portfolio_rla_abs_increment / exposure_costs_occupants.loc[:, "census"].sum()
                 )
-                collected_rla_absolute_cumulative.to_csv(
+                portfolio_rla_ratio_increment.to_csv(
+                    os.path.join(
+                        main_path,
+                        "output",
+                        "all_portfolio_losses_human_severity_%s_RLA_incremental_ratio.csv" % (severity),
+                    ),
+                    header=False,
+                )
+
+                # RLA, absolute loss, cumulative
+                collected_rla_abs_cumul = PostProcessor._get_cumulative_from_incremental(
+                    collected_rla_abs_increment[severity], list_rla
+                )
+                collected_rla_abs_cumul.to_csv(
                     os.path.join(
                         main_path,
                         "output",
                         "all_losses_human_severity_%s_RLA_cumulative_absolute.csv" % (severity),
                     ),
                     index=True,
+                )
+
+                # RLA, absolute loss, cumulative, added up for whole portfolio
+                portfolio_rla_abs_cumul = collected_rla_abs_cumul.sum(axis=0)
+                portfolio_rla_abs_cumul.to_csv(
+                    os.path.join(
+                        main_path,
+                        "output",
+                        (
+                            "all_portfolio_losses_human_severity_%s_RLA_cumulative_absolute.csv"
+                            % (severity))
+                        ,
+                    ),
+                    header=False,
                 )
 
                 # RLA, loss ratio, cumulative
@@ -492,6 +614,19 @@ class PostProcessor:
                         "all_losses_human_severity_%s_RLA_cumulative_ratio.csv" % (severity),
                     ),
                     index=True,
+                )
+
+                # RLA, loss ratio, cumulative, added up for whole portfolio
+                portfolio_rla_ratio_cumul = (
+                    portfolio_rla_abs_cumul / exposure_costs_occupants.loc[:, "census"].sum()
+                )
+                portfolio_rla_ratio_cumul.to_csv(
+                    os.path.join(
+                        main_path,
+                        "output",
+                        "all_portfolio_losses_human_severity_%s_RLA_cumulative_ratio.csv" % (severity),
+                    ),
+                    header=False,
                 )
 
         # OELF human losses output
