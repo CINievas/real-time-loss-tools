@@ -521,16 +521,38 @@ class OperationalEarthquakeLossForecasting():
 
                 # Run OpenQuake
                 path_to_job_ini = os.path.join(main_path, "current", "job.ini")
-                calc = main([path_to_job_ini])
-
-                # Retrieve damage states from OpenQuake output
-                dstore = calc.datastore.open("r")
 
                 try:
-                    damage_results_OQ = dstore.read_df("damages-rlzs")
-                except KeyError as ke:
-                    if (len(ke.args) == 1) and ("damages-rlzs" in ke.args):
-                        # OpenQuake's "There is no damage, perhaps the hazard is too small?"
+                    calc = main([path_to_job_ini])
+
+                    # Retrieve damage states from OpenQuake output
+                    dstore = calc.datastore.open("r")
+
+                    try:
+                        damage_results_OQ = dstore.read_df("damages-rlzs")
+                    except KeyError as ke:
+                        if (len(ke.args) == 1) and ("damages-rlzs" in ke.args):
+                            # OpenQuake's "There is no damage, perhaps the hazard is too small?"
+                            damage_results_OQ = ExposureUpdater.create_OQ_no_damage(
+                                    exposure_run,
+                                    mapping_damage_states,
+                                    loss_type="structural"
+                            )
+                        else:
+                            error_message = (
+                                "OpenQuake has not found 'damages-rlzs' for %s "
+                                "and Real-Time Loss Tools has not been able to solve it"
+                                % (description)
+                            )
+                            logger.critical(error_message)
+                            raise OSError(error_message)
+
+                    dstore.close()
+
+                except RuntimeError as run_e:
+                    if (len(run_e.args) == 1) and ("No GMFs were generated" in run_e.args[0]):
+                        # OpenQuake's "No GMFs were generated, perhaps they were all below
+                        # the minimum_intensity threshold"
                         damage_results_OQ = ExposureUpdater.create_OQ_no_damage(
                                 exposure_run,
                                 mapping_damage_states,
@@ -538,13 +560,12 @@ class OperationalEarthquakeLossForecasting():
                         )
                     else:
                         error_message = (
-                            "OpenQuake has not found 'damages-rlzs' for %s "
+                            "OpenQuake has crashed for %s "
                             "and Real-Time Loss Tools has not been able to solve it"
                             % (description)
                         )
                         logger.critical(error_message)
                         raise OSError(error_message)
-                dstore.close()
 
                 new_index = pd.MultiIndex.from_arrays(
                     [damage_results_OQ["asset_id"], damage_results_OQ["dmg_state"]]
