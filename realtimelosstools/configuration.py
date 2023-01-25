@@ -38,6 +38,9 @@ class Configuration:
             Name of the XML file with the earthquake source model to be used to stochastically
             generate rupture properties for Operational Earthquake Loss Forecasting (OELF).
             Assumed to be located under main_path/ruptures.
+        self.state_dependent_fragilities (bool):
+            True if state-dependent fragility models are being used to run OpenQuake, False if
+            state-independent fragility models are being used instead.
         self.mapping_damage_states (Pandas DataFrame):
             Mapping between the names of damage states as output by OpenQuake and as labelled in
             the fragility model. In the yml configuration file it is defined by means of a
@@ -46,9 +49,11 @@ class Configuration:
             the names of damage states as labelled in the fragility model. E.g.: {"no_damage":
             "DS0", "dmg_1": "DS1", ...}. In the DataFrame:
                 Index:
-                    asset_id (str): Names of damage states as output by OpenQuake.
+                    dmg_state (str): Names of damage states as output by OpenQuake.
                 Columns:
                     fragility (str): Names of damage states as labelled in the fragility model.
+            It is assumed that the damage states are input in order of severity, from least
+            severe to most severe.
         self.oelf (dict):
             Parameters used to run Operational Earthquake Loss Forecasting (OELF):
             min_magnitude (float):
@@ -124,6 +129,7 @@ class Configuration:
         "description_general",
         "main_path",
         "oelf_source_model_filename",
+        "state_dependent_fragilities",
         "mapping_damage_states",
         "oelf",
         "injuries_scale",
@@ -152,6 +158,10 @@ class Configuration:
             config, "oelf_source_model_filename"
         )
 
+        self.state_dependent_fragilities = self.assign_boolean_parameter(
+            config, "state_dependent_fragilities"
+        )
+
         mapping_damage_states_aux = self.assign_hierarchical_parameters(
             config, "mapping_damage_states"
         )
@@ -159,7 +169,7 @@ class Configuration:
             mapping_damage_states_aux, orient='index', columns=["fragility"]
         )
         self.mapping_damage_states.index = (
-            self.mapping_damage_states.index.rename("asset_id")
+            self.mapping_damage_states.index.rename("dmg_state")
         )
 
         self.oelf = self.assign_hierarchical_parameters(

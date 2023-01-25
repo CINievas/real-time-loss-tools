@@ -292,6 +292,7 @@ Example of `quick_input_check.txt`:
 LOG FILE
 Real-Time Loss Tools has started
 General description: Run 03 a
+Running with state-dependent fragility models
 /my/local/path/run_03_a is path in config file
 /my/local/path/run_03_a is current path
 State dependent: True
@@ -306,6 +307,12 @@ example above):
 
 - `General description: ...`: The `description_general` entered by the user in the
 `config.yml` file.
+- `Running with state-dependent fragility models` or `Running with state-independent fragility
+models`: The `state-dependent` message is shown when `state_dependent_fragilities` in the
+`config.yml` file is set to True by the user, while the `state-independent` counterpart is shown
+when `state_dependent_fragilities` in the `config.yml` file is set to False. The code does not
+actually check if the fragility model inside `fragility_model.xml` is state-dependent or state-
+independent.
 - `/my/local/path/run_03_a is path in config file`: The `main_path` entered by the user in the
 `config.yml` file.
 - `/my/local/path/run_03_a is current path`: Path from which the job is being run. This path

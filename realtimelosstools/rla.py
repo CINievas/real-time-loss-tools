@@ -41,6 +41,7 @@ class RapidLossAssessment:
         description_general,
         main_path,
         source_parameters,
+        state_dependent,
         consequence_economic,
         consequence_injuries,
         recovery_damage,
@@ -114,6 +115,9 @@ class RapidLossAssessment:
                         Dip of the rupture, in degrees, measured downwards from the horizontal.
                     Rake (float):
                         Rake of the rupture, in degrees.
+            state_dependent (bool):
+                True if state-dependent fragility models are being used to run OpenQuake, False
+                if state-independent fragility models are being used instead.
             consequence_economic (Pandas DataFrame):
                 Pandas DataFrame indicating the economic loss ratios per building class and
                 damage state, with the following structure:
@@ -427,7 +431,7 @@ class RapidLossAssessment:
             except KeyError as ke:
                 if (len(ke.args) == 1) and ("damages-rlzs" in ke.args):
                     # OpenQuake's "There is no damage, perhaps the hazard is too small?"
-                    damage_results_OQ = ExposureUpdater.create_OQ_no_damage(
+                    damage_results_OQ = ExposureUpdater.create_OQ_existing_damage(
                             exposure_run,
                             mapping_damage_states,
                             loss_type="structural"
@@ -447,7 +451,7 @@ class RapidLossAssessment:
             if (len(run_e.args) == 1) and ("No GMFs were generated" in run_e.args[0]):
                 # OpenQuake's "No GMFs were generated, perhaps they were all below
                 # the minimum_intensity threshold"
-                damage_results_OQ = ExposureUpdater.create_OQ_no_damage(
+                damage_results_OQ = ExposureUpdater.create_OQ_existing_damage(
                         exposure_run,
                         mapping_damage_states,
                         loss_type="structural"
@@ -500,6 +504,7 @@ class RapidLossAssessment:
         # Update exposure to reflect new damage states
         # (occupants not updated yet)
         exposure_updated_damage = ExposureUpdater.update_exposure_with_damage_states(
+            state_dependent,
             exposure_run,
             original_exposure_model,
             damage_results_OQ,

@@ -1,24 +1,26 @@
 description_general: description of the run  # General description, used for the OpenQuake job.ini file.
 main_path: path/to/running/directory  #Path to the main running directory, assumed to have the needed structure.
 oelf_source_model_filename: source_model.xml  # Name of the XML file with the source model to be used in OELF.
-mapping_damage_states:
-  no_damage: DS0
+state_dependent_fragilities: True  # True if the fragility models used to run OpenQuake are state-dependent, False otherwise.
+mapping_damage_states:  # From least severe to most severe. Keys are as output by OpenQuake, values are as labelled in the fragility/exposure.
+  no_damage: DS0  # least severe
   dmg_1: DS1
   dmg_2: DS2
   dmg_3: DS3
-  dmg_4: DS4
+  dmg_4: DS4  # most severe
 oelf:
   min_magnitude: 4.0  # Minimum magnitude to carry out a damage and loss assessment while running OELF.
   max_distance: 200.0  # Maximum epicentral distance between earthquake source and site to actually run the earthquake.
   continuous_ses_numbering: True  # If True, the software will assume there are as many stochastic event sets as indicated in 'ses_range', with an increment of 1.
   ses_range: 1, 10000  # Start and end number of the ID of the stochastic event sets, given as a list separated by comma and space (", ").
-  rupture_region_properties:  # (Optional) Tectonic-region dependent configuration of regional rupture properties
+  rupture_generator_seed: 1976  # (Optional) Seed (positive non-zero) for the random number generator controlling the stochastic rupture simulations.
+  rupture_region_properties:  # (Optional) Tectonic-region dependent configuration of regional rupture properties.
     Volcanic Shallow:
-      msr: WC1994  # Choice of magnitude scaling relation (must be supported by OpenQuake)
-      area_mmax: 7.0  # Magnitude corresponding to the maximum rupture area permitted
-      aspect_limits: 1.0, 1.5  # Limits to the uniform distribution used to sample aspect ratio
-      default_usd: 0.0  # Default upper seismogenic depth (km) - will be over-ridden if specified in source
-      default_lsd: 10.0  # Default lower seismogenic depth (km) - will be over-ridden if specified by source
+      msr: WC1994  # Choice of magnitude scaling relation (must be supported by OpenQuake).
+      area_mmax: 7.0  # Magnitude corresponding to the maximum rupture area permitted.
+      aspect_limits: 1.0, 1.5  # Limits to the uniform distribution used to sample aspect ratio.
+      default_usd: 0.0  # Default upper seismogenic depth (km) - will be over-ridden if specified in source.
+      default_lsd: 10.0  # Default lower seismogenic depth (km) - will be over-ridden if specified by source.
     Active Shallow Crust:
       msr: Leonard2014_Interplate
       area_mmax: 7.5

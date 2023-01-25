@@ -50,11 +50,17 @@ def main():
 
     # Read configuration parameters
     config = Configuration("config.yml")
+    if config.state_dependent_fragilities:
+        state_dependent_message = "Running with state-dependent fragility models"
+    else:
+        state_dependent_message = "Running with state-independent fragility models"
+    logger.info(state_dependent_message)
 
     # Log relevant summary parameters (to create log file that allows
     # for a quick check of correct input)
     log_summary.append("Real-Time Loss Tools has started")
     log_summary.append("General description: %s" % (config.description_general))
+    log_summary.append(state_dependent_message)
     log_summary.append("%s is path in config file" % (config.main_path))
     log_summary.append("%s is current path" % (os.getcwd()))
 
@@ -241,6 +247,7 @@ def main():
                 config.description_general,
                 config.main_path,
                 source_parameters_RLA,
+                config.state_dependent_fragilities,
                 consequence_economic,
                 consequence_injuries,
                 recovery_damage,
@@ -412,6 +419,7 @@ def main():
                     there_can_be_occupants,
                     config.oelf["continuous_ses_numbering"],
                     config.oelf["ses_range"],
+                    config.state_dependent_fragilities,
                     config.description_general,
                     config.main_path,
                     exposure_model_undamaged,

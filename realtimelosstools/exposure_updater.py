@@ -85,7 +85,7 @@ class ExposureUpdater:
         Returns:
             id_asset_building_mapping (Pandas DataFrame):
                 Pandas DataFrame with the mapping between asset_id (index of the DataFrame) and
-                building_id (column) for the buildings in damage_results_SHM.
+                building_id (column).
         """
 
         if not exposure.index.name == "asset_id":
@@ -104,6 +104,92 @@ class ExposureUpdater:
         )
 
         return id_asset_building_mapping
+
+    @staticmethod
+    def create_mapping_asset_id_to_original_asset_id(exposure):
+        """
+        This method retrieves the connection between 'asset_id' and 'original_asset_id' from
+        'exposure'.
+
+        The difference between "asset_id", "original_asset_id" and "building_id" is that
+        "building_id" represents a physical entity, which can be either one "real" building or
+        an aggregation of buildings at a location (e.g. the centre of a tile), while
+        "original_asset_id" refers to a specific building class associated with the
+        "building_id", and "asset_id" is the ID of each individual row in the exposure CSV input
+        for OpenQuake. If "building_id" is one physical entity, each "original_asset_id"
+        represents a building class that could be the building class of the building, with a
+        certain probability. If "building_id" is an aggregation of buildings, each
+        "original_asset_id" represents a building class to which a number of those aggregated
+        buildings belong. Each "original_asset_id" may be associated with different "asset_id",
+        used herein to specify different damage states of the same "original_asset_id".
+
+        Args:
+            exposure (Pandas DataFrame):
+                Pandas DataFrame representation of the exposure CSV input for OpenQuake. It
+                comprises the following fields:
+                    Index (simple):
+                        asset_id (str):
+                            ID of the asset (i.e. specific combination of building_id and a
+                            particular building class).
+                    Columns:
+                        building_id (str):
+                            ID of the building. One building_id can be associated with different
+                            values of asset_id.
+                        original_asset_id (str):
+                            ID of the asset in the initial undamaged version of the exposure
+                            model. It can be the value of 'asset_id' in the undamaged version or
+                            any other unique ID per row that refers to a combination of a
+                            building ID and a building class with no initial damage.
+                        lon (float):
+                            Longitude of the asset in degrees.
+                        lat (float):
+                            Latitude of the asset in degrees.
+                        taxonomy (str):
+                            Building class.
+                        number (float):
+                            Number of buildings in this asset.
+                        structural (float):
+                            Total replacement cost of this asset (all buildings in "number").
+                        census (float):
+                            Total number of occupants in this asset irrespective of the time of
+                            the day, the damage state of the building or the health status of
+                            its occupants.
+                        occupancy (str):
+                            "Res" (residential), "Com" (commercial) or "Ind" (industrial).
+                        id_X, name_X (str):
+                            ID and name of the administrative units to which the asset belongs.
+                            "X" is the administrative level.
+
+        Returns:
+            asset_id_original_asset_id_mapping (Pandas DataFrame):
+                Pandas DataFrame with the mapping between asset_id (index of the DataFrame) and
+                original_asset_id (column), indicating as well the number of buildings in each
+                case ("number" column).
+        """
+
+        aux_df = deepcopy(exposure)
+        aux_df = aux_df.reset_index()
+        aux_df = aux_df.groupby(["asset_id", "original_asset_id"]).sum(numeric_only=True)
+
+        asset_id_original_asset_id_mapping = pd.DataFrame(
+            {
+                "original_asset_id": aux_df.index.get_level_values("original_asset_id"),
+                "number": aux_df["number"].to_numpy()
+            },
+            index=aux_df.index.get_level_values("asset_id")
+        )
+        asset_id_original_asset_id_mapping.index.name = "asset_id"
+
+        if (asset_id_original_asset_id_mapping.shape[0] != len(exposure.index.unique())):
+            error_message = (
+                "Method 'create_mapping_original_asset_id_building_id' cannot run because "
+                "input 'exposure' associates the same 'asset_id' with different "
+                "values of 'original_asset_id'."
+            )
+            logger.critical(error_message)
+            raise OSError(error_message)
+
+        return asset_id_original_asset_id_mapping
 
     @staticmethod
     def merge_damage_results_OQ_SHM(
@@ -203,7 +289,522 @@ class ExposureUpdater:
         return damage_results_merged
 
     @staticmethod
+    def get_damage_results_by_orig_asset_id(damage_results, asset_id_original_asset_id_mapping):
+        """
+        This method returns the damage results from 'damage_results', which are listed by their
+        "asset_id", by "original_asset_id" instead. The link between "original_asset_id" and
+        "asset_id" is specified in the input 'asset_id_original_asset_id_mapping'. Several
+        values of "asset_id" can be associated with the same "original_asset_id", but not the
+        other way around.
+
+        Args:
+            damage_results (Pandas DataFrame):
+                Pandas DataFrame with numbers of buildings/probabilities of buildings in each
+                damage state. It comprises the following fields:
+                    Index is multiple:
+                        asset_id (str):
+                            ID of the asset (i.e. specific combination of building_id and a
+                            particular building class).
+                        dmg_state (str):
+                            Damage states.
+                    Columns:
+                        value (float):
+                            Probability of 'dmg_state' or number of buildings in 'dmg_state' for
+                            'asset_id'.
+            asset_id_original_asset_id_mapping (Pandas DataFrame):
+                Pandas DataFrame with the mapping between asset_id (index of the DataFrame) and
+                original_asset_id (column).
+
+        Returns:
+            damage_results_by_orig_asset_id (Pandas DataFrame):
+                Pandas DataFrame with numbers of buildings/probabilities of buildings in each
+                damage state. It comprises the following fields:
+                    Index is multiple:
+                        original_asset_id (str):
+                            ID of the asset in the initial undamaged version of the exposure
+                            model. It can be the value of 'asset_id' in the undamaged version or
+                            any other unique ID per row that refers to a combination of a
+                            building ID and a building class with no initial damage.
+                        dmg_state (str):
+                            Damage states.
+                    Columns:
+                        value (float):
+                            Probability of 'dmg_state' or number of buildings in 'dmg_state' for
+                            'original_asset_id'.
+        """
+
+        damage_results_by_orig_asset_id = damage_results.join(asset_id_original_asset_id_mapping)
+
+        # Transform the index of damage_results_by_orig_asset_id into "normal" columns
+        asset_ids = (
+            damage_results_by_orig_asset_id.index.get_level_values("asset_id")
+        )
+        dmg_states = (
+            damage_results_by_orig_asset_id.index.get_level_values("dmg_state")
+        )
+        damage_results_by_orig_asset_id = damage_results_by_orig_asset_id.reset_index()
+        damage_results_by_orig_asset_id["asset_id"] = asset_ids
+        damage_results_by_orig_asset_id["dmg_state"] = dmg_states
+
+        # Group
+        damage_results_by_orig_asset_id = damage_results_by_orig_asset_id.groupby(
+            ["original_asset_id", "dmg_state"]
+        ).sum(numeric_only=True)  # index becomes multiple ("original_asset_id", "dmg_state")
+
+        # Discard unnecessary columns (if they exist)
+        damage_results_by_orig_asset_id = damage_results_by_orig_asset_id[["value"]]
+
+        return damage_results_by_orig_asset_id
+
+    @staticmethod
+    def ensure_all_damage_states(occurrence_by_orig_asset_id, mapping_damage_states):
+        """
+        This method ensures that 'occurrence_by_orig_asset_id' contains all damage states
+        defined as keys of 'mapping_damage_states' for each original_asset_id. If a damage state
+        is missing, it is appended and assigned a "value" of zero.
+
+        Args:
+            occurrence_by_orig_asset_id (Pandas DataFrame):
+                Pandas DataFrame with numbers of buildings/probabilities of buildings in each
+                damage state. It comprises the following fields:
+                    Index is multiple:
+                        original_asset_id (str):
+                            ID of the asset in the initial undamaged version of the exposure
+                            model.
+                        dmg_state (str):
+                            Damage states.
+                    Columns:
+                        value (float):
+                            Probability or number of buildings of 'dmg_state' for 'asset_id'.
+            mapping_damage_states (Pandas DataFrame):
+                Mapping between the names of damage states as output by OpenQuake (index) and as
+                labelled in the fragility model (value). E.g.:
+                              fragility
+                    dmg_state
+                    no_damage       DS0
+                    dmg_1           DS1
+                    dmg_2           DS2
+                    dmg_3           DS3
+                    dmg_4           DS4
+
+        Returns:
+            occurrence_by_orig_asset_id_filled (Pandas DataFrame):
+                Pandas DataFrame with the same structure as 'occurrence_by_orig_asset_id', but
+                filled in with zeros where necessary to cover all damage states in
+                'mapping_damage_states' for each 'original_asset_id'.
+        """
+
+        occurrence_by_orig_asset_id_filled = deepcopy(occurrence_by_orig_asset_id)
+
+        original_asset_ids = occurrence_by_orig_asset_id.index.get_level_values(
+            "original_asset_id"
+        ).unique()
+
+        for original_asset_id in original_asset_ids:
+            current_dmg_states = occurrence_by_orig_asset_id_filled.loc[
+                original_asset_id, :
+            ].index.get_level_values("dmg_state")
+
+            for dmg_state in mapping_damage_states.index:
+                if dmg_state not in current_dmg_states:
+                    # Append it to 'occurrence_by_orig_asset_id_filled'
+                    to_append = pd.DataFrame(
+                        {"value": [0.0]},
+                        index=pd.MultiIndex.from_tuples(
+                            [(original_asset_id, dmg_state)],
+                            names=["original_asset_id", "dmg_state"]
+                        )
+                    )
+
+                    occurrence_by_orig_asset_id_filled = pd.concat(
+                        (occurrence_by_orig_asset_id_filled, to_append)
+                    )
+
+        # Sort because appending would result in different damage states of the same
+        # original_asset_id to be represented separately
+        occurrence_by_orig_asset_id_filled = occurrence_by_orig_asset_id_filled.sort_values(
+            by=[("original_asset_id"), ("dmg_state")], ascending=True
+        )
+
+        return occurrence_by_orig_asset_id_filled
+
+    @staticmethod
+    def get_non_exceedance_by_orig_asset_id(occurrence_by_orig_asset_id, mapping_damage_states):
+        """
+        This method calculates the probability of non-exceedance of each damage state by each
+        'original_asset_id' in 'occurrence_by_orig_asset_id'. It first ensures that
+        'occurrence_by_orig_asset_id' contains all damage states defined as keys of
+        'mapping_damage_states' for each 'original_asset_id'. If a damage state is missing, it
+        is appended and assigned an occurrence value of zero. 'occurrence_by_orig_asset_id'
+        contains either probabilities of occurence, when 'original_asset_id' refers to an
+        individual building, or number of buildings in each damage grade, when
+        'original_asset_id' refers to a group of buildings.
+
+        It is assumed that 'mapping_damage_states' lists the damage states ordered from least
+        severe to most severe. This assumption is needed to calculate exceedance/non-exceedance.
+
+        Args:
+            occurrence_by_orig_asset_id (Pandas DataFrame):
+                Pandas DataFrame with numbers of buildings/probabilities of buildings in each
+                damage state. It comprises the following fields:
+                    Index is multiple:
+                        original_asset_id (str):
+                            ID of the asset in the initial undamaged version of the exposure
+                            model.
+                        dmg_state (str):
+                            Damage states.
+                    Columns:
+                        value (float):
+                            Probability or number of buildings of 'dmg_state' for 'asset_id'.
+            mapping_damage_states (Pandas DataFrame):
+                Mapping between the names of damage states as output by OpenQuake (index) and as
+                labelled in the fragility model (value), ordered from least severe to most
+                severe. E.g.:
+                              fragility
+                    dmg_state
+                    no_damage       DS0
+                    dmg_1           DS1
+                    dmg_2           DS2
+                    dmg_3           DS3
+                    dmg_4           DS4
+
+        Returns:
+            prob_non_exceedance (Pandas DataFrame):
+                Pandas DataFrame with probabilities of non-exceedance of each damage state by
+                each 'original_asset_id'. It comprises the following fields:
+                    Index is multiple:
+                        original_asset_id (str):
+                            ID of the asset in the initial undamaged version of the exposure
+                            model.
+                        dmg_state (str):
+                            Damage states.
+                    Columns:
+                        prob_non_exceedance (float):
+                            Probability of non-exceedance of 'dmg_state' for
+                            'original_asset_id'.
+        """
+
+        prob_non_exceedance = deepcopy(occurrence_by_orig_asset_id)
+
+        # Check all damage states from mapping_damage_states exist for each original_asset_id in
+        # occurrence_by_orig_asset_id
+        prob_non_exceedance = ExposureUpdater.ensure_all_damage_states(
+            prob_non_exceedance, mapping_damage_states
+        )
+
+        # Initialise
+        prob_non_exceedance["prob_occurrence"] = np.zeros([prob_non_exceedance.shape[0]])
+        prob_non_exceedance["prob_exceedance"] = np.zeros([prob_non_exceedance.shape[0]])
+
+        original_asset_ids = (
+            prob_non_exceedance.index.get_level_values("original_asset_id").unique()
+        )
+
+        for original_asset_id in original_asset_ids:
+            # Get probability of occurrence (redundant if original_asset_id is already one
+            # building but necessary if original_asset_id is a group of buildings
+            total_bdgs = prob_non_exceedance.loc[original_asset_id, "value"].sum()
+            prob_non_exceedance.loc[original_asset_id, "prob_occurrence"] = (
+                prob_non_exceedance.loc[original_asset_id, "value"].to_numpy() / total_bdgs
+            )
+
+            # Get probability of exceedance
+            remaining_dmg_states = list(mapping_damage_states.index)
+
+            for dmg_state in mapping_damage_states.index:  # ordered from least to most severe
+                if dmg_state == "no_damage":
+                    prob_non_exceedance.loc[
+                        (original_asset_id, dmg_state), "prob_exceedance"
+                    ] = 1.0
+                else:
+                    prob_non_exceedance.loc[
+                        (original_asset_id, dmg_state), "prob_exceedance"
+                    ] = (
+                        prob_non_exceedance.loc[
+                            (original_asset_id, remaining_dmg_states), "prob_occurrence"
+                        ].sum()
+                    )
+                remaining_dmg_states.remove(dmg_state)
+
+        # Get probability of non-exceedance
+        prob_non_exceedance["prob_non_exceedance"] = (
+            np.ones(prob_non_exceedance.shape[0])
+            - prob_non_exceedance["prob_exceedance"].to_numpy()
+        )
+
+        # Keep only the probability of non-exceedance
+        prob_non_exceedance = prob_non_exceedance[["prob_non_exceedance"]]
+
+        return prob_non_exceedance
+
+    @staticmethod
+    def get_prob_occurrence_from_independent_non_exceedance(
+        prob_nonexceed_by_orig_asset_id_previous,
+        prob_nonexceed_by_orig_asset_id_current,
+        asset_id_original_asset_id_mapping,
+        mapping_damage_states,
+    ):
+        """
+        This method calculates the probability of occurrence of each damage state in
+        'mapping_damage_states' by each 'original_asset_id' in
+        'prob_nonexceed_by_orig_asset_id_previous' and
+        'prob_nonexceed_by_orig_asset_id_current', which contain probabilities of non-exceedance
+        of the damage states for a previous and current earthquake, respectively. These two
+        realisations of probabilities of exceedance are assumed to be independent. Using the
+        total number of buildings indicated in 'mapping_damage_states', the method also
+        calculates the number of buildings in each damage state.
+
+        It is assumed that 'mapping_damage_states' lists the damage states ordered from least
+        severe to most severe. This assumption is needed to calculate the probabilities of
+        occurrence.
+
+        Args:
+            prob_nonexceed_by_orig_asset_id_previous (Pandas DataFrame):
+                Pandas DataFrame with probabilities of non-exceedance of each damage state by
+                each 'original_asset_id', due to a previous earthquake. It comprises the
+                following fields:
+                    Index is multiple:
+                        original_asset_id (str):
+                            ID of the asset in the initial undamaged version of the exposure
+                            model.
+                        dmg_state (str):
+                            Damage states.
+                    Columns:
+                        prob_non_exceedance (float):
+                            Probability of non-exceedance of 'dmg_state' for
+                            'original_asset_id'.
+            prob_nonexceed_by_orig_asset_id_current (Pandas DataFrame):
+                Same as prob_nonexceed_by_orig_asset_id_previous, but due to a current
+                earthquake.
+            asset_id_original_asset_id_mapping (Pandas DataFrame):
+                Pandas DataFrame with the following structure:
+                    Index:
+                        asset_id (str):
+                            ID of the asset (i.e. specific combination of building_id and a
+                            particular building class and damage state).
+                    Columns:
+                        original_asset_id (str):
+                            ID of the asset in the initial undamaged version of the exposure
+                            model.
+                        number (float):
+                            Number of buildings associated with 'asset_id'.
+            mapping_damage_states (Pandas DataFrame):
+                Mapping between the names of damage states as output by OpenQuake (index) and as
+                labelled in the fragility model (value), ordered from least severe to most
+                severe. E.g.:
+                              fragility
+                    dmg_state
+                    no_damage       DS0
+                    dmg_1           DS1
+                    dmg_2           DS2
+                    dmg_3           DS3
+                    dmg_4           DS4
+
+        Returns:
+            prob_of_occurrence (Pandas DataFrame):
+                Pandas DataFrame with probabilities of occurrence of each damage state by each
+                'original_asset_id' and associated number of buildings. It comprises the
+                following fields:
+                    Index is multiple:
+                        original_asset_id (str):
+                            ID of the asset in the initial undamaged version of the exposure
+                            model.
+                        dmg_state (str):
+                            Damage states.
+                    Columns:
+                        prob_occurrence_cumulative (float):
+                            Probability of occurrence of 'dmg_state' for 'original_asset_id'.
+                        number_occurrence_cumulative (float):
+                            Number of buildings associated with 'dmg_state' and
+                            'original_asset_id'.
+        """
+
+        prob_of_occurrence = prob_nonexceed_by_orig_asset_id_current.join(
+            prob_nonexceed_by_orig_asset_id_previous,
+            lsuffix="_current",
+            rsuffix="_previous"
+        )
+
+        prob_of_occurrence["prob_non_exceedance_cumulative"] = (
+            prob_of_occurrence["prob_non_exceedance_current"]
+            * prob_of_occurrence["prob_non_exceedance_previous"]
+        )
+
+        prob_of_occurrence["prob_exceedance_cumulative"] = (
+            np.ones([prob_of_occurrence.shape[0]])
+            - prob_of_occurrence["prob_non_exceedance_cumulative"]
+        )
+
+        # Number of buildings per 'original_asset_id'
+        number_bdgs = asset_id_original_asset_id_mapping.groupby(["original_asset_id"]).sum(
+            numeric_only=True
+        )
+
+        # Get probability of occurrence
+        original_asset_ids = (
+            prob_of_occurrence.index.get_level_values("original_asset_id").unique()
+        )
+
+        prob_of_occurrence["prob_occurrence_cumulative"] = np.zeros(
+            [prob_of_occurrence.shape[0]]
+        )
+        prob_of_occurrence["number_occurrence_cumulative"] = np.zeros(
+            [prob_of_occurrence.shape[0]]
+        )
+
+        for original_asset_id in original_asset_ids:
+            for i, dmg_state in enumerate(mapping_damage_states.index):
+                # (ordered from least to most severe)
+                if i == (mapping_damage_states.shape[0] - 1):
+                    # Most severe damage state --> PoO = PoE
+                    prob_of_occurrence.loc[
+                        (original_asset_id, dmg_state), "prob_occurrence_cumulative"
+                    ] = (
+                        prob_of_occurrence.loc[
+                            (original_asset_id, dmg_state), "prob_exceedance_cumulative"
+                        ]
+                    )
+                else:
+                    prob_of_occurrence.loc[
+                        (original_asset_id, dmg_state), "prob_occurrence_cumulative"
+                    ] = (
+                        prob_of_occurrence.loc[
+                            (original_asset_id, dmg_state), "prob_exceedance_cumulative"
+                        ]
+                        - prob_of_occurrence.loc[
+                            (original_asset_id, mapping_damage_states.index[i+1]),
+                            "prob_exceedance_cumulative"
+                        ]
+                    )
+                prob_of_occurrence.loc[
+                    (original_asset_id, dmg_state), "number_occurrence_cumulative"
+                ] = (
+                    prob_of_occurrence.loc[
+                        (original_asset_id, dmg_state), "prob_occurrence_cumulative"
+                    ]
+                    * number_bdgs.loc[original_asset_id, "number"]
+                )
+
+        prob_of_occurrence = prob_of_occurrence[
+            ["prob_occurrence_cumulative", "number_occurrence_cumulative"]
+        ]
+
+        return prob_of_occurrence
+
+    @staticmethod
+    def update_damage_results(
+        damage_results_original,
+        damage_occurrence_by_orig_asset_id,
+        asset_id_original_asset_id_mapping
+    ):
+        """
+        This method updates 'damage_results_original', which specifies the number of buildings
+        per 'asset_id' and damage state ('dmg_state'), as per the damage specified in
+        'damage_occurrence_by_orig_asset_id' as a function of 'original_asset_id' and damage
+        state ('dmg_state'). The mapping between 'asset_id' and 'original_asset_id' is provided
+        by 'asset_id_original_asset_id_mapping'. The number of buildings for a specific
+        combination of 'original_asset_id' and 'dmg_state' are distributed across all 'asset_id'
+        associated with 'original_asset_id' proportionally to the original values in
+        'damage_results_original'. If, for a certain 'original_asset_id' and 'dmg_state', all
+        the original values in 'damage_results_original' are zero, the new number of buildings
+        for the damage state is equally distributed across all the associated 'asset_id'.
+
+        Args:
+            damage_results_original (Pandas DataFrame):
+                Pandas DataFrame with numbers of buildings/probabilities of buildings in each
+                damage state for each asset_id. It comprises the following fields:
+                    Index is multiple:
+                        asset_id (str):
+                            ID of the asset (i.e. specific combination of building_id and a
+                            particular building class and initial damage state).
+                        dmg_state (str):
+                            Damage states.
+                    Columns:
+                        value (float):
+                            Probability of 'dmg_state' for 'asset_id', or number of buildings of
+                            'asset_id' associated with 'dmg_state'.
+            damage_occurrence_by_orig_asset_id (Pandas DataFrame):
+                Pandas DataFrame with probabilities of occurrence of each damage state by each
+                'original_asset_id' and associated number of buildings. It comprises the
+                following fields:
+                    Index is multiple:
+                        original_asset_id (str):
+                            ID of the asset in the initial undamaged version of the exposure
+                            model.
+                        dmg_state (str):
+                            Damage states.
+                    Columns:
+                        prob_occurrence_cumulative (float):
+                            Probability of occurrence of 'dmg_state' for 'original_asset_id'.
+                        number_occurrence_cumulative (float):
+                            Number of buildings associated with 'dmg_state' and
+                            'original_asset_id'.
+            asset_id_original_asset_id_mapping (Pandas DataFrame):
+                Pandas DataFrame with the following structure:
+                    Index:
+                        asset_id (str):
+                            ID of the asset (i.e. specific combination of building_id and a
+                            particular building class and damage state).
+                    Columns:
+                        original_asset_id (str):
+                            ID of the asset in the initial undamaged version of the exposure
+                            model.
+                        number (float):
+                            Number of buildings associated with 'asset_id'.
+        Returns:
+            damage_results_updated (Pandas DataFrame):
+                Pandas DataFrame with the same structure as 'damage_results_original', but
+                updated values.
+        """
+
+        damage_results_updated = deepcopy(damage_results_original)
+
+        original_asset_ids = damage_occurrence_by_orig_asset_id.index.get_level_values(
+            "original_asset_id"
+        ).unique()
+
+        dmg_states = damage_occurrence_by_orig_asset_id.index.get_level_values(
+            "dmg_state"
+        ).unique()
+
+        for original_asset_id in original_asset_ids:
+            asset_ids = asset_id_original_asset_id_mapping[
+                asset_id_original_asset_id_mapping.original_asset_id == original_asset_id
+            ].index
+
+            for dmg_state in dmg_states:
+                denominator = damage_results_original.loc[(asset_ids, dmg_state), "value"].sum()
+                if denominator > 1E-15:
+                    proportions = (
+                        damage_results_original.loc[(asset_ids, dmg_state), "value"]
+                        / denominator
+                    )  # result is Pandas Series
+                else:  # sum of buildings is zero
+                    proportions = pd.Series(
+                        np.ones([len(asset_ids)]) / float(len(asset_ids)),
+                    )
+                    new_index = pd.MultiIndex.from_arrays(
+                        [
+                            asset_ids,
+                            [dmg_state for d in range(len(asset_ids))]
+                        ],
+                        names=["asset_id", "dmg_state"]
+                    )
+                    proportions.index = new_index
+
+                for asset_id in asset_ids:
+                    damage_results_updated.loc[(asset_id, dmg_state), "value"] = (
+                        proportions.loc[(asset_id, dmg_state)]
+                        * damage_occurrence_by_orig_asset_id.loc[
+                            (original_asset_id, dmg_state), "number_occurrence_cumulative"
+                        ]
+                    )
+
+        return damage_results_updated
+
+    @staticmethod
     def update_exposure_with_damage_states(
+        state_dependent,
         previous_exposure_model,
         original_exposure_model,
         damage_results_OQ,
@@ -220,7 +821,22 @@ class ExposureUpdater:
         repair costs and occupants are distributed accordingly, without yet updating the number
         of occupants to reflect injuries and deaths.
 
+        If 'state_dependent' is True, it assumes that 'damage_results_OQ' and
+        'damage_results_SHM' stem from state-dependent fragility models and thus represent
+        cumulative damage without need of further processing. If 'state_dependent' is False, it
+        assumes that 'damage_results_OQ' and 'damage_results_SHM' stem from state-independent
+        fragility models and thus represent damage due only to the last earthquake, assuming
+        undamaged previous conditions. In this last case, the probabilities of not exceeding
+        each damage state due to the current and previous earthquakes are combined (considering
+        them statistically independent) to calculate the probability of not exceeding the damage
+        states aftere both earthquakes and, from there, the probability of occurrence of each
+        damage state.
+
         Args:
+            state_dependent (bool):
+                If True, it is assumed that the damage results have been calculated using state-
+                dependent fragility models. If False, it is assumed that the damage results have
+                been calculated using state-independent fragility models.
             previous_exposure_model (Pandas DataFrame):
                 Pandas DataFrame representation of the exposure CSV input for OpenQuake whose
                 damage results are contained in 'damage_results_OQ'. It comprises the following
@@ -282,7 +898,7 @@ class ExposureUpdater:
                 Mapping between the names of damage states as output by OpenQuake (index) and as
                 labelled in the fragility model (value). E.g.:
                               fragility
-                    asset_id
+                    dmg_state
                     no_damage       DS0
                     dmg_1           DS1
                     dmg_2           DS2
@@ -364,8 +980,87 @@ class ExposureUpdater:
         else:
             damage_results_merged = deepcopy(damage_results_OQ)
 
+        # When using state-independent fragilities, 'damage_results_merged' needs adjustments
+        if state_dependent:  # State-dependent fragility model assumed
+            # No need to update damage states, take 'damage_results_merged' as it is
+            damage_results_merged_updated = deepcopy(damage_results_merged)
+        else:  # State-independent fragility model assumed, cumulative damage to be calculated
+            # Damage results (probab. of occurrence) by original_asset_id (instead of by
+            # asset_id) for the current earthquake (the one just run)
+            asset_id_original_asset_id_mapping = (
+                ExposureUpdater.create_mapping_asset_id_to_original_asset_id(
+                    previous_exposure_model
+                )
+            ) # DataFrame with asset_id as index and original_asset_id as values
+            damage_results_by_orig_asset_id_current = (
+                ExposureUpdater.get_damage_results_by_orig_asset_id(
+                    damage_results_merged, asset_id_original_asset_id_mapping
+                )
+            )
+
+            # Probability of non-exceedance by original_asset_id of this earthquake
+            damage_prob_nonexceed_by_orig_asset_id_current = (
+                ExposureUpdater.get_non_exceedance_by_orig_asset_id(
+                    damage_results_by_orig_asset_id_current, mapping_damage_states
+                )
+            )
+
+            # Damage results (probab. of occurrence) by asset_id for previous earthquake
+            # (implicitly contained in the input exposure model)
+            damage_results_by_asset_id_previous = (
+                ExposureUpdater.create_OQ_existing_damage(
+                    previous_exposure_model,
+                    mapping_damage_states,
+                    loss_type="structural"
+                )
+            )
+            new_index = pd.MultiIndex.from_arrays(
+                [
+                    damage_results_by_asset_id_previous["asset_id"],
+                    damage_results_by_asset_id_previous["dmg_state"]
+                ]
+            )
+            damage_results_by_asset_id_previous.index = new_index
+            damage_results_by_asset_id_previous = (
+                damage_results_by_asset_id_previous.drop(columns=["asset_id", "dmg_state"])
+            )
+
+            # Damage results (probab. of occurrence) by original_asset_id for previous earthquake
+            damage_results_by_orig_asset_id_previous = (
+                ExposureUpdater.get_damage_results_by_orig_asset_id(
+                    damage_results_by_asset_id_previous, asset_id_original_asset_id_mapping
+                )
+            )
+
+            # Probability of non-exceedance by original_asset_id of previous earthquake
+            damage_prob_nonexceed_by_orig_asset_id_previous = (
+                ExposureUpdater.get_non_exceedance_by_orig_asset_id(
+                    damage_results_by_orig_asset_id_previous, mapping_damage_states
+                )
+            )
+
+            # Calculate probability (and numbers) of occurrence due to cumulative probabilities
+            # (this earthquake and previous earthquake)
+            damage_occurrence_by_orig_asset_id_current = (
+                ExposureUpdater.get_prob_occurrence_from_independent_non_exceedance(
+                    damage_prob_nonexceed_by_orig_asset_id_previous,
+                    damage_prob_nonexceed_by_orig_asset_id_current,
+                    asset_id_original_asset_id_mapping,
+                    mapping_damage_states,
+                )
+            )
+
+            # Update 'damage_results_merged' with new numbers of occurrence
+            damage_results_merged_updated = (
+                ExposureUpdater.update_damage_results(
+                    damage_results_merged,
+                    damage_occurrence_by_orig_asset_id_current,
+                    asset_id_original_asset_id_mapping
+                )
+            )
+
         # Create new exposure model
-        new_exposure_model = damage_results_merged.join(previous_exposure_model)
+        new_exposure_model = damage_results_merged_updated.join(previous_exposure_model)
 
         # Re-calculate costs and people
         for col_name in ["structural", "census", earthquake_time_of_day]:
@@ -463,7 +1158,6 @@ class ExposureUpdater:
         )
 
         return new_exposure_model
-
 
     @staticmethod
     def update_exposure_occupants(
@@ -847,7 +1541,7 @@ class ExposureUpdater:
         return unique_lons, unique_lats
 
     @staticmethod
-    def create_OQ_no_damage(exposure, mapping_damage_states, loss_type="structural"):
+    def create_OQ_existing_damage(exposure, mapping_damage_states, loss_type="structural"):
         """
         This method simulates the output of OpenQuake's DataStore.read_df() assigning no damage
         (apart from the pre-existing damage) to all asset IDs in 'exposure'.
@@ -874,7 +1568,7 @@ class ExposureUpdater:
                 Mapping between the names of damage states as output by OpenQuake (index) and as
                 labelled in the fragility model (value). E.g.:
                               fragility
-                    asset_id
+                    dmg_state
                     no_damage       DS0
                     dmg_1           DS1
                     dmg_2           DS2
