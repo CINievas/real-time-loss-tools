@@ -378,6 +378,8 @@ def main():
             stoch_rup = StochasticRuptureSet.from_xml(
                 os.path.join(config.main_path, "ruptures", config.oelf_source_model_filename),
                 mmin=4.5,  # Minimum magnitude - for calculating total rates
+                region_properties=config.oelf["rupture_region_properties"],
+                rupture_generator_seed=config.oelf["rupture_generator_seed"]
             )
 
             # Generate the ruptures for all earthquakes in 'forecast'

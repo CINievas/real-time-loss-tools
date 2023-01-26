@@ -20,9 +20,10 @@ import sys
 import logging
 import yaml
 import pandas as pd
+from openquake.hazardlib.scalerel import get_available_area_scalerel
 
 logger = logging.getLogger()
-
+VALID_SCALERELS = get_available_area_scalerel()
 
 class Configuration:
     """This class handles the configuration parameters of the Real Time Loss Tools.
@@ -71,6 +72,22 @@ class Configuration:
                 Start and end number of the ID of the stochastic event sets, which will be used
                 to define the IDs of the stochastic event sets only if
                 'continuous_ses_numbering' is True. Both start and end numbers are included.
+            rupture_generator_seed (int):
+                Optional seed to set for the random number generator controlling the stochastic
+                rupture simulations. Must be positive non-zero to reproduce same rupture set.
+            rupture_region_properties (dict):
+                Optional set of properties to control the generation and scaling of ruptures
+                according to the tectonic region:
+                msr (str): Choice of Magnitude Scaling Relation (must be supported by OpenQuake)
+                area_mmax (float): Magnitude to cap the scaling of the rupture area, i.e.
+                                   magnitudes greater than this will have rupture areas fixed
+                                   to that corresponding to this magnitude
+                aspect_limits (tuple of two float): Lower and upper limits on the randomly
+                                                    sampled aspect ratio of the ruptures.
+                default_usd (float): Default upper seismogenic depth (km) if not specified in
+                                     the source model
+                default_lsd (float): Default lower seismogenic depth (km) if not specified in
+                                     the source model
         self.injuries_scale (list of str):
             Scale of severity of injuries. E.g. HAZUS defines four injury severity levels, from
             1 through 4, and this would be represented as self.injuries_scale=["1","2","3","4"].
@@ -191,6 +208,8 @@ class Configuration:
             "post_process",
             requested_nested = ["collect_csv"]
         )
+
+        self.assign_rupture_generator_properties(config)
 
         # Terminate if critical parameters are missing (not all parameters are critical)
         for key_parameter in self.REQUIRES:
@@ -486,3 +505,44 @@ class Configuration:
             assigned_parameter = None
 
         return assigned_parameter
+
+    def assign_rupture_generator_properties(self, config):
+        """This function parses information controlling the stochastic rupture generator
+        (if supplied in the config)
+
+        Args:
+            config (dictionary)
+        """
+        self.oelf["rupture_generator_seed"] = config["oelf"].get("rupture_generator_seed", None)
+        if self.oelf["rupture_generator_seed"]:
+            self.oelf["rupture_generator_seed"] = int(self.oelf["rupture_generator_seed"])
+
+        rupture_props = config["oelf"].get("rupture_region_properties", None)
+        if not rupture_props:
+            # Sets the rupture region properties to the region-independent defaults
+            self.oelf["rupture_region_properties"] = None
+            return
+        self.oelf["rupture_region_properties"] = {}
+        for key in rupture_props:
+            self.oelf["rupture_region_properties"][key] = {}
+            for attrib in rupture_props[key]:
+                if attrib == "msr":
+                    msr = rupture_props[key][attrib]
+                    if msr not in VALID_SCALERELS:
+                        logger.critical(
+                            "Rupture scaling relation %s not supported" % msr
+                        )
+                    self.oelf["rupture_region_properties"][key][attrib] =\
+                        VALID_SCALERELS[msr]()
+                elif attrib == "aspect_limits":
+                    # Parse the values to a list
+                    aspect_lims = tuple(map(float, rupture_props[key][attrib].split(",")))
+                    if aspect_lims[1] < aspect_lims[0]:
+                        logger.critical("Incorrect aspect ratio limits in configuration file")
+                        raise ValueError("Aspect ratio upper limit must be greater than lower"
+                                         " limit")
+                    self.oelf["rupture_region_properties"][key][attrib] = aspect_lims
+                else:
+                    self.oelf["rupture_region_properties"][key][attrib] =\
+                        rupture_props[key][attrib]
+        return

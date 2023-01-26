@@ -25,7 +25,8 @@ using information provided by a source model
 import os
 import math
 import logging
-from typing import List, Dict, Tuple, Optional, Union
+import warnings
+from typing import List, Dict, Optional, Union
 import numpy as np
 import pandas as pd
 import geopandas as gpd
@@ -34,8 +35,8 @@ from pyproj import Transformer
 from openquake.baselib.node import Node
 from openquake.hazardlib import nrml, mfd
 from openquake.hazardlib.pmf import PMF
-from openquake.hazardlib.geo import geodetic, Point, Polygon, PlanarSurface, Mesh, NodalPlane
-from openquake.hazardlib.scalerel import BaseMSR, Leonard2014_Interplate
+from openquake.hazardlib.geo import geodetic, Point, PlanarSurface, NodalPlane
+from openquake.hazardlib.scalerel import Leonard2014_Interplate
 
 
 logger = logging.getLogger()
@@ -44,6 +45,16 @@ logger.setLevel(logging.INFO)
 
 # Set a default transformer for Europe
 EUROPE_TRANSFORMER = Transformer.from_crs("EPSG:4326", "EPSG:3035", always_xy=True)
+
+
+# Default Crustal Properties
+DEFAULT_PROPERTIES = {
+    "msr": Leonard2014_Interplate(),
+    "area_mmax": 8.0,
+    "aspect_limits": (1.0, 1.5),
+    "default_usd": 0.0,
+    "defult_lsd": 25.0,
+    }
 
 
 def build_rupture(usd, lsd, mag, dims, strike, dip, rake, clon, clat, cdep):
@@ -260,6 +271,40 @@ def export_ruptures_to_shp(ruptures: Dict, export_folder: str):
     return
 
 
+def validate_ruptures(ruptures: Dict):
+    """Verify that a set of ruptures can be instantiated as OpenQuake planar surface
+    objects
+
+    Args:
+        ruptures: Dictionary of ruptures (as output from stochastic rupture generator)
+    """
+    nrup = len(ruptures)
+    counter = 0
+    for rup_id, rup in ruptures.items():
+        # Try building the surface
+        try:
+            PlanarSurface.from_corner_points(
+                Point(rup["topLeft"]["lon"],
+                      rup["topLeft"]["lat"],
+                      rup["topLeft"]["depth"]),
+                Point(rup["topRight"]["lon"],
+                      rup["topRight"]["lat"],
+                      rup["topRight"]["depth"]),
+                Point(rup["bottomRight"]["lon"],
+                      rup["bottomRight"]["lat"],
+                      rup["bottomRight"]["depth"]),
+                Point(rup["bottomLeft"]["lon"],
+                      rup["bottomLeft"]["lat"],
+                      rup["bottomLeft"]["depth"])
+                )
+        except ValueError:
+            logging.info("Rupture %s - surface not valid" % rup_id)
+            continue
+        counter += 1
+    logging.info("%g out of %g ruptures valid" % (counter, nrup))
+    return
+
+
 RUPTURE_SET_EXPORTER = {
     "shp": export_ruptures_to_shp,
     "xml": export_ruptures_to_xml,
@@ -281,10 +326,21 @@ class StochasticRuptureSet():
                       lower seismogenic depth, total rate and geometry
         pmfs: Dictionary of probability mass functions for hypocentral depth and nodal planes
               indexed by source ID
-        msr: Magnitude scaling relation
-        aspect_limits: Range of aspect ratios for sampling
-        default_usd: Default upper seismogenic depth for regions outside the source model
-        default_lsd: Default lower seismogenic depth for regions outside the source model
+        properties: Dictionary of properties to control the scaling of ruptures depending on
+                    the tectonic region type (or using a default set if not specified. The
+                    properties should be defined as a dictionary with sub-dictionaries
+                    for each tectonic region type containing the following attributes:
+                    msr: Magnitude scaling relation as an instance of an OpenQuake magnitude
+                         scaling relationship
+                    area_mmax: The maximum magnitude for the region to be used for scaling the
+                               rupture area, i.e. if area_mmax is M 7.5 then the rupture area
+                               will be capped to that of a M 7.5 earthquake
+                    aspect_limits: Limits to a uniform distribution used to sample aspect ratio
+                    default_usd: Default upper seismogenic depth for earthquakes in this
+                                 tectonic region (will be over-ridden by the USD of each source)
+                    default_lsd: Default lower seismogenic depth for earthquakes in this
+                                 tectonic region (will be over-ridden by the LSD of each source)
+        rng: Random number generator for the current stochastic rupture sampler
     """
     # Default nodal plane and hypocentral depth distributions for the case
     # that the epicentre is outside any zone.
@@ -298,15 +354,32 @@ class StochasticRuptureSet():
     }
 
     def __init__(self, source_model: gpd.GeoDataFrame,
-                 pmfs: Dict, msr: Optional[BaseMSR] = Leonard2014_Interplate,
-                 aspect_limits: Tuple = (1.0, 1.5),
-                 default_usd: float = 0.0, default_lsd: float = 25.0):
+                 pmfs: Dict, region_properties: Optional[Dict] = None,
+                 rupture_generator_seed: Optional[int] = None):
+        """
+        Args:
+            region_properties: Dictionary of tectonic region-dependent rupture scaling
+                               properties (or None if not specified)
+            rupture_generator_seed: Random number generator seed (as positive integer) used to
+                                    reproduce same random rupture set
+        """
         self.source_model = source_model
         self.pmfs = pmfs
-        self.msr = msr()
-        self.aspect_limits = aspect_limits
-        self.default_lsd = default_lsd
-        self.default_usd = default_usd
+        if region_properties:
+            self.properties = {}
+            self.use_region_properties = True
+            for key in region_properties:
+                self.properties[key] = {}
+                for attrib in DEFAULT_PROPERTIES:
+                    self.properties[key][attrib] =\
+                        region_properties[key].get(attrib, DEFAULT_PROPERTIES[attrib])
+        else:
+            self.properties = {"DEFAULT": DEFAULT_PROPERTIES}
+            self.use_region_properties = False
+        if rupture_generator_seed:
+            assert rupture_generator_seed > 0,\
+                "Random seed for rupture generator must be positive"
+        self.rng = np.random.default_rng(seed=rupture_generator_seed)
         self._source_model_xy = None
 
     @property
@@ -321,9 +394,9 @@ class StochasticRuptureSet():
 
     @classmethod
     def from_xml(cls, asm_source_file: str, mmin: float, trts: Optional[List] = None,
-                 msr: Optional[BaseMSR] = Leonard2014_Interplate,
-                 aspect_limits: Tuple = (1.0, 1.5), default_usd: float = 0.0,
-                 default_lsd: float = 25.0, strip_string: str = "",):
+                 region_properties: Optional[Dict] = None,
+                 rupture_generator_seed: Optional[int] = None,
+                 strip_string: str = ""):
         """
         Instantiates the class from an OpenQuake area source file using the distributions
         contained for each source.
@@ -333,6 +406,11 @@ class StochasticRuptureSet():
             mmin: Minimum magnitudes (for calculating total rates)
             trts: List of tectonic region types to be considered (will discard those sources
                   whose tectonic region types are not in the list)
+            region_properties: Dictionary of tectonic region-dependent rupture scaling
+                               properties (or None if not specified)
+            rupture_generator_seed: Random number generator seed (as positive integer) used to
+                                    reproduce same random rupture set
+            strip_string: String value to be removed from the source ID and/or source name
         """
         if trts is None:
             trts = []
@@ -399,8 +477,7 @@ class StochasticRuptureSet():
                                          crs="EPSG:4326",
                                          index=source_dframe['SRC_ID'])
 
-        return cls(source_dframe, source_pmfs, msr, aspect_limits,
-                   default_usd, default_lsd)
+        return cls(source_dframe, source_pmfs, region_properties, rupture_generator_seed)
 
     @staticmethod
     def get_rate_mmin(mfd_node: Node, mthresh: float) -> float:
@@ -552,25 +629,31 @@ class StochasticRuptureSet():
             RUPTURE_SET_EXPORTER[export_type](ruptures, export_file)
         return ruptures
 
-    def event_to_plane(self, event: pd.Series, aspect_ratio: float = 1.25) -> Dict:
+    def event_to_plane(self, event: pd.Series) -> Dict:
         """
         Builds the rupture for a given event
 
         Args:
             event: The event as a row of a pandas Series (or any other class with
                    attributes longitude, latitude, magnitude, datetime, USD, LSD)
-            aspect_ratio: Rupture aspect ratio (length / width) for the event (note that this
-                          will be re-scaled if the rupture width exceeds the available
-                          seismogenic thickness
         Returns:
             Set of rupture attributes
         """
+        if self.use_region_properties and (event["TRT"] in self.properties):
+            # Use the tectonic region specific properties
+            trt = event["TRT"]
+        else:
+            # Use the default properties
+            trt = "DEFAULT"
+        # Sample the aspect ratio
+        low_aspect, high_aspect = tuple(self.properties[trt]["aspect_limits"])
+        aspect_ratio = low_aspect + self.rng.random() * (high_aspect - low_aspect)
         # Take single sample of the HDD and NPD
         if ("SRC_ID" in event.index) and (event.SRC_ID in list(self.pmfs)):
-            hypo_depth = self.pmfs[event.SRC_ID]["hdd"].sample(1)[0]
-            nodal_plane = self.pmfs[event.SRC_ID]["npd"].sample(1)[0]
-            usd = event.USD if event.USD else self.default_usd
-            lsd = event.LSD if event.LSD else self.default_lsd
+            hypo_depth = self._single_sample_pmf(self.pmfs[event.SRC_ID]["hdd"])
+            nodal_plane = self._single_sample_pmf(self.pmfs[event.SRC_ID]["npd"])
+            usd = event.USD if event.USD else self.properties[trt]["default_usd"]
+            lsd = event.LSD if event.LSD else self.properties[trt]["default_lsd"]
         else:
             if "EQID" in event.index:
                 ev_id = event["EQID"]
@@ -578,12 +661,24 @@ class StochasticRuptureSet():
                 ev_id = ""
             logger.info("Event %s (%.4fE,%.4fN) not in any zone"
                         % (ev_id, event.longitude, event.latitude))
-            hypo_depth = self.DEFAULT_PMF["hdd"].sample(1)[0]
-            nodal_plane = self.DEFAULT_PMF["npd"].sample(1)[0]
+            hypo_depth = self._single_sample_pmf(self.DEFAULT_PMF["hdd"])
+            nodal_plane = self._single_sample_pmf(self.DEFAULT_PMF["npd"])
             usd = self.default_usd
             lsd = self.default_lsd
-        # Get the area
-        area = self.msr.get_median_area(event.magnitude, nodal_plane.rake)
+        if event.magnitude > self.properties[trt]["area_mmax"]:
+            # This is set to warn the users that an exceptionally large magnitude for the
+            # region in question has been generated.
+            warnings.warn(
+                "Event at time %s: Magnitude %.2f exeeds maximum credible magnitude of %.2f "
+                "for region type %s for rupture area generation"
+                % (str(event["datetime"]), event.magnitude,
+                   self.properties[trt]["area_mmax"], trt)
+            )
+            mag = min(event.magnitude, self.properties[trt]["area_mmax"])
+        else:
+            mag = event.magnitude
+        # Get the area (the magnitude is capped at a magnitude specific region property
+        area = self.properties[trt]["msr"].get_median_area(mag, nodal_plane.rake)
         # Get the rupture dimensions for the given area, magnitude and
         # configuration
         rupture_dims = get_rupdims(area,
@@ -616,6 +711,17 @@ class StochasticRuptureSet():
                             "depth": bottom_right[2]}
         }
 
+    def _single_sample_pmf(self, pmf: PMF):
+        """Samples data from the probability mass function objectbut using the random number,
+        generator set up for current the class
+
+        Args:
+            pmf: Probability mass function as instance of :class:`openquake.hazardlib.pmf.PMF`
+        """
+        probs = np.cumsum([val[0] for val in pmf.data])
+        sample = self.rng.random()
+        return pmf.data[np.searchsorted(probs, sample)][1]
+
     def catalogue_to_planes(self, catalogue: pd.DataFrame) -> Dict:
         """
         Generates the rupture planes for each event in the catalogue
@@ -628,11 +734,9 @@ class StochasticRuptureSet():
             ruptures: Dictionary of ruptures indexed by ID
         """
         ruptures = {}
-        nevents = catalogue.shape[0]
         # Index is SES-EQ_ID, several counts can come from same earthquake belonging to multiple
         # sources (e.g. same geographic area, different depth)
         event_count = catalogue.index.value_counts(sort=False)
-        aspect_ratios = np.random.uniform(*self.aspect_limits, size=nevents)
         for i, eq_id in enumerate(event_count.index):
             if event_count.loc[eq_id] > 1:
                 # Event is attributed to multiple sources - select by rate
@@ -644,5 +748,5 @@ class StochasticRuptureSet():
                 event = subcat[subcat["SRC_ID"] == sample_id].iloc[0]
             else:
                 event = catalogue.loc[eq_id]
-            ruptures[eq_id] = self.event_to_plane(event, aspect_ratios[i])
+            ruptures[eq_id] = self.event_to_plane(event)
         return ruptures
