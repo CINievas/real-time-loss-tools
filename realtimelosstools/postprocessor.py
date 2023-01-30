@@ -283,6 +283,7 @@ class PostProcessor:
             # RLA, loss ratio, cumulative, added up for whole portfolio
             portfolio_rla_ratio_cumul = (
                 portfolio_rla_abs_cumul / exposure_costs_occupants.loc[:, "structural"].sum()
+                * 100.0
             )
             portfolio_rla_ratio_cumul.to_csv(
                 os.path.join(
@@ -334,6 +335,7 @@ class PostProcessor:
             portfolio_rla_ratio_increment = (
                 portfolio_rla_abs_increment
                 / exposure_costs_occupants.loc[:, "structural"].sum()
+                * 100.0
             )
             portfolio_rla_ratio_increment.to_csv(
                 os.path.join(
@@ -566,6 +568,7 @@ class PostProcessor:
                 # RLA, loss ratio, incremental, added up for whole portfolio
                 portfolio_rla_ratio_increment = (
                     portfolio_rla_abs_increment / exposure_costs_occupants.loc[:, "census"].sum()
+                    * 100.0
                 )
                 portfolio_rla_ratio_increment.to_csv(
                     os.path.join(
@@ -619,6 +622,7 @@ class PostProcessor:
                 # RLA, loss ratio, cumulative, added up for whole portfolio
                 portfolio_rla_ratio_cumul = (
                     portfolio_rla_abs_cumul / exposure_costs_occupants.loc[:, "census"].sum()
+                    * 100.0
                 )
                 portfolio_rla_ratio_cumul.to_csv(
                     os.path.join(
