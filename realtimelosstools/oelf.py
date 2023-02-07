@@ -354,7 +354,7 @@ class OperationalEarthquakeLossForecasting():
             oef_ses_ids = [i for i in range(forecast_ses_range[0], forecast_ses_range[1]+1)]
             # Check if there are SES IDs in 'forecast_catalogue' that are not in 'oef_ses_ids'
             existing_IDs_missing = False
-            for oef_ses_id in enumerate(ses_ids_in_catalogue):
+            for oef_ses_id in ses_ids_in_catalogue:
                 if oef_ses_id not in oef_ses_ids:
                     existing_IDs_missing = True
                     break
