@@ -1,0 +1,5 @@
+Direct contributors to this code:
+Cecilia I. Nievas (GFZ, cecilia.nievas@gfz-potsdam.de)
+Graeme Weatherill (GFZ, graeme.weatherill@gfz-potsdam.de)
+
+For information on the scientific citation, please refer to the README file.

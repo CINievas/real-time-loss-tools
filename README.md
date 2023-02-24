@@ -73,6 +73,12 @@ The virtual environment can be deactivated by typing:
 - `pytz`
 - `openquake.engine 3.15`
 
+## Documentation
+
+For scientific documentation, please see [Citation](#citation) down below.
+
+Software documentation: coming soon.
+
 ## Running
 
 ### Preparation
@@ -339,6 +345,15 @@ the user in `recovery_injuries.csv`. See explanation above.
 These tools have been developed within the [RISE project](http://rise-eu.org/home/), which has
 received funding from the European Union's Horizon 2020 research and innovation programme under
 grant agreement No. 821115.
+
+## Citation
+
+Please cite as:
+
+Nievas CI, Crowley H, Reuland Y, Weatherill G, Baltzopoulos G, Bayliss K, Chatzi E, Chioccarelli
+E, Guéguen P, Iervolino I, Marzocchi W, Naylor M, Orlacchio M, Pejovic J, Popovic N, Serafini F,
+Serdar N (2023) Integration of RISE innovations in the fields of OELF, RLA and SMHM.
+RISE Project Deliverable 6.1.
 
 ## Copyright and copyleft
 
