@@ -352,7 +352,7 @@ Please cite as:
 
 Nievas CI, Crowley H, Reuland Y, Weatherill G, Baltzopoulos G, Bayliss K, Chatzi E, Chioccarelli
 E, Guéguen P, Iervolino I, Marzocchi W, Naylor M, Orlacchio M, Pejovic J, Popovic N, Serafini F,
-Serdar N (2023) Integration of RISE innovations in the fields of OELF, RLA and SMHM.
+Serdar N (2023) Integration of RISE innovations in the fields of OELF, RLA and SHM.
 RISE Project Deliverable 6.1.
 
 ## Copyright and copyleft
