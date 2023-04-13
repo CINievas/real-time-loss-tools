@@ -192,7 +192,7 @@ After any earthquake _n_ in the sequence, the probability of not exceeding damag
 thus calculated as:
 
 ```math
-PoNE_{cumulative_n}(DS=k) = \Sigma_{i=1}^n PoNE_{individual_i}(DS=k) = \Sigma_{i=1}^n [1 - PoE_{individual_i}(DS=k)]
+PoNE_{cumulative_n}(DS=k) = \prod\limits_{i=1}^n PoNE_{individual_i}(DS=k) = \prod\limits_{i=1}^n [1 - PoE_{individual_i}(DS=k)]
 ```
 
 where `PoE` and `PoNE` are probability of exceedance and non-exceedance, respectively,

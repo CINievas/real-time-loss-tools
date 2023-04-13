@@ -181,30 +181,65 @@ The effect of `store_intermediate` on the files that are stored is shown in the 
 which specifies if each kind of file is stored ("yes") or not ("no"). Only directories that are
 used for storing output are listed:
 
-| Path                 | File                                                   | `store_intermediate` = True | `store_intermediate` = False |
-|----------------------|--------------------------------------------------------|-----------------------------|------------------------------|
-| current              | exposure_model_current.csv                             | yes                         | yes                          |
-| exposure_models/oelf | exposure_model_current_oelf_SES.csv                    | yes                         | yes                          |
-| exposure_models/oelf | exposure_model_after_SES_EQ.csv                        | yes                         | no                           |
-| exposure_models/rla  | exposure_model_after_EQ.csv                            | yes                         | no                           |
-| openquake_output     | (SES)\_EQ_damages_OQ.csv                               | yes                         | no                           |
-| openquake_output     | (SES)\_EQ_damages_OQ_raw.csv                           | yes                         | no                           |
-| oputput              | damage_states_after_RLA_trig_name.csv                  | yes                         | yes                          |
-| oputput              | damage_states_after_OELF_trig_name.csv                 | yes                         | yes                          |
-| oputput              | damage_states_after_OELF_trig_name_realisation_SES.csv | yes                         | no                           |
-| ruptures             | rupture_EQ.xml                                         | yes                         | yes                          |
-| ruptures             | RUP_SES-EQ.xml                                         | yes                         | yes                          |
+| Path                 | File                                                               | `store_intermediate` = True | `store_intermediate` = False |
+|----------------------|--------------------------------------------------------------------|-----------------------------|------------------------------|
+| current              | exposure_model_current.csv                                         | yes                         | yes                          |
+| current/occupants    | injured_still_away_after_RLA_trig_name.csv                         | yes                         | yes                          |
+| current/occupants    | occupancy_factors_after_RLA_trig_name.csv                          | yes                         | yes                          |
+| exposure_models/oelf | forecast/exposure_model_current_oelf_SES.csv                       | yes                         | yes                          |
+| exposure_models/oelf | forecast/exposure_model_after_SES_EQ.csv                           | yes                         | no                           |
+| exposure_models/rla  | exposure_model_after_EQ.csv                                        | yes                         | no                           |
+| openquake_output     | EQ_damages_OQ.csv                                                  | yes                         | no                           |
+| openquake_output     | EQ_damages_OQ_raw.csv                                              | yes                         | no                           |
+| openquake_output     | forecast/SES_EQ_damages_OQ.csv                                     | yes                         | no                           |
+| openquake_output     | forecast/SES_EQ_damages_OQ_raw.csv                                 | yes                         | no                           |
+| oputput              | damage_states_after_RLA_trig_name.csv                              | yes                         | yes                          |
+| oputput              | damage_states_after_OELF_trig_name.csv                             | yes                         | yes                          |
+| oputput              | losses_economic_after_RLA_trig_name.csv                            | yes                         | yes                          |
+| oputput              | losses_economic_after_OELF_trig_name.csv                           | yes                         | yes                          |
+| oputput              | losses_human_after_RLA_trig_name.csv                               | yes                         | yes                          |
+| oputput              | losses_human_after_OELF_trig_name.csv                              | yes                         | yes                          |
+| oputput              | forecast/damage_states_after_OELF_trig_name_realisation_SES.csv    | yes                         | no                           |
+| oputput              | forecast/losses_economic_after_OELF_trig_name_realisation_SES.csv  | yes                         | no                           |
+| oputput              | forecast/losses_human_after_OELF_trig_name_realisation_SES.csv     | yes                         | no                           |
+| oputput              | all_damage_states_after_RLA_cumulative.csv                         | (Note 5)                    | (Note 5)                     |
+| oputput              | all_damage_states_after_RLA_incremental.csv                        | (Note 5)                    | (Note 5)                     |
+| oputput              | all_damage_states_after_OELF_cumulative.csv                        | (Note 5)                    | (Note 5)                     |
+| oputput              | all_losses_economic_RLA_cumulative_absolute.csv                    | (Note 5)                    | (Note 5)                     |
+| oputput              | all_losses_economic_RLA_cumulative_ratio.csv                       | (Note 5)                    | (Note 5)                     |
+| oputput              | all_losses_economic_RLA_incremental_absolute.csv                   | (Note 5)                    | (Note 5)                     |
+| oputput              | all_losses_economic_RLA_incremental_ratio.csv                      | (Note 5)                    | (Note 5)                     |
+| oputput              | all_losses_economic_OELF_cumulative_absolute.csv                   | (Note 5)                    | (Note 5)                     |
+| oputput              | all_losses_economic_OELF_cumulative_ratio.csv                      | (Note 5)                    | (Note 5)                     |
+| oputput              | all_losses_human_severity_X_RLA_cumulative_absolute.csv            | (Note 5)                    | (Note 5)                     |
+| oputput              | all_losses_human_severity_X_RLA_cumulative_ratio.csv               | (Note 5)                    | (Note 5)                     |
+| oputput              | all_losses_human_severity_X_RLA_incremental_absolute.csv           | (Note 5)                    | (Note 5)                     |
+| oputput              | all_losses_human_severity_X_RLA_incremental_ratio.csv              | (Note 5)                    | (Note 5)                     |
+| oputput              | all_losses_human_severity_X_OELF_incremental_absolute.csv          | (Note 5)                    | (Note 5)                     |
+| oputput              | all_losses_human_severity_X_OELF_incremental_ratio.csv             | (Note 5)                    | (Note 5)                     |
+| oputput              | all_portfolio_losses_economic_RLA_cumulative_absolute.csv          | (Note 5)                    | (Note 5)                     |
+| oputput              | all_portfolio_losses_economic_RLA_cumulative_ratio.csv             | (Note 5)                    | (Note 5)                     |
+| oputput              | all_portfolio_losses_economic_RLA_incremental_absolute.csv         | (Note 5)                    | (Note 5)                     |
+| oputput              | all_portfolio_losses_economic_RLA_incremental_ratio.csv            | (Note 5)                    | (Note 5)                     |
+| oputput              | all_portfolio_losses_human_severity_X_RLA_cumulative_absolute.csv  | (Note 5)                    | (Note 5)                     |
+| oputput              | all_portfolio_losses_human_severity_X_RLA_cumulative_ratio.csv     | (Note 5)                    | (Note 5)                     |
+| oputput              | all_portfolio_losses_human_severity_X_RLA_incremental_absolute.csv | (Note 5)                    | (Note 5)                     |
+| oputput              | all_portfolio_losses_human_severity_X_RLA_incremental_ratio.csv    | (Note 5)                    | (Note 5)                     |
+| ruptures/rla         | rupture_EQ.xml                                                     | yes                         | yes                          |
+| ruptures/oelf        | forecast/RUP_SES-EQ.xml                                            | yes                         | yes                          |
 
 Notes on nomenclature:
 
 1. `SES` refers to "stochastic event set", that is, each individual realisation of seismicity
 for a given period of time in the seismicity forecast. As part of a file name, it represents the
 ID of the SES.
-2. Parentheses `( )` imply that there are two cases, one in which the file name contains what
-is between the parentheses and one in which it does not.
-3. `EQ` refers to the earthquake ID.
-4. `trig_name` refers to each of the CSV files contained in `catalogues` and listed in the
+2. `EQ` refers to the earthquake ID.
+3. `trig_name` refers to each of the CSV files contained in `catalogues` and listed in the
 `triggering.csv` file.
+4. `X` refers tp the severity level in the scale defined by the user through `injuries_scale`
+(see above).
+5. These are independent of `store_intermediate` and only depend on `post_process>collect_csv`
+(see below).
 
 ### `store_openquake`
 
