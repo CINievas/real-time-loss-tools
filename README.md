@@ -134,13 +134,18 @@ grant agreement No. 821115.
 
 ## Citation
 
-Please cite as:
+Please cite the two references below:
 
 Nievas CI, Crowley H, Reuland Y, Weatherill G, Baltzopoulos G, Bayliss K, Chatzi E, Chioccarelli
 E, Guéguen P, Iervolino I, Marzocchi W, Naylor M, Orlacchio M, Pejovic J, Popovic N, Serafini F,
 Serdar N (2023) Integration of RISE innovations in the fields of OELF, RLA and SHM.
 RISE Project Deliverable 6.1. Available at
 [http://static.seismo.ethz.ch/rise/deliverables/Deliverable_6.1.pdf](http://static.seismo.ethz.ch/rise/deliverables/Deliverable_6.1.pdf).
+
+Nievas CI, Crowley H, Weatherill G (2023) Real-Time Loss Tools. Zenodo.
+[https://doi.org/10.5281/zenodo.7948699](https://doi.org/10.5281/zenodo.7948699)
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7948699.svg)](https://doi.org/10.5281/zenodo.7948699)
 
 ## Copyright and copyleft
 
