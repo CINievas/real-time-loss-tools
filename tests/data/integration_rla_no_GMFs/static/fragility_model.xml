@@ -1,0 +1,112 @@
+<?xml version="1.0" ?>
+<nrml xmlns="http://openquake.org/xmlns/nrml/0.5">
+<fragilityModel assetCategory="buildings" id="fragility_model" lossCategory="structural">
+<description>State-dependent fragility model Orlacchio (2022) PhD Thesis</description>
+<limitStates>slight moderate extensive complete</limitStates>
+<fragilityFunction format="continuous" id="MUR+STRUB/LWAL+CDN/H:1/DS0" shape="logncdf">
+<imls imt="AvgSA" maxIML="5" minIML="1e-15" noDamageLimit="1e-15"/>
+<params ls="slight" mean="0.0828" stddev="0.0219"/>
+<params ls="moderate" mean="0.1332" stddev="0.0297"/>
+<params ls="extensive" mean="0.1626" stddev="0.0295"/>
+<params ls="complete" mean="0.1826" stddev="0.0313"/>
+</fragilityFunction>
+<fragilityFunction format="continuous" id="MUR+STRUB/LWAL+CDN/H:1/DS1" shape="logncdf">
+<imls imt="AvgSA" maxIML="5" minIML="1e-15" noDamageLimit="1e-15"/>
+<params ls="slight" mean="1E-10" stddev="1E-10"/>
+<params ls="moderate" mean="0.1023" stddev="0.0267"/>
+<params ls="extensive" mean="0.1459" stddev="0.0293"/>
+<params ls="complete" mean="0.1729" stddev="0.0319"/>
+</fragilityFunction>
+<fragilityFunction format="continuous" id="MUR+STRUB/LWAL+CDN/H:1/DS2" shape="logncdf">
+<imls imt="AvgSA" maxIML="5" minIML="1e-15" noDamageLimit="1e-15"/>
+<params ls="slight" mean="1E-10" stddev="1E-10"/>
+<params ls="moderate" mean="1E-10" stddev="1E-10"/>
+<params ls="extensive" mean="0.0462" stddev="0.0211"/>
+<params ls="complete" mean="0.0896" stddev="0.0365"/>
+</fragilityFunction>
+<fragilityFunction format="continuous" id="MUR+STRUB/LWAL+CDN/H:1/DS3" shape="logncdf">
+<imls imt="AvgSA" maxIML="5" minIML="1e-15" noDamageLimit="1e-15"/>
+<params ls="slight" mean="1E-10" stddev="1E-10"/>
+<params ls="moderate" mean="1E-10" stddev="1E-10"/>
+<params ls="extensive" mean="1E-10" stddev="1E-10"/>
+<params ls="complete" mean="0.0331" stddev="0.0154"/>
+</fragilityFunction>
+<fragilityFunction format="continuous" id="MUR+STRUB/LWAL+CDN/H:1/DS4" shape="logncdf">
+<imls imt="AvgSA" maxIML="5" minIML="1e-15" noDamageLimit="1e-15"/>
+<params ls="slight" mean="1E-10" stddev="1E-10"/>
+<params ls="moderate" mean="1E-10" stddev="1E-10"/>
+<params ls="extensive" mean="1E-10" stddev="1E-10"/>
+<params ls="complete" mean="1E-10" stddev="1E-10"/>
+</fragilityFunction>
+<fragilityFunction format="continuous" id="MUR+STRUB/LWAL+CDN/H:2/DS0" shape="logncdf">
+<imls imt="AvgSA" maxIML="5" minIML="1e-15" noDamageLimit="1e-15"/>
+<params ls="slight" mean="0.0613" stddev="0.0130"/>
+<params ls="moderate" mean="0.1032" stddev="0.0262"/>
+<params ls="extensive" mean="0.1352" stddev="0.0386"/>
+<params ls="complete" mean="0.1674" stddev="0.0514"/>
+</fragilityFunction>
+<fragilityFunction format="continuous" id="MUR+STRUB/LWAL+CDN/H:2/DS1" shape="logncdf">
+<imls imt="AvgSA" maxIML="5" minIML="1e-15" noDamageLimit="1e-15"/>
+<params ls="slight" mean="1E-10" stddev="1E-10"/>
+<params ls="moderate" mean="0.0559" stddev="0.0221"/>
+<params ls="extensive" mean="0.1100" stddev="0.0343"/>
+<params ls="complete" mean="0.1434" stddev="0.0443"/>
+</fragilityFunction>
+<fragilityFunction format="continuous" id="MUR+STRUB/LWAL+CDN/H:2/DS2" shape="logncdf">
+<imls imt="AvgSA" maxIML="5" minIML="1e-15" noDamageLimit="1e-15"/>
+<params ls="slight" mean="1E-10" stddev="1E-10"/>
+<params ls="moderate" mean="1E-10" stddev="1E-10"/>
+<params ls="extensive" mean="0.0397" stddev="0.0183"/>
+<params ls="complete" mean="0.0766" stddev="0.0340"/>
+</fragilityFunction>
+<fragilityFunction format="continuous" id="MUR+STRUB/LWAL+CDN/H:2/DS3" shape="logncdf">
+<imls imt="AvgSA" maxIML="5" minIML="1e-15" noDamageLimit="1e-15"/>
+<params ls="slight" mean="1E-10" stddev="1E-10"/>
+<params ls="moderate" mean="1E-10" stddev="1E-10"/>
+<params ls="extensive" mean="1E-10" stddev="1E-10"/>
+<params ls="complete" mean="0.0360" stddev="0.0211"/>
+</fragilityFunction>
+<fragilityFunction format="continuous" id="MUR+STRUB/LWAL+CDN/H:2/DS4" shape="logncdf">
+<imls imt="AvgSA" maxIML="5" minIML="1e-15" noDamageLimit="1e-15"/>
+<params ls="slight" mean="1E-10" stddev="1E-10"/>
+<params ls="moderate" mean="1E-10" stddev="1E-10"/>
+<params ls="extensive" mean="1E-10" stddev="1E-10"/>
+<params ls="complete" mean="1E-10" stddev="1E-10"/>
+</fragilityFunction>
+<fragilityFunction format="continuous" id="monitored_building/DS0" shape="logncdf">
+<imls imt="AvgSA" maxIML="5" minIML="1e-15" noDamageLimit="1e-15"/>
+<params ls="slight" mean="0.0371" stddev="0.0269"/>
+<params ls="moderate" mean="0.3459" stddev="0.2508"/>
+<params ls="extensive" mean="0.7288" stddev="0.5284"/>
+<params ls="complete" mean="1.1611" stddev="0.8419"/>
+</fragilityFunction>
+<fragilityFunction format="continuous" id="monitored_building/DS1" shape="logncdf">
+<imls imt="AvgSA" maxIML="5" minIML="1e-15" noDamageLimit="1e-15"/>
+<params ls="slight" mean="1E-10" stddev="1E-10"/>
+<params ls="moderate" mean="0.2100" stddev="0.1523"/>
+<params ls="extensive" mean="0.6053" stddev="0.4389"/>
+<params ls="complete" mean="0.7782" stddev="0.5643"/>
+</fragilityFunction>
+<fragilityFunction format="continuous" id="monitored_building/DS2" shape="logncdf">
+<imls imt="AvgSA" maxIML="5" minIML="1e-15" noDamageLimit="1e-15"/>
+<params ls="slight" mean="1E-10" stddev="1E-10"/>
+<params ls="moderate" mean="1E-10" stddev="1E-10"/>
+<params ls="extensive" mean="0.2284" stddev="0.1783"/>
+<params ls="complete" mean="0.5583" stddev="0.4359"/>
+</fragilityFunction>
+<fragilityFunction format="continuous" id="monitored_building/DS3" shape="logncdf">
+<imls imt="AvgSA" maxIML="5" minIML="1e-15" noDamageLimit="1e-15"/>
+<params ls="slight" mean="1E-10" stddev="1E-10"/>
+<params ls="moderate" mean="1E-10" stddev="1E-10"/>
+<params ls="extensive" mean="1E-10" stddev="1E-10"/>
+<params ls="complete" mean="0.2782" stddev="0.2417"/>
+</fragilityFunction>
+<fragilityFunction format="continuous" id="monitored_building/DS4" shape="logncdf">
+<imls imt="AvgSA" maxIML="5" minIML="1e-15" noDamageLimit="1e-15"/>
+<params ls="slight" mean="1E-10" stddev="1E-10"/>
+<params ls="moderate" mean="1E-10" stddev="1E-10"/>
+<params ls="extensive" mean="1E-10" stddev="1E-10"/>
+<params ls="complete" mean="1E-10" stddev="1E-10"/>
+</fragilityFunction>
+</fragilityModel>
+</nrml>

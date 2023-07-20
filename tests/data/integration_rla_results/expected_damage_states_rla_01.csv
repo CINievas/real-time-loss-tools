@@ -1,0 +1,10 @@
+building_id,damage_state,number
+monitored_bdg,DS1,0.05
+monitored_bdg,DS2,0.335
+monitored_bdg,DS3,0.28
+monitored_bdg,DS4,0.335
+tile_1,DS0,0.228234367
+tile_1,DS1,0.88587383
+tile_1,DS2,0.86866234
+tile_1,DS3,0.79163414
+tile_1,DS4,10.0255949

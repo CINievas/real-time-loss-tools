@@ -1,0 +1,2 @@
+longitude,latitude,magnitude,datetime,depth,catalog_id,event_id
+13.38,42.342,0.1,2009-04-06T01:32:40,8.3,TESTCAT,TEST-RLA-01

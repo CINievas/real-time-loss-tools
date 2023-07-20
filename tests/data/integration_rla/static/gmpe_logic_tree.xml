@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<nrml xmlns:gml="http://www.opengis.net/gml"
+      xmlns="http://openquake.org/xmlns/nrml/0.4">
+    <logicTree logicTreeID='lt1'>
+
+		<logicTreeBranchSet uncertaintyType="gmpeModel" branchSetID="bs1"
+				applyToTectonicRegionType="Active Shallow Crust">
+
+			<logicTreeBranch branchID="b1">
+			  <uncertaintyModel>
+				[GenericGmpeAvgSA]
+				gmpe_name = "LanzanoEtAl2019_RJB_OMO"
+				avg_periods = [0.04, 0.07, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75]
+                corr_func = "baker_jayaram"
+			  </uncertaintyModel>
+			  <uncertaintyWeight>1.0</uncertaintyWeight>
+			</logicTreeBranch>
+
+		</logicTreeBranchSet>
+
+    </logicTree>
+</nrml>

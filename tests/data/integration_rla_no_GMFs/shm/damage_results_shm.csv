@@ -1,0 +1,6 @@
+building_id,dmg_state,TEST-RLA-01
+monitored_bdg,no_damage,0
+monitored_bdg,dmg_1,0.05
+monitored_bdg,dmg_2,0.335
+monitored_bdg,dmg_3,0.28
+monitored_bdg,dmg_4,0.335

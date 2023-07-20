@@ -262,6 +262,10 @@ method raises a `KeyError` when the output does not exist, leading to the error 
 is no damage, perhaps the hazard is too small?`. The Real-Time Loss Tools use `try-except` to
 return the same damage states as before this particular earthquake if this `KeyError` is raised.
 
+In these last two cases, if the calculation is a RLA and the user has input SHM-derived damage
+probabilities for the earthquake, the Real-Time Loss Tools will still take these SHM-derived
+damage results.
+
 All these OpenQuake errors are visible to the user in the running log of the Real-Time Loss
 Tools (which includes all of the log from OpenQuake).
 

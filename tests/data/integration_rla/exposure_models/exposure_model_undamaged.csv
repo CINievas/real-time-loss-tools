@@ -1,0 +1,4 @@
+id,lon,lat,taxonomy,number,structural,census,occupancy,building_id,original_asset_id,id_3,name_3,id_2,name_2,id_1,name_1
+exp_1,13.39988708,42.34585784,MUR+STRUB/LWAL+CDN/H:1/DS0,8.6,1495409.859,24.50984,residential,tile_1,exp_1,3,Place,2,Place,1,Place
+exp_2,13.39988708,42.34585784,MUR+STRUB/LWAL+CDN/H:2/DS0,4.2,963819.2995,15.84688,residential,tile_1,exp_2,3,Place,2,Place,1,Place
+exp_3,13.4012,42.34469998,monitored_building/DS0,1,1300000,10,residential,monitored_bdg,exp_3,3,Place,2,Place,1,Place

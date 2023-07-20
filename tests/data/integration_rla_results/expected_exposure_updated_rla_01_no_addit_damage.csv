@@ -1,0 +1,7 @@
+asset_id,dmg_state,id,lon,lat,taxonomy,number,structural,census,occupancy,building_id,original_asset_id,id_3,name_3,id_2,name_2,id_1,name_1
+exp_1,no_damage,exp_1,13.39988708,42.34585784,MUR+STRUB/LWAL+CDN/H:1/DS0,8.6,1495409.859,24.50984,residential,tile_1,exp_1,3,Place,2,Place,1,Place
+exp_2,no_damage,exp_2,13.39988708,42.34585784,MUR+STRUB/LWAL+CDN/H:2/DS0,4.2,963819.2995,15.84688,residential,tile_1,exp_2,3,Place,2,Place,1,Place
+exp_3,dmg_1,exp_3,13.4012,42.34469998,monitored_building/DS1,0.05,65000,0.5,residential,monitored_bdg,exp_3,3,Place,2,Place,1,Place
+exp_3,dmg_2,exp_4,13.4012,42.34469998,monitored_building/DS2,0.335,435500,3.35,residential,monitored_bdg,exp_3,3,Place,2,Place,1,Place
+exp_3,dmg_3,exp_5,13.4012,42.34469998,monitored_building/DS3,0.28,364000,2.8,residential,monitored_bdg,exp_3,3,Place,2,Place,1,Place
+exp_3,dmg_4,exp_6,13.4012,42.34469998,monitored_building/DS4,0.335,435500,3.35,residential,monitored_bdg,exp_3,3,Place,2,Place,1,Place

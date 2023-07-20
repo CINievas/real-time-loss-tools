@@ -1,0 +1,2 @@
+event_id,Mw,nucleation_lon,nucleation_lat,nucleation_depth,LL_lon,LL_lat,UR_lon,UR_lat,LR_lon,LR_lat,UL_lon,UL_lat,Z_top,Strike,Dip,Rake
+TEST-RLA-01,0.1,13.4193,42.314,8.2,13.31,42.366,13.556,42.283,13.466,42.227,13.4,42.421,0.5,140,50,-90
