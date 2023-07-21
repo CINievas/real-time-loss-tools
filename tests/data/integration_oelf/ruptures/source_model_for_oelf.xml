@@ -1,0 +1,2172 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<nrml xmlns="http://openquake.org/xmlns/nrml/0.4" xmlns:gml="http://www.opengis.net/gml">
+   <sourceModel name="MA4_m1_maxmag1_statistica_ischiaM35">
+<areaSource id="1" name="Idria" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 13.5046 46.401
+                 14.4425 45.7784
+                 14.8327 45.3523
+                 14.8251 44.7458
+                 14.4852 45.0423
+                 14.4798 45.047
+                 14.0752 45.3714
+                 13.4924 45.7223
+                 13.5046 46.401
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>0</upperSeismoDepth>
+     <lowerSeismoDepth>22</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0393095700	0.0300260600	0.0229349800	0.0175185600	0.0133813000	0.0102211100	0.0078072600	0.0059634600	0.0045551000	0.0034793500	0.0026576600	0.0020300100	0.0015505900	0.0011844000	0.0009046900	0.0006910300	0.0005278400	0.0004031800	0.0003079600	0.0002352300	0.0001796800	0.0001372500	0.0001048300	0.0000800800	0.0000611600</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="219" dip="67" rake="-2" probability="0.5"/>
+     <nodalPlane strike="310" dip="87" rake="-157" probability="0.5"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="0.69" depth="7"/>
+     <hypoDepth probability="0.31" depth="16"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="2" name="Slovenia" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 13.61 46.9621
+                 14.8666 46.5131
+                 14.8327 45.3523
+                 14.4425 45.7784
+                 13.5046 46.401
+                 13.4054 46.4417
+                 13.1169 46.501
+                 12.9251 46.5105
+                 13.61 46.9621
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>0</upperSeismoDepth>
+     <lowerSeismoDepth>20</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0536808200	0.0410033200	0.0313198100	0.0239231900	0.0182733900	0.0139578700	0.0106615200	0.0081436500	0.0062204100	0.0047513800	0.0036292700	0.0027721600	0.0021174800	0.0016174100	0.0012354300	0.0009436700	0.0007208000	0.0005505800	0.0004205500	0.0003212400	0.0002453600	0.0001874300	0.0001431500	0.0001093500	0.0000835300</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="135" dip="68" rake="160" probability="0.425"/>
+     <nodalPlane strike="232" dip="72" rake="23" probability="0.425"/>
+     <nodalPlane strike="131" dip="25" rake="66" probability="0.075"/>
+     <nodalPlane strike="337" dip="66" rake="101" probability="0.075"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="0.73" depth="7"/>
+     <hypoDepth probability="0.27" depth="15"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="3" name="Friuli" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 13.5046 46.401
+                 13.4924 45.7223
+                 12.9513 46.09
+                 12.5863 45.9485
+                 12.3501 45.8672
+                 12.0542 45.758
+                 11.4838 45.6375
+                 11.2658 45.8105
+                 12.3437 46.2438
+                 12.5955 46.4011
+                 12.9251 46.5105
+                 13.1169 46.501
+                 13.4054 46.4417
+                 13.5046 46.401
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>0</upperSeismoDepth>
+     <lowerSeismoDepth>17</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0757585700	0.0597629200	0.0471445800	0.0371904800	0.0293380800	0.0231436500	0.0182571000	0.0144022900	0.0113614000	0.0089625500	0.0070702100	0.0055774000	0.0043997800	0.0034708200	0.0027379900	0.0021598900	0.0017038500	0.0013441000	0.0010603100	0.0008364400	0.0006598300	0.0005205100	0.0004106100	0.0003239200	0.0002555200</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="292" dip="87" rake="-177" probability="0.05"/>
+     <nodalPlane strike="202" dip="87" rake="-3" probability="0.05"/>
+     <nodalPlane strike="274" dip="25" rake="112" probability="0.45"/>
+     <nodalPlane strike="70" dip="66" rake="79" probability="0.45"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="0.75" depth="7"/>
+     <hypoDepth probability="0.25" depth="11"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="4" name="Valtellina-Alto_Adige" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 12.3833 47.4044
+                 13.61 46.9621
+                 12.9251 46.5105
+                 12.5955 46.4011
+                 12.3437 46.2438
+                 11.2658 45.8105
+                 11.1704 45.9368
+                 10.9692 46.2091
+                 10.4724 45.6847
+                 10.0887 45.6728
+                 9.4272 45.8568
+                 8.0101 45.6593
+                 7.2711 45.3896
+                 7.2178 45.5668
+                 7.7067 45.959
+                 8.3684 46.3756
+                 8.2537 46.486
+                 8.9955 46.7161
+                 9.2905 46.8643
+                 9.3925 46.5157
+                 9.6624 46.1501
+                 10.3405 46.2213
+                 10.5432 46.4279
+                 10.6524 46.6491
+                 10.6599 46.8895
+                 11.111 46.874
+                 11.5728 47.1721
+                 12.3833 47.4044
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>0</upperSeismoDepth>
+     <lowerSeismoDepth>25</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0154074200	0.0117687400	0.0089893800	0.0068664200	0.0052448100	0.0040061800	0.0030600600	0.0023373800	0.0017853800	0.0013637300	0.0010416700	0.0007956700	0.0006077500	0.0004642300	0.0003545900	0.0002708500	0.0002068900	0.0001580300	0.0001207000	0.0000922000	0.0000704300	0.0000537900	0.0000410900</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="0" dip="90" rake="0" probability="0.4"/>
+     <nodalPlane strike="90" dip="90" rake="0" probability="0.4"/>
+     <nodalPlane strike="0" dip="30" rake="90" probability="0.05"/>
+     <nodalPlane strike="90" dip="30" rake="90" probability="0.05"/>
+     <nodalPlane strike="180" dip="30" rake="90" probability="0.05"/>
+     <nodalPlane strike="270" dip="30" rake="90" probability="0.05"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="0.81" depth="8"/>
+     <hypoDepth probability="0.19" depth="16"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="5" name="Innsbruck" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 9.4312 46.9247
+                 10.6895 47.5444
+                 11.9427 47.5647
+                 12.3833 47.4044
+                 11.5728 47.1721
+                 11.111 46.874
+                 10.6599 46.8895
+                 9.4312 46.9247
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>0</upperSeismoDepth>
+     <lowerSeismoDepth>23</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0284021400	0.0216945700	0.0165710800	0.0126575900	0.0096683200	0.0073850100	0.0056409400	0.0043087400	0.0032911800	0.0025139200	0.0019202200	0.0014667300	0.0011203400	0.0008557600	0.0006536600	0.0004992900	0.0003813700	0.0002913100	0.0002225100	0.0001699600	0.0001298200	0.0000991700	0.0000757400</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="0" dip="90" rake="0" probability="0.1"/>
+     <nodalPlane strike="90" dip="90" rake="0" probability="0.1"/>
+     <nodalPlane strike="0" dip="60" rake="-90" probability="0.1"/>
+     <nodalPlane strike="90" dip="60" rake="-90" probability="0.1"/>
+     <nodalPlane strike="180" dip="60" rake="-90" probability="0.1"/>
+     <nodalPlane strike="270" dip="60" rake="-90" probability="0.1"/>
+     <nodalPlane strike="0" dip="30" rake="90" probability="0.1"/>
+     <nodalPlane strike="90" dip="30" rake="90" probability="0.1"/>
+     <nodalPlane strike="180" dip="30" rake="90" probability="0.1"/>
+     <nodalPlane strike="270" dip="30" rake="90" probability="0.1"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="0.9" depth="7"/>
+     <hypoDepth probability="0.1" depth="22"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="6" name="Grigioni" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 10.6599 46.8895
+                 10.6524 46.6491
+                 10.5432 46.4279
+                 10.3405 46.2213
+                 9.6624 46.1501
+                 9.3925 46.5157
+                 9.2905 46.8643
+                 9.4312 46.9247
+                 10.6599 46.8895
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>0</upperSeismoDepth>
+     <lowerSeismoDepth>12</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0056390100	0.0043072700	0.0032900600	0.0025130600	0.0019195600	0.0014662300	0.0011199600	0.0008554700	0.0006534400	0.0004991100	0.0003812500	0.0002912000	0.0002224400	0.0001699000	0.0001297800	0.0000991300	0.0000757200	0.0000578400	0.0000441700	0.0000337500	0.0000257700	0.0000196900	0.0000150400</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="295" dip="38" rake="-77" probability="0.5"/>
+     <nodalPlane strike="100" dip="52" rake="-99" probability="0.5"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="1" depth="7"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="7" name="Garda-Soncino" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 11.1704 45.9368
+                 10.8222 45.4368
+                 10.6781 45.3571
+                 10.3849 45.273
+                 9.3923 45.3565
+                 9.2818 45.5021
+                 9.4272 45.8568
+                 10.0887 45.6728
+                 10.4724 45.6847
+                 10.9692 46.2091
+                 11.1704 45.9368
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>0</upperSeismoDepth>
+     <lowerSeismoDepth>21</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0161256200	0.0127208600	0.0100349800	0.0079162000	0.0062447700	0.0049262500	0.0038861200	0.0030656100	0.0024183300	0.0019077300	0.0015049300	0.0011871800	0.0009365200	0.0007387800	0.0005828000	0.0004597400	0.0003626800	0.0002861000	0.0002256900	0.0001780400	0.0001404500	0.0001107900	0.0000874000	0.0000689500	0.0000543900</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="0" dip="90" rake="0" probability="0.1"/>
+     <nodalPlane strike="90" dip="90" rake="0" probability="0.1"/>
+     <nodalPlane strike="0" dip="60" rake="-90" probability="0.1"/>
+     <nodalPlane strike="90" dip="60" rake="-90" probability="0.1"/>
+     <nodalPlane strike="180" dip="60" rake="-90" probability="0.1"/>
+     <nodalPlane strike="270" dip="60" rake="-90" probability="0.1"/>
+     <nodalPlane strike="0" dip="30" rake="90" probability="0.1"/>
+     <nodalPlane strike="90" dip="30" rake="90" probability="0.1"/>
+     <nodalPlane strike="180" dip="30" rake="90" probability="0.1"/>
+     <nodalPlane strike="270" dip="30" rake="90" probability="0.1"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="0.76" depth="6"/>
+     <hypoDepth probability="0.24" depth="12"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="8" name="Montreux" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 8.2537 46.486
+                 7.7675 46.4429
+                 7.4046 46.4713
+                 6.7966 46.1808
+                 6.532 45.9948
+                 6.7923 46.1832
+                 6.6371 46.4833
+                 7.1995 46.7127
+                 7.6547 46.7171
+                 8.2537 46.486
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>0</upperSeismoDepth>
+     <lowerSeismoDepth>24</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0084385900	0.0064457000	0.0049234500	0.0037607100	0.0028725700	0.0021941700	0.0016759800	0.0012801800	0.0009778400	0.0007469200	0.0005705100	0.0004357900	0.0003328600	0.0002542600	0.0001942100	0.0001483400	0.0001133100	0.0000865500	0.0000661100	0.0000505000	0.0000385700	0.0000294700	0.0000225000</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="0" dip="90" rake="0" probability="0.1"/>
+     <nodalPlane strike="90" dip="90" rake="0" probability="0.1"/>
+     <nodalPlane strike="0" dip="60" rake="-90" probability="0.1"/>
+     <nodalPlane strike="90" dip="60" rake="-90" probability="0.1"/>
+     <nodalPlane strike="180" dip="60" rake="-90" probability="0.1"/>
+     <nodalPlane strike="270" dip="60" rake="-90" probability="0.1"/>
+     <nodalPlane strike="0" dip="30" rake="90" probability="0.1"/>
+     <nodalPlane strike="90" dip="30" rake="90" probability="0.1"/>
+     <nodalPlane strike="180" dip="30" rake="90" probability="0.1"/>
+     <nodalPlane strike="270" dip="30" rake="90" probability="0.1"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="0.86" depth="8"/>
+     <hypoDepth probability="0.14" depth="22"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="9" name="Vallese" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 8.2537 46.486
+                 8.3684 46.3756
+                 7.7067 45.959
+                 6.784 45.8201
+                 6.532 45.9948
+                 6.7966 46.1808
+                 7.4046 46.4713
+                 7.7675 46.4429
+                 8.2537 46.486
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>0</upperSeismoDepth>
+     <lowerSeismoDepth>15</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0400788800	0.0306136900	0.0233838200	0.0178614100	0.0136431800	0.0104211500	0.0079600400	0.0060801700	0.0046442500	0.0035474400	0.0027096700	0.0020697400	0.0015809400	0.0012075800	0.0009223900	0.0007045600	0.0005381600	0.0004110700	0.0003139900	0.0002398400	0.0001831900	0.0001399400	0.0001068800</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="0" dip="90" rake="0" probability="0.5"/>
+     <nodalPlane strike="90" dip="90" rake="0" probability="0.5"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="1" depth="8"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="10" name="Alpi_occidentali" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 7.7067 45.959
+                 7.2178 45.5668
+                 7.2711 45.3896
+                 7.6483 44.1346
+                 6.6485 44.4887
+                 6.4118 45.1807
+                 6.5252 45.5615
+                 6.784 45.8201
+                 7.7067 45.959
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>4</upperSeismoDepth>
+     <lowerSeismoDepth>21</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0294377400	0.0224855900	0.0171753100	0.0131191100	0.0100208400	0.0076542900	0.0058466100	0.0044658500	0.0034111800	0.0026055800	0.0019902400	0.0015202100	0.0011611900	0.0008869600	0.0006774900	0.0005175000	0.0003952800	0.0003019300	0.0002306200	0.0001761600	0.0001345500	0.0001027800	0.0000785100</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="0" dip="90" rake="0" probability="0.5"/>
+     <nodalPlane strike="90" dip="90" rake="0" probability="0.5"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="0.63" depth="10"/>
+     <hypoDepth probability="0.37" depth="16"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="11" name="Piemonte" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 9.4272 45.8568
+                 9.2818 45.5021
+                 9.3923 45.3565
+                 8.5732 44.665
+                 8.8588 44.4773
+                 8.4518 44.1109
+                 8.2855 44.1005
+                 7.6483 44.1346
+                 7.2711 45.3896
+                 8.0101 45.6593
+                 9.4272 45.8568
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>6</upperSeismoDepth>
+     <lowerSeismoDepth>32</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0101897600	0.0077833100	0.0059451700	0.0045411300	0.0034686800	0.0026495000	0.0020237800	0.0015458400	0.0011807700	0.0009019100	0.0006889100	0.0005262200	0.0004019400	0.0003070200	0.0002345100	0.0001791300	0.0001368200	0.0001045200	0.0000798300	0.0000609700	0.0000465800	0.0000355800	0.0000271700</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="0" dip="60" rake="-90" probability="0.025"/>
+     <nodalPlane strike="90" dip="60" rake="-90" probability="0.025"/>
+     <nodalPlane strike="180" dip="60" rake="-90" probability="0.025"/>
+     <nodalPlane strike="270" dip="60" rake="-90" probability="0.025"/>
+     <nodalPlane strike="0" dip="90" rake="0" probability="0.45"/>
+     <nodalPlane strike="90" dip="90" rake="0" probability="0.45"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="0.72" depth="11"/>
+     <hypoDepth probability="0.28" depth="22"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="12" name="Mantova-Verona" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 11.2658 45.8105
+                 11.4838 45.6375
+                 11.7158 45.3998
+                 11.9322 44.8463
+                 11.4184 45.0041
+                 10.7168 44.9411
+                 10.5184 44.7533
+                 10.033 45.0784
+                 9.3923 45.3565
+                 10.3849 45.273
+                 10.6781 45.3571
+                 10.8222 45.4368
+                 11.1704 45.9368
+                 11.2658 45.8105
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>0</upperSeismoDepth>
+     <lowerSeismoDepth>29</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0075697900	0.0059715100	0.0047106800	0.0037160700	0.0029314600	0.0023125100	0.0018242400	0.0014390800	0.0011352300	0.0008955400	0.0007064500	0.0005573000	0.0004396200	0.0003468100	0.0002735700	0.0002158200	0.0001702500	0.0001343000	0.0001059500	0.0000835700	0.0000659300	0.0000520100	0.0000410300	0.0000323700	0.0000255300</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="104" dip="60" rake="-150" probability="0.375"/>
+     <nodalPlane strike="359" dip="64" rake="-32" probability="0.375"/>
+     <nodalPlane strike="0" dip="30" rake="90" probability="0.0625"/>
+     <nodalPlane strike="90" dip="30" rake="90" probability="0.0625"/>
+     <nodalPlane strike="180" dip="30" rake="90" probability="0.0625"/>
+     <nodalPlane strike="270" dip="30" rake="90" probability="0.0625"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="0.79" depth="7"/>
+     <hypoDepth probability="0.21" depth="26"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="13" name="Pianura veneta" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 13.4924 45.7223
+                 14.0752 45.3714
+                 14.4798 45.047
+                 14.4852 45.0423
+                 13.8457 44.7324
+                 13.3537 44.2415
+                 13.2474 44.0557
+                 12.8779 44.2041
+                 12.5386 44.2564
+                 12.356 44.321
+                 12.3781 44.4488
+                 11.9322 44.8463
+                 11.7158 45.3998
+                 11.4838 45.6375
+                 12.0542 45.758
+                 12.3501 45.8672
+                 12.5863 45.9485
+                 12.9513 46.09
+                 13.4924 45.7223
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>0</upperSeismoDepth>
+     <lowerSeismoDepth>25</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0006674800	0.0005265400	0.0004153700	0.0003276700	0.0002584900	0.0002039100	0.0001608500	0.0001269000	0.0001001000	0.0000789600	0.0000622900	0.0000491400	0.0000387700	0.0000305800	0.0000241200	0.0000190300	0.0000150100	0.0000118500	0.0000093400	0.0000073700	0.0000058100	0.0000045900	0.0000036100	0.0000028600	0.0000022500</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="0" dip="90" rake="0" probability="0.1"/>
+     <nodalPlane strike="90" dip="90" rake="0" probability="0.1"/>
+     <nodalPlane strike="0" dip="60" rake="-90" probability="0.1"/>
+     <nodalPlane strike="90" dip="60" rake="-90" probability="0.1"/>
+     <nodalPlane strike="180" dip="60" rake="-90" probability="0.1"/>
+     <nodalPlane strike="270" dip="60" rake="-90" probability="0.1"/>
+     <nodalPlane strike="0" dip="30" rake="90" probability="0.1"/>
+     <nodalPlane strike="90" dip="30" rake="90" probability="0.1"/>
+     <nodalPlane strike="180" dip="30" rake="90" probability="0.1"/>
+     <nodalPlane strike="270" dip="30" rake="90" probability="0.1"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="0.82" depth="7"/>
+     <hypoDepth probability="0.18" depth="21"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="14" name="Imperiese" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 7.6483 44.1346
+                 8.2855 44.1005
+                 8.4518 44.1109
+                 8.1348 43.8426
+                 7.8801 43.7263
+                 7.5586 43.7764
+                 7.1513 44.1074
+                 6.6485 44.4887
+                 7.6483 44.1346
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>3</upperSeismoDepth>
+     <lowerSeismoDepth>21</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0102432500	0.0082496900	0.0066441300	0.0053510300	0.0043096100	0.0034708600	0.0027953600	0.0022513200	0.0018131700	0.0014602900	0.0011760800	0.0009471900	0.0007628500	0.0006143800	0.0004948100	0.0003985100	0.0003209500	0.0002584800	0.0002081800	0.0001676700	0.0001350300	0.0001087500</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="0" dip="90" rake="0" probability="0.1"/>
+     <nodalPlane strike="90" dip="90" rake="0" probability="0.1"/>
+     <nodalPlane strike="0" dip="60" rake="-90" probability="0.1"/>
+     <nodalPlane strike="90" dip="60" rake="-90" probability="0.1"/>
+     <nodalPlane strike="180" dip="60" rake="-90" probability="0.1"/>
+     <nodalPlane strike="270" dip="60" rake="-90" probability="0.1"/>
+     <nodalPlane strike="0" dip="30" rake="90" probability="0.1"/>
+     <nodalPlane strike="90" dip="30" rake="90" probability="0.1"/>
+     <nodalPlane strike="180" dip="30" rake="90" probability="0.1"/>
+     <nodalPlane strike="270" dip="30" rake="90" probability="0.1"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="0.79" depth="9"/>
+     <hypoDepth probability="0.21" depth="16"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="15" name="Mar_Ligure" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 9.2037 44.2509
+                 8.5688 43.6981
+                 8.0295 43.2214
+                 7.3882 43.4108
+                 7.8801 43.7263
+                 8.1348 43.8426
+                 8.4518 44.1109
+                 8.8588 44.4773
+                 9.2037 44.2509
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>7</upperSeismoDepth>
+     <lowerSeismoDepth>21</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0036347000	0.0029273100	0.0023576000	0.0018987500	0.0015292200	0.0012315900	0.0009919000	0.0007988600	0.0006433800	0.0005181700	0.0004173200	0.0003361000	0.0002706900	0.0002180000	0.0001755800	0.0001414100	0.0001138800	0.0000917200	0.0000738700	0.0000595000	0.0000479100	0.0000385900</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="220" dip="45" rake="123" probability="0.5"/>
+     <nodalPlane strike="356" dip="53" rake="60" probability="0.5"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="0.41" depth="9"/>
+     <hypoDepth probability="0.59" depth="16"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="16" name="Tortona-Bobbio" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 10.033 45.0784
+                 9.8184 44.867
+                 9.5966 44.6464
+                 9.4365 44.4836
+                 9.2037 44.2509
+                 8.8588 44.4773
+                 8.5732 44.665
+                 9.3923 45.3565
+                 10.033 45.0784
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>1</upperSeismoDepth>
+     <lowerSeismoDepth>26</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0076391800	0.0062093600	0.0050471600	0.0041024800	0.0033346300	0.0027104800	0.0022031700	0.0017907900	0.0014556200	0.0011831700	0.0009617200	0.0007817100	0.0006354000	0.0005164700	0.0004198000	0.0003412300	0.0002773700	0.0002254400	0.0001832500	0.0001489600	0.0001210700	0.0000984100	0.0000799900	0.0000650200	0.0000528500	0.0000429600	0.0000349200</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="0" dip="60" rake="-90" probability="0.0375"/>
+     <nodalPlane strike="90" dip="60" rake="-90" probability="0.0375"/>
+     <nodalPlane strike="180" dip="60" rake="-90" probability="0.0375"/>
+     <nodalPlane strike="270" dip="60" rake="-90" probability="0.0375"/>
+     <nodalPlane strike="0" dip="90" rake="0" probability="0.425"/>
+     <nodalPlane strike="90" dip="90" rake="0" probability="0.425"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="0.85" depth="8"/>
+     <hypoDepth probability="0.15" depth="21"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="17" name="Spezia-Toscana_Nord" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 9.2037 44.2509
+                 9.4365 44.4836
+                 10.4243 43.9923
+                 11.2389 43.9352
+                 11.5389 43.8289
+                 11.8771 43.5213
+                 11.4838 43.2661
+                 11.2559 43.4491
+                 10.9726 43.6602
+                 10.1506 43.5775
+                 9.2037 44.2509
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>1</upperSeismoDepth>
+     <lowerSeismoDepth>13</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0138899800	0.0111866900	0.0090095200	0.0072560700	0.0058438900	0.0047065300	0.0037905500	0.0030528200	0.0024586800	0.0019801600	0.0015947900	0.0012844000	0.0010344300	0.0008331100	0.0006709700	0.0005403800	0.0004352100	0.0003505200	0.0002822900	0.0002273500	0.0001831100	0.0001474700	0.0001187700	0.0000956500	0.0000770400	0.0000620400	0.0000499700	0.0000402400	0.0000324200	0.0000261000</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="88" dip="67" rake="-172" probability="0.35"/>
+     <nodalPlane strike="355" dip="83" rake="-22" probability="0.35"/>
+     <nodalPlane strike="0" dip="60" rake="-90" probability="0.075"/>
+     <nodalPlane strike="90" dip="60" rake="-90" probability="0.075"/>
+     <nodalPlane strike="180" dip="60" rake="-90" probability="0.075"/>
+     <nodalPlane strike="270" dip="60" rake="-90" probability="0.075"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="1" depth="8"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="18" name="Lunigiana-Casentino" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 9.4365 44.4836
+                 9.5966 44.6464
+                 10.6722 44.1357
+                 11.2952 44.1044
+                 11.6517 43.9577
+                 12.0934 43.7591
+                 11.8771 43.5213
+                 11.5389 43.8289
+                 11.2389 43.9352
+                 10.4243 43.9923
+                 9.4365 44.4836
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>0</upperSeismoDepth>
+     <lowerSeismoDepth>17</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0336978800	0.0271395500	0.0218576000	0.0176036500	0.0141776000	0.0114183300	0.0091960700	0.0074063300	0.0059648900	0.0048039900	0.0038690400	0.0031160300	0.0025095900	0.0020211700	0.0016278100	0.0013110000	0.0010558500	0.0008503600	0.0006848600	0.0005515700	0.0004442300	0.0003577700	0.0002881300	0.0002320700	0.0001868900	0.0001505300	0.0001212200	0.0000976400	0.0000786300	0.0000633300</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="308" dip="35" rake="-90" probability="0.15"/>
+     <nodalPlane strike="129" dip="54" rake="-89" probability="0.15"/>
+     <nodalPlane strike="0" dip="90" rake="0" probability="0.35"/>
+     <nodalPlane strike="90" dip="90" rake="0" probability="0.35"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="1" depth="9"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="191" name="Appennino_Tosco-Emiliano_Shallow" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 9.5966 44.6464
+                 9.8184 44.867
+                 10.5803 44.4908
+                 10.9043 44.4192
+                 11.331 44.3785
+                 11.6776 44.2629
+                 11.8792 44.1661
+                 12.2298 44.023
+                 12.0934 43.7591
+                 11.6517 43.9577
+                 11.2952 44.1044
+                 10.6722 44.1357
+                 9.5966 44.6464
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>1</upperSeismoDepth>
+     <lowerSeismoDepth>15</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0161934527	0.0131625283	0.0106989125	0.0086963994	0.0070686956	0.0057456560	0.0046702394	0.0037961190	0.0030855997	0.0025080664	0.0020386329	0.0016570681	0.0013469110	0.0010948099	0.0008898970	0.0007233341	0.0005879527	0.0004779000	0.0003884560	0.0003157444	0.0002566500	0.0002086122	0.0001695660	0.0001378299	0.0001120292	0.0000910665	0.0000740155</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="309" dip="44" rake="-99" probability="0.25"/>
+     <nodalPlane strike="142" dip="46" rake="-80" probability="0.25"/>
+     <nodalPlane strike="155" dip="84" rake="-175" probability="0.175"/>
+     <nodalPlane strike="64" dip="85" rake="-5" probability="0.175"/>
+     <nodalPlane strike="0" dip="30" rake="90" probability="0.0375"/>
+     <nodalPlane strike="90" dip="30" rake="90" probability="0.0375"/>
+     <nodalPlane strike="180" dip="30" rake="90" probability="0.0375"/>
+     <nodalPlane strike="270" dip="30" rake="90" probability="0.0375"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="1" depth="8"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="192" name="Appennino_Tosco-Emiliano_Deep" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 9.5966 44.6464
+                 9.8184 44.867
+                 10.5803 44.4908
+                 10.9043 44.4192
+                 11.331 44.3785
+                 11.6776 44.2629
+                 11.8792 44.1661
+                 12.2298 44.023
+                 12.0934 43.7591
+                 11.6517 43.9577
+                 11.2952 44.1044
+                 10.6722 44.1357
+                 9.5966 44.6464
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>15</upperSeismoDepth>
+     <lowerSeismoDepth>30</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0112530773	0.0091468417	0.0074348375	0.0060432606	0.0049121444	0.0039927440	0.0032454206	0.0026379810	0.0021442303	0.0017428936	0.0014166771	0.0011515219	0.0009359890	0.0007608001	0.0006184030	0.0005026559	0.0004085773	0.0003321000	0.0002699440	0.0002194156	0.0001783500	0.0001449678	0.0001178340	0.0000957801	0.0000778508	0.0000632835	0.0000514345</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="278" dip="34" rake="84" probability="0.5"/>
+     <nodalPlane strike="105" dip="55" rake="93" probability="0.5"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="1" depth="23"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="201" name="Emilia_Shallow" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 9.8184 44.867
+                 10.033 45.0784
+                 10.5184 44.7533
+                 10.7686 44.7044
+                 11.0868 44.609
+                 11.481 44.5784
+                 11.8711 44.5164
+                 12.1115 44.4067
+                 12.356 44.321
+                 12.2298 44.023
+                 11.8792 44.1661
+                 11.6776 44.2629
+                 11.331 44.3785
+                 10.9043 44.4192
+                 10.5803 44.4908
+                 9.8184 44.867
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>1</upperSeismoDepth>
+     <lowerSeismoDepth>15</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0152103690	0.0123634512	0.0100493838	0.0081684504	0.0066395700	0.0053968410	0.0043867170	0.0035656578	0.0028982718	0.0023558094	0.0019148724	0.0015564636	0.0012651444	0.0010283490	0.0008358714	0.0006794226	0.0005522526	0.0004488912	0.0003648672	0.0002965788	0.0002410722	0.0001959444	0.0001592730	0.0001294596	0.0001052298	0.0000855360	0.0000695250</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="299" dip="36" rake="87" probability="0.5"/>
+     <nodalPlane strike="122" dip="53" rake="91" probability="0.5"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="1" depth="8"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="202" name="Emilia_Deep" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 9.8184 44.867
+                 10.033 45.0784
+                 10.5184 44.7533
+                 10.7686 44.7044
+                 11.0868 44.609
+                 11.481 44.5784
+                 11.8711 44.5164
+                 12.1115 44.4067
+                 12.356 44.321
+                 12.2298 44.023
+                 11.8792 44.1661
+                 11.6776 44.2629
+                 11.331 44.3785
+                 10.9043 44.4192
+                 10.5803 44.4908
+                 9.8184 44.867
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>15</upperSeismoDepth>
+     <lowerSeismoDepth>30</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0129569810	0.0105318288	0.0085605862	0.0069583096	0.0056559300	0.0045973090	0.0037368330	0.0030374122	0.0024688982	0.0020068006	0.0016311876	0.0013258764	0.0010777156	0.0008760010	0.0007120386	0.0005787674	0.0004704374	0.0003823888	0.0003108128	0.0002526412	0.0002053578	0.0001669156	0.0001356770	0.0001102804	0.0000896402	0.0000728640	0.0000592250</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="9" dip="38" rake="26" probability="0.5"/>
+     <nodalPlane strike="259" dip="73" rake="125" probability="0.5"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="1" depth="23"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="21" name="Dorsale_Ferrarese" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 11.9322 44.8463
+                 12.3781 44.4488
+                 12.356 44.321
+                 12.1115 44.4067
+                 11.8711 44.5164
+                 11.481 44.5784
+                 11.0868 44.609
+                 10.7686 44.7044
+                 10.5184 44.7533
+                 10.7168 44.9411
+                 11.4184 45.0041
+                 11.9322 44.8463
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>2</upperSeismoDepth>
+     <lowerSeismoDepth>16</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0129964400	0.0105639000	0.0085866600	0.0069795100	0.0056731500	0.0046113100	0.0037482100	0.0030466600	0.0024764200	0.0020129100	0.0016361600	0.0013299200	0.0010809900	0.0008786700	0.0007142100	0.0005805300	0.0004718700	0.0003835500	0.0003117600	0.0002534100	0.0002059800	0.0001674300	0.0001360900	0.0001106200	0.0000899100	0.0000730800	0.0000594100</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="90" dip="33" rake="66" probability="0.5"/>
+     <nodalPlane strike="297" dip="59" rake="104" probability="0.5"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="1" depth="7"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="22" name="Area_geotermica_tosco-laziale" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 11.4838 43.2661
+                 12.1521 42.7296
+                 12.3212 42.4951
+                 12.776 41.969
+                 12.3413 41.7079
+                 10.1506 43.5775
+                 10.9726 43.6602
+                 11.2559 43.4491
+                 11.4838 43.2661
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>0</upperSeismoDepth>
+     <lowerSeismoDepth>17</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0338003800	0.0267252400	0.0211310800	0.0167078900	0.0132105700	0.0104453200	0.0082588900	0.0065301300	0.0051632300	0.0040824500	0.0032279200	0.0025522400	0.0020180000	0.0015955900	0.0012616000	0.0009975200	0.0007887200	0.0006236200	0.0004930900	0.0003898700	0.0003082600</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="0" dip="90" rake="0" probability="0.1"/>
+     <nodalPlane strike="90" dip="90" rake="0" probability="0.1"/>
+     <nodalPlane strike="0" dip="60" rake="-90" probability="0.1"/>
+     <nodalPlane strike="90" dip="60" rake="-90" probability="0.1"/>
+     <nodalPlane strike="180" dip="60" rake="-90" probability="0.1"/>
+     <nodalPlane strike="270" dip="60" rake="-90" probability="0.1"/>
+     <nodalPlane strike="0" dip="30" rake="90" probability="0.1"/>
+     <nodalPlane strike="90" dip="30" rake="90" probability="0.1"/>
+     <nodalPlane strike="180" dip="30" rake="90" probability="0.1"/>
+     <nodalPlane strike="270" dip="30" rake="90" probability="0.1"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="0.57" depth="6"/>
+     <hypoDepth probability="0.43" depth="11"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="23" name="Trasimeno-Ciociaria" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 11.8771 43.5213
+                 12.2434 43.2609
+                 12.4399 43.0247
+                 12.5818 42.9005
+                 12.7444 42.5653
+                 12.9556 42.1543
+                 13.4931 41.7062
+                 13.7515 41.5782
+                 13.9425 41.5187
+                 13.7651 41.3118
+                 13.3851 41.4214
+                 13.0827 41.6611
+                 13.2169 41.7586
+                 12.8725 42.0449
+                 12.776 41.969
+                 12.3212 42.4951
+                 12.1521 42.7296
+                 11.4838 43.2661
+                 11.8771 43.5213
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>0</upperSeismoDepth>
+     <lowerSeismoDepth>19</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0150569400	0.0121265300	0.0097664500	0.0078656900	0.0063348500	0.0051019600	0.0041090100	0.0033093000	0.0026652400	0.0021465300	0.0017287700	0.0013923100	0.0011213400	0.0009031000	0.0007273400	0.0005857800	0.0004717800	0.0003799600	0.0003060100	0.0002464500	0.0001984900	0.0001598600	0.0001287500	0.0001036900	0.0000835100	0.0000672600	0.0000541600	0.0000436300	0.0000351300	0.0000283000</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="0" dip="90" rake="0" probability="0.5"/>
+     <nodalPlane strike="90" dip="90" rake="0" probability="0.5"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="0.77" depth="6"/>
+     <hypoDepth probability="0.23" depth="10"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="24" name="Umbria-Abruzzo" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 12.0934 43.7591
+                 12.4238 43.5716
+                 12.7432 43.3504
+                 13.1518 42.9898
+                 13.4665 42.4961
+                 13.7333 42.4305
+                 14.0043 42.2902
+                 14.1827 41.7657
+                 13.9425 41.5187
+                 13.7515 41.5782
+                 13.4931 41.7062
+                 12.9556 42.1543
+                 12.7444 42.5653
+                 12.5818 42.9005
+                 12.4399 43.0247
+                 12.2434 43.2609
+                 11.8771 43.5213
+                 12.0934 43.7591
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>0</upperSeismoDepth>
+     <lowerSeismoDepth>14</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.1661926600	0.1338479800	0.1077982800	0.0868184100	0.0699216800	0.0563134100	0.0453536000	0.0365268200	0.0294179100	0.0236925500	0.0190814700	0.0153678100	0.0123769000	0.0099680800	0.0080280900	0.0064656400	0.0052072900	0.0041938400	0.0033776300	0.0027202700	0.0021908400	0.0017644600	0.0014210600	0.0011444900	0.0009217500	0.0007423500	0.0005978800	0.0004815200	0.0003878000	0.0003123300</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="321" dip="37" rake="-86" probability="0.5"/>
+     <nodalPlane strike="136" dip="52" rake="-92" probability="0.5"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="0.34" depth="4"/>
+     <hypoDepth probability="0.66" depth="9"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="251" name="Marche_interne_Shallow" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 12.2298 44.023
+                 12.4977 43.9136
+                 12.9176 43.7996
+                 13.3401 43.5872
+                 13.6758 43.2597
+                 13.8094 42.9789
+                 14.0043 42.2902
+                 13.7333 42.4305
+                 13.4665 42.4961
+                 13.1518 42.9898
+                 12.7432 43.3504
+                 12.4238 43.5716
+                 12.0934 43.7591
+                 12.2298 44.023
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>1</upperSeismoDepth>
+     <lowerSeismoDepth>15</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0196133820	0.0159423530	0.0129584358	0.0105330102	0.0085615482	0.0069590926	0.0056565581	0.0045978267	0.0037372520	0.0030377557	0.0024691779	0.0020070222	0.0016313700	0.0013260298	0.0010778322	0.0008760988	0.0007121205	0.0005788285	0.0004704935	0.0003824296	0.0003108533	0.0002526673	0.0002053806	0.0001669346	0.0001356937	0.0001102902	0.0000896525</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="0" dip="90" rake="0" probability="0.075"/>
+     <nodalPlane strike="90" dip="90" rake="0" probability="0.075"/>
+     <nodalPlane strike="0" dip="60" rake="-90" probability="0.2125"/>
+     <nodalPlane strike="90" dip="60" rake="-90" probability="0.2125"/>
+     <nodalPlane strike="180" dip="60" rake="-90" probability="0.2125"/>
+     <nodalPlane strike="270" dip="60" rake="-90" probability="0.2125"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="1" depth="8"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="252" name="Marche_interne_Deep" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 12.2298 44.023
+                 12.4977 43.9136
+                 12.9176 43.7996
+                 13.3401 43.5872
+                 13.6758 43.2597
+                 13.8094 42.9789
+                 14.0043 42.2902
+                 13.7333 42.4305
+                 13.4665 42.4961
+                 13.1518 42.9898
+                 12.7432 43.3504
+                 12.4238 43.5716
+                 12.0934 43.7591
+                 12.2298 44.023
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>15</upperSeismoDepth>
+     <lowerSeismoDepth>30</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0221172180	0.0179775470	0.0146127042	0.0118776498	0.0096545118	0.0078474874	0.0063786719	0.0051847833	0.0042143480	0.0034255543	0.0027843921	0.0022632378	0.0018396300	0.0014953102	0.0012154278	0.0009879412	0.0008030295	0.0006527215	0.0005305565	0.0004312504	0.0003505367	0.0002849227	0.0002315994	0.0001882454	0.0001530163	0.0001243698	0.0001010975</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="0" dip="90" rake="0" probability="0.375"/>
+     <nodalPlane strike="90" dip="90" rake="0" probability="0.375"/>
+     <nodalPlane strike="0" dip="30" rake="90" probability="0.0625"/>
+     <nodalPlane strike="90" dip="30" rake="90" probability="0.0625"/>
+     <nodalPlane strike="180" dip="30" rake="90" probability="0.0625"/>
+     <nodalPlane strike="270" dip="30" rake="90" probability="0.0625"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="1" depth="23"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="26" name="Rimini-Conero" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 13.2474 44.0557
+                 13.5582 43.9486
+                 13.9081 43.5622
+                 14.0093 43.3659
+                 14.1821 43.0309
+                 14.1739 42.4957
+                 14.361 42.2939
+                 14.3703 42.1575
+                 14.3221 41.9801
+                 14.1827 41.7657
+                 14.0043 42.2902
+                 13.8094 42.9789
+                 13.6758 43.2597
+                 13.3401 43.5872
+                 12.9176 43.7996
+                 12.4977 43.9136
+                 12.2298 44.023
+                 12.356 44.321
+                 12.5386 44.2564
+                 12.8779 44.2041
+                 13.2474 44.0557
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>0</upperSeismoDepth>
+     <lowerSeismoDepth>30</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0309850400	0.0251855900	0.0204716100	0.0166399500	0.0135254700	0.0109939000	0.0089361900	0.0072636000	0.0059040800	0.0047990100	0.0039007900	0.0031706800	0.0025772200	0.0020948400	0.0017027600	0.0013840500	0.0011250000	0.0009144300	0.0007432800	0.0006041600	0.0004910800	0.0003991700	0.0003244500	0.0002637300	0.0002143600	0.0001742400	0.0001416300</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="112" dip="38" rake="61" probability="0.2"/>
+     <nodalPlane strike="327" dip="56" rake="110" probability="0.2"/>
+     <nodalPlane strike="0" dip="90" rake="0" probability="0.3"/>
+     <nodalPlane strike="90" dip="90" rake="0" probability="0.3"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="0.72" depth="7"/>
+     <hypoDepth probability="0.28" depth="19"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="27" name="Costa_Tirrenica_settentrionale" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 9.2037 44.2509
+                 10.1506 43.5775
+                 12.3413 41.7079
+                 12.7285 41.3921
+                 12.3735 41.1589
+                 9.7014 42.9422
+                 8.5688 43.6981
+                 9.2037 44.2509
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>0</upperSeismoDepth>
+     <lowerSeismoDepth>22</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0024687900	0.0019520100	0.0015434200	0.0012203500	0.0009649000	0.0007629300	0.0006032300	0.0004769600	0.0003771200	0.0002981900	0.0002357700	0.0001864100	0.0001474000	0.0001165400	0.0000921500	0.0000728600	0.0000576000	0.0000455500	0.0000360200	0.0000284700	0.0000225200</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="0" dip="90" rake="0" probability="0.1"/>
+     <nodalPlane strike="90" dip="90" rake="0" probability="0.1"/>
+     <nodalPlane strike="0" dip="60" rake="-90" probability="0.1"/>
+     <nodalPlane strike="90" dip="60" rake="-90" probability="0.1"/>
+     <nodalPlane strike="180" dip="60" rake="-90" probability="0.1"/>
+     <nodalPlane strike="270" dip="60" rake="-90" probability="0.1"/>
+     <nodalPlane strike="0" dip="30" rake="90" probability="0.1"/>
+     <nodalPlane strike="90" dip="30" rake="90" probability="0.1"/>
+     <nodalPlane strike="180" dip="30" rake="90" probability="0.1"/>
+     <nodalPlane strike="270" dip="30" rake="90" probability="0.1"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="0.58" depth="6"/>
+     <hypoDepth probability="0.42" depth="18"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="28" name="Colli_Albani" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 12.776 41.969
+                 12.8725 42.0449
+                 13.2169 41.7586
+                 13.0827 41.6611
+                 12.7285 41.3921
+                 12.3413 41.7079
+                 12.776 41.969
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>0</upperSeismoDepth>
+     <lowerSeismoDepth>20</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0141189700	0.0111635600	0.0088268000	0.0069791500	0.0055182700	0.0043631800	0.0034498800	0.0027277400	0.0021567600	0.0017053100	0.0013483500	0.0010661100	0.0008429600	0.0006665000	0.0005269900	0.0004166800	0.0003294600	0.0002605000	0.0002059700	0.0001628500	0.0001287700</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="0" dip="90" rake="0" probability="0.1"/>
+     <nodalPlane strike="90" dip="90" rake="0" probability="0.1"/>
+     <nodalPlane strike="0" dip="60" rake="-90" probability="0.1"/>
+     <nodalPlane strike="90" dip="60" rake="-90" probability="0.1"/>
+     <nodalPlane strike="180" dip="60" rake="-90" probability="0.1"/>
+     <nodalPlane strike="270" dip="60" rake="-90" probability="0.1"/>
+     <nodalPlane strike="0" dip="30" rake="90" probability="0.1"/>
+     <nodalPlane strike="90" dip="30" rake="90" probability="0.1"/>
+     <nodalPlane strike="180" dip="30" rake="90" probability="0.1"/>
+     <nodalPlane strike="270" dip="30" rake="90" probability="0.1"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="0.35" depth="9"/>
+     <hypoDepth probability="0.65" depth="11"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="29" name="Chieti-Pescara" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 14.0093 43.3659
+                 15.1714 42.5691
+                 16.4161 41.9596
+                 14.3221 41.9801
+                 14.3703 42.1575
+                 14.361 42.2939
+                 14.1739 42.4957
+                 14.1821 43.0309
+                 14.0093 43.3659
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>0</upperSeismoDepth>
+     <lowerSeismoDepth>27</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0101344300	0.0080315400	0.0063650200	0.0050442800	0.0039975900	0.0031681100	0.0025107200	0.0019897500	0.0015768900	0.0012496800	0.0009903700	0.0007848700	0.0006220200	0.0004929400	0.0003906600	0.0003096000	0.0002453600	0.0001944400	0.0001541000	0.0001221300	0.0000967800</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="0" dip="90" rake="0" probability="0.1"/>
+     <nodalPlane strike="90" dip="90" rake="0" probability="0.1"/>
+     <nodalPlane strike="191" dip="44" rake="64" probability="0.4"/>
+     <nodalPlane strike="44" dip="50" rake="112" probability="0.4"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="0.76" depth="7"/>
+     <hypoDepth probability="0.24" depth="24"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="30" name="Adriatico_centrale" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 13.8457 44.7324
+                 14.8437 43.9505
+                 15.8115 43.2111
+                 17.5096 42.4499
+                 17.8393 42.4175
+                 17.6102 41.8931
+                 17.03 41.9279
+                 16.5422 41.9572
+                 16.4161 41.9596
+                 15.1714 42.5691
+                 14.0093 43.3659
+                 13.9081 43.5622
+                 13.5582 43.9486
+                 13.2474 44.0557
+                 13.3537 44.2415
+                 13.8457 44.7324
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>0</upperSeismoDepth>
+     <lowerSeismoDepth>32</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0349074700	0.0276642200	0.0219239300	0.0173747400	0.0137695000	0.0109123600	0.0086480500	0.0068535900	0.0054314900	0.0043044500	0.0034112900	0.0027034500	0.0021424900	0.0016979200	0.0013456100	0.0010664000	0.0008451200	0.0006697500	0.0005307900	0.0004206500	0.0003333600</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="267" dip="71" rake="-9" probability="0.1"/>
+     <nodalPlane strike="0" dip="80" rake="-161" probability="0.1"/>
+     <nodalPlane strike="286" dip="44" rake="92" probability="0.4"/>
+     <nodalPlane strike="102" dip="45" rake="87" probability="0.4"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="0.35" depth="5"/>
+     <hypoDepth probability="0.65" depth="20"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="31" name="Ischia-Vesuvio" tectonicRegion="Volcanic Shallow">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 14.5405 40.7779
+                 13.9151 40.6008
+                 13.7796 40.83
+                 14.2852 40.9778
+                 14.5405 40.7779
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>0</upperSeismoDepth>
+     <lowerSeismoDepth>4</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="3.5" binWidth="0.1">
+     <occurRates>0.0565161510	0.0401027210	0.0284560820	0.0201918619	0.0143277380	0.0101666739	0.0072140668	0.0051189563	0.0036323081	0.0025774126	0.0018288800	0.0012977300	0.0009208400	0.0006534000	0.0004636500	0.0003289900	0.0002334400	0.0001656500	0.0001175400	0.0000834000	0.0000591800	0.0000420000	0.0000298000	0.0000211400	0.0000150000	0.0000106500	0.0000075500	0.0000053600	0.0000038100	0.0000026900	0.0000019200</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="0" dip="90" rake="0" probability="0.1"/>
+     <nodalPlane strike="90" dip="90" rake="0" probability="0.1"/>
+     <nodalPlane strike="0" dip="60" rake="-90" probability="0.1"/>
+     <nodalPlane strike="90" dip="60" rake="-90" probability="0.1"/>
+     <nodalPlane strike="180" dip="60" rake="-90" probability="0.1"/>
+     <nodalPlane strike="270" dip="60" rake="-90" probability="0.1"/>
+     <nodalPlane strike="0" dip="30" rake="90" probability="0.1"/>
+     <nodalPlane strike="90" dip="30" rake="90" probability="0.1"/>
+     <nodalPlane strike="180" dip="30" rake="90" probability="0.1"/>
+     <nodalPlane strike="270" dip="30" rake="90" probability="0.1"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="1" depth="1"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="32" name="Campania_tirrenica" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 13.9425 41.5187
+                 14.835 40.9057
+                 15.2219 40.5809
+                 15.7844 39.9937
+                 16.0451 39.7101
+                 16.0402 39.4399
+                 15.7062 39.6856
+                 14.5405 40.7779
+                 14.2852 40.9778
+                 13.7651 41.3118
+                 13.9425 41.5187
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>0</upperSeismoDepth>
+     <lowerSeismoDepth>20</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0046836000	0.0039680800	0.0033618600	0.0028482700	0.0024131200	0.0020444700	0.0017321300	0.0014675100	0.0012433100	0.0010533700	0.0008924400	0.0007561000	0.0006405900	0.0005427300	0.0004598100	0.0003895600	0.0003300500	0.0002796300	0.0002369100	0.0002007100	0.0001700500	0.0001440800	0.0001220600	0.0001034100	0.0000876200	0.0000742300	0.0000628900	0.0000532800	0.0000451400	0.0000382500	0.0000324000</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="0" dip="60" rake="-90" probability="0.25"/>
+     <nodalPlane strike="90" dip="60" rake="-90" probability="0.25"/>
+     <nodalPlane strike="180" dip="60" rake="-90" probability="0.25"/>
+     <nodalPlane strike="270" dip="60" rake="-90" probability="0.25"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="0.87" depth="8"/>
+     <hypoDepth probability="0.13" depth="16"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="33" name="Sannio-Irpinia" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 14.1827 41.7657
+                 14.6206 41.4594
+                 15.1167 41.1282
+                 15.4478 40.865
+                 15.8157 40.5259
+                 16.1983 40.0867
+                 16.4603 39.7052
+                 16.0451 39.7101
+                 15.7844 39.9937
+                 15.2219 40.5809
+                 14.835 40.9057
+                 13.9425 41.5187
+                 14.1827 41.7657
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>0</upperSeismoDepth>
+     <lowerSeismoDepth>17</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0365155100	0.0309369400	0.0262106200	0.0222063600	0.0188138300	0.0159396000	0.0135044700	0.0114413500	0.0096934200	0.0082125400	0.0069578900	0.0058949100	0.0049943300	0.0042313400	0.0035849000	0.0030372300	0.0025732200	0.0021801000	0.0018470500	0.0015648600	0.0013258000	0.0011232600	0.0009516500	0.0008062600	0.0006830900	0.0005787300	0.0004903200	0.0004154100	0.0003519500	0.0002981700	0.0002526300</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="135" dip="40" rake="-80" probability="0.5"/>
+     <nodalPlane strike="302" dip="50" rake="-98" probability="0.5"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="0.76" depth="7"/>
+     <hypoDepth probability="0.24" depth="12"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="34" name="Gargano" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 16.4161 41.9596
+                 16.5422 41.9572
+                 17.03 41.9279
+                 17.0161 41.4462
+                 16.5386 41.4488
+                 14.6206 41.4594
+                 14.1827 41.7657
+                 14.3221 41.9801
+                 16.4161 41.9596
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>0</upperSeismoDepth>
+     <lowerSeismoDepth>27</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0362827100	0.0296278100	0.0241935500	0.0197560300	0.0161324200	0.0131734600	0.0107572100	0.0087841400	0.0071729800	0.0058573300	0.0047829900	0.0039057100	0.0031893300	0.0026043500	0.0021266700	0.0017366000	0.0014180800	0.0011579700	0.0009455900	0.0007721400	0.0006305200	0.0005148800	0.0004204300	0.0003433200	0.0002803500	0.0002289300</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="176" dip="73" rake="0" probability="0.5"/>
+     <nodalPlane strike="86" dip="89" rake="163" probability="0.5"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="0.46" depth="6"/>
+     <hypoDepth probability="0.54" depth="18"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="35" name="Ofanto" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 16.5386 41.4488
+                 16.5404 40.8612
+                 15.4478 40.865
+                 15.1167 41.1282
+                 14.6206 41.4594
+                 16.5386 41.4488
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>0</upperSeismoDepth>
+     <lowerSeismoDepth>20</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0226909600	0.0185290500	0.0151304900	0.0123552900	0.0100891100	0.0082385900	0.0067274900	0.0054935500	0.0044859300	0.0036631400	0.0029912500	0.0024426000	0.0019945900	0.0016287500	0.0013300000	0.0010860600	0.0008868500	0.0007241900	0.0005913700	0.0004828900	0.0003943300	0.0003219900	0.0002629400	0.0002147100	0.0001753300	0.0001431700</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="168" dip="31" rake="-55" probability="0.25"/>
+     <nodalPlane strike="309" dip="64" rake="-108" probability="0.25"/>
+     <nodalPlane strike="0" dip="90" rake="0" probability="0.25"/>
+     <nodalPlane strike="90" dip="90" rake="0" probability="0.25"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="0.66" depth="7"/>
+     <hypoDepth probability="0.34" depth="16"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="36" name="Potenza-Matera" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 16.5404 40.8612
+                 17.4348 40.8425
+                 17.441 40.485
+                 15.8157 40.5259
+                 15.4478 40.865
+                 16.5404 40.8612
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>0</upperSeismoDepth>
+     <lowerSeismoDepth>27</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0072102100	0.0058877300	0.0048078200	0.0039259800	0.0032058900	0.0026178700	0.0021377100	0.0017456100	0.0014254400	0.0011639800	0.0009504900	0.0007761600	0.0006337900	0.0005175500	0.0004226200	0.0003451000	0.0002818000	0.0002301200	0.0001879100	0.0001534400	0.0001253000	0.0001023200	0.0000835500	0.0000682200	0.0000557200	0.0000454900</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="184" dip="73" rake="10" probability="0.5"/>
+     <nodalPlane strike="90" dip="79" rake="162" probability="0.5"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="0.61" depth="6"/>
+     <hypoDepth probability="0.39" depth="16"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="37" name="Puglia_meridionale" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 17.6102 41.8931
+                 18.9115 40.1859
+                 18.6644 39.646
+                 18.3287 38.8968
+                 17.2032 39.6916
+                 16.1983 40.0867
+                 15.8157 40.5259
+                 17.441 40.485
+                 17.4348 40.8425
+                 16.5404 40.8612
+                 16.5386 41.4488
+                 17.0161 41.4462
+                 17.03 41.9279
+                 17.6102 41.8931
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>0</upperSeismoDepth>
+     <lowerSeismoDepth>28</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0043430000	0.0035464200	0.0028959400	0.0023647800	0.0019310300	0.0015768500	0.0012876300	0.0010514500	0.0008586000	0.0007011200	0.0005725200	0.0004675100	0.0003817600	0.0003117400	0.0002545600	0.0002078700	0.0001697400	0.0001386100	0.0001131800	0.0000924300	0.0000754700	0.0000616300	0.0000503200	0.0000411000	0.0000335600	0.0000274000</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="0" dip="90" rake="0" probability="0.1"/>
+     <nodalPlane strike="90" dip="90" rake="0" probability="0.1"/>
+     <nodalPlane strike="0" dip="60" rake="-90" probability="0.1"/>
+     <nodalPlane strike="90" dip="60" rake="-90" probability="0.1"/>
+     <nodalPlane strike="180" dip="60" rake="-90" probability="0.1"/>
+     <nodalPlane strike="270" dip="60" rake="-90" probability="0.1"/>
+     <nodalPlane strike="0" dip="30" rake="90" probability="0.1"/>
+     <nodalPlane strike="90" dip="30" rake="90" probability="0.1"/>
+     <nodalPlane strike="180" dip="30" rake="90" probability="0.1"/>
+     <nodalPlane strike="270" dip="30" rake="90" probability="0.1"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="0.75" depth="9"/>
+     <hypoDepth probability="0.25" depth="24"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="38" name="Canale_d'Otranto" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 18.9115 40.1859
+                 19.1175 40.0194
+                 18.93 39.5131
+                 18.6644 39.646
+                 18.9115 40.1859
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>0</upperSeismoDepth>
+     <lowerSeismoDepth>11</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0026942800	0.0022001100	0.0017965600	0.0014670500	0.0011979600	0.0009782400	0.0007988100	0.0006522900	0.0005326600	0.0004349500	0.0003551800	0.0002900300	0.0002368300	0.0001933900	0.0001579300	0.0001289500	0.0001053100	0.0000859900	0.0000702100	0.0000573400	0.0000468200	0.0000382400	0.0000312200	0.0000254900	0.0000208200	0.0000170000</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="0" dip="90" rake="0" probability="0.1"/>
+     <nodalPlane strike="90" dip="90" rake="0" probability="0.1"/>
+     <nodalPlane strike="0" dip="60" rake="-90" probability="0.1"/>
+     <nodalPlane strike="90" dip="60" rake="-90" probability="0.1"/>
+     <nodalPlane strike="180" dip="60" rake="-90" probability="0.1"/>
+     <nodalPlane strike="270" dip="60" rake="-90" probability="0.1"/>
+     <nodalPlane strike="0" dip="30" rake="90" probability="0.1"/>
+     <nodalPlane strike="90" dip="30" rake="90" probability="0.1"/>
+     <nodalPlane strike="180" dip="30" rake="90" probability="0.1"/>
+     <nodalPlane strike="270" dip="30" rake="90" probability="0.1"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="1" depth="6"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="39" name="Calabria_tirrenica" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 16.4603 39.7052
+                 16.672 39.2393
+                 16.6677 39.0012
+                 16.5082 38.8145
+                 15.8641 37.9439
+                 15.7261 37.7574
+                 15.295 37.7945
+                 15.171 38.29
+                 15.6363 38.3467
+                 16.0276 39.0035
+                 16.0402 39.4399
+                 16.0451 39.7101
+                 16.4603 39.7052
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>0</upperSeismoDepth>
+     <lowerSeismoDepth>22</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0407760700	0.0345466100	0.0292688400	0.0247973500	0.0210090100	0.0177994000	0.0150801400	0.0127763100	0.0108244400	0.0091707600	0.0077697200	0.0065827200	0.0055770600	0.0047250400	0.0040031900	0.0033916000	0.0028734600	0.0024344800	0.0020625500	0.0017474600	0.0014804900	0.0012543100	0.0010626800	0.0009003400	0.0007627900	0.0006462600	0.0005475300	0.0004638800	0.0003930100	0.0003329700	0.0002821000</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="358" dip="39" rake="-113" probability="0.5"/>
+     <nodalPlane strike="208" dip="54" rake="-71" probability="0.5"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="0.74" depth="8"/>
+     <hypoDepth probability="0.26" depth="16"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="40" name="Calabria_Ionica" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 16.1983 40.0867
+                 17.2032 39.6916
+                 17.2224 38.9336
+                 16.1654 37.8702
+                 15.8641 37.9439
+                 16.5082 38.8145
+                 16.6677 39.0012
+                 16.672 39.2393
+                 16.4603 39.7052
+                 16.1983 40.0867
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>0</upperSeismoDepth>
+     <lowerSeismoDepth>23</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0168998300	0.0143179900	0.0121306000	0.0102773800	0.0087072700	0.0073770500	0.0062500300	0.0052952000	0.0044862400	0.0038008600	0.0032202000	0.0027282300	0.0023114400	0.0019583200	0.0016591300	0.0014056700	0.0011909200	0.0010089800	0.0008548300	0.0007242400	0.0006136000	0.0005198500	0.0004404400	0.0003731500	0.0003161400	0.0002678400	0.0002269300	0.0001922600	0.0001628800	0.0001380000	0.0001169200</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="0" dip="60" rake="-90" probability="0.0375"/>
+     <nodalPlane strike="90" dip="60" rake="-90" probability="0.0375"/>
+     <nodalPlane strike="180" dip="60" rake="-90" probability="0.0375"/>
+     <nodalPlane strike="270" dip="60" rake="-90" probability="0.0375"/>
+     <nodalPlane strike="0" dip="90" rake="0" probability="0.425"/>
+     <nodalPlane strike="90" dip="90" rake="0" probability="0.425"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="0.67" depth="8"/>
+     <hypoDepth probability="0.33" depth="18"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="41" name="Mar_Ionio" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 18.3287 38.8968
+                 18.529 38.1372
+                 18.1422 37.5453
+                 16.9963 36.7
+                 16.3697 36.5556
+                 15.467 36.6876
+                 15.2492 37.5232
+                 15.175 37.5134
+                 15.295 37.7945
+                 15.7261 37.7574
+                 15.8641 37.9439
+                 16.1654 37.8702
+                 17.2224 38.9336
+                 17.2032 39.6916
+                 18.3287 38.8968
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>2</upperSeismoDepth>
+     <lowerSeismoDepth>33</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0135099900	0.0100845200	0.0075275800	0.0056189500	0.0041942600	0.0031308000	0.0023369800	0.0017444300	0.0013021400	0.0009719700	0.0007255300	0.0005415700	0.0004042600	0.0003017500	0.0002252500	0.0001681300	0.0001255000	0.0000936900	0.0000699200	0.0000522000	0.0000389700	0.0000290800	0.0000217100</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="278" dip="59" rake="171" probability="0.5"/>
+     <nodalPlane strike="12" dip="82" rake="31" probability="0.5"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="0.4" depth="9"/>
+     <hypoDepth probability="0.6" depth="25"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="42" name="Sardegna-Corsica" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 8.5688 43.6981
+                 9.7014 42.9422
+                 10.1976 41.4099
+                 10.2949 39.1494
+                 8.0143 38.093
+                 7.4932 42.2445
+                 8.0295 43.2214
+                 8.5688 43.6981
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>1</upperSeismoDepth>
+     <lowerSeismoDepth>24</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0167548900	0.0118342800	0.0083587500	0.0059039400	0.0041700500	0.0029453800	0.0020803800	0.0014694000	0.0010378700	0.0007330600	0.0005177800	0.0003657100	0.0002583100	0.0001824500	0.0001288700	0.0000910200</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="0" dip="30" rake="90" probability="0.25"/>
+     <nodalPlane strike="90" dip="30" rake="90" probability="0.25"/>
+     <nodalPlane strike="180" dip="30" rake="90" probability="0.25"/>
+     <nodalPlane strike="270" dip="30" rake="90" probability="0.25"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="0.5" depth="7"/>
+     <hypoDepth probability="0.5" depth="19"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="43" name="Ustica-Alicudi" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 14.7194 38.3475
+                 13.1586 38.2505
+                 12.3505 38.1671
+                 11.8922 38.0014
+                 11.8 37.9655
+                 11.5627 38.395
+                 13.0499 38.7368
+                 14.5759 38.7697
+                 14.7194 38.3475
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>0</upperSeismoDepth>
+     <lowerSeismoDepth>18</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0430614200	0.0321431400	0.0239932100	0.0179097000	0.0133686800	0.0099790300	0.0074488300	0.0055601800	0.0041503800	0.0030980500	0.0023125400	0.0017261900	0.0012885100	0.0009618100	0.0007179400	0.0005359000	0.0004000300	0.0002986000	0.0002228900	0.0001663700	0.0001241900	0.0000927000	0.0000692000</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="24" dip="45" rake="41" probability="0.275"/>
+     <nodalPlane strike="262" dip="61" rake="127" probability="0.275"/>
+     <nodalPlane strike="72" dip="38" rake="90" probability="0.225"/>
+     <nodalPlane strike="252" dip="51" rake="89" probability="0.225"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="0.41" depth="5"/>
+     <hypoDepth probability="0.59" depth="11"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="44" name="Eolie-Patti" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 14.5759 38.7697
+                 14.9901 38.7829
+                 15.171 38.29
+                 15.295 37.7945
+                 14.794 37.7433
+                 14.8378 37.8357
+                 14.7194 38.3475
+                 14.5759 38.7697
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>0</upperSeismoDepth>
+     <lowerSeismoDepth>18</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0198121100	0.0155930300	0.0122724300	0.0096589700	0.0076020500	0.0059831600	0.0047090200	0.0037062100	0.0029169700	0.0022957800	0.0018068800	0.0014221100	0.0011192500	0.0008809100	0.0006933200	0.0005456700	0.0004294700	0.0003380100	0.0002660300	0.0002093800	0.0001647900	0.0001296900	0.0001020800</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="0" dip="90" rake="0" probability="0.5"/>
+     <nodalPlane strike="90" dip="90" rake="0" probability="0.5"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="0.84" depth="9"/>
+     <hypoDepth probability="0.16" depth="17"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="45" name="Cefalu" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 14.7194 38.3475
+                 14.8378 37.8357
+                 14.794 37.7433
+                 14.0937 37.8266
+                 13.7729 37.7885
+                 13.4827 37.9949
+                 13.1586 38.2505
+                 14.7194 38.3475
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>0</upperSeismoDepth>
+     <lowerSeismoDepth>20</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0181303400	0.0142694000	0.0112306800	0.0088390500	0.0069567500	0.0054752700	0.0043092900	0.0033916100	0.0026693600	0.0021009000	0.0016535000	0.0013013900	0.0010242500	0.0008061300	0.0006344600	0.0004993500	0.0003930200	0.0003093200	0.0002434400	0.0001916100	0.0001508000	0.0001186900	0.0000934100</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="100" dip="36" rake="-93" probability="0.125"/>
+     <nodalPlane strike="285" dip="53" rake="-87" probability="0.125"/>
+     <nodalPlane strike="0" dip="90" rake="0" probability="0.375"/>
+     <nodalPlane strike="90" dip="90" rake="0" probability="0.375"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="0.68" depth="6"/>
+     <hypoDepth probability="0.32" depth="11"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="46" name="Sicilia_occidentale" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 13.1586 38.2505
+                 13.4827 37.9949
+                 13.7729 37.7885
+                 14.0937 37.8266
+                 14.794 37.7433
+                 15.295 37.7945
+                 15.175 37.5134
+                 14.7006 37.3592
+                 14.4034 37.1825
+                 14.2236 37.0701
+                 13.9237 37.0592
+                 13.7112 37.1107
+                 13.5043 37.1973
+                 13.1096 37.4889
+                 12.9065 37.5831
+                 12.7606 37.5847
+                 12.507 37.4306
+                 11.8922 38.0014
+                 12.3505 38.1671
+                 13.1586 38.2505
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>0</upperSeismoDepth>
+     <lowerSeismoDepth>35</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0227660300	0.0169936700	0.0126849100	0.0094686300	0.0070678500	0.0052757900	0.0039381000	0.0029396000	0.0021942500	0.0016379000	0.0012226100	0.0009126200	0.0006812200	0.0005084900	0.0003795700	0.0002833200	0.0002114900	0.0001578700	0.0001178400	0.0000879600	0.0000656600	0.0000490100	0.0000365800</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="270" dip="50" rake="34" probability="0.5"/>
+     <nodalPlane strike="157" dip="65" rake="135" probability="0.5"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="0.59" depth="10"/>
+     <hypoDepth probability="0.41" depth="28"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="47" name="Malta-Lampedusa" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 14.4034 37.1825
+                 14.6167 36.6583
+                 15.467 36.6876
+                 16.3871 34.952
+                 11.9437 34.994
+                 10.6572 36.178
+                 13.1096 37.4889
+                 13.5043 37.1973
+                 13.7112 37.1107
+                 13.9237 37.0592
+                 14.2236 37.0701
+                 14.4034 37.1825
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>4</upperSeismoDepth>
+     <lowerSeismoDepth>23</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0734244200	0.0566031500	0.0436355600	0.0336388000	0.0259322700	0.0199912800	0.0154113500	0.0118806600	0.0091588400	0.0070605800	0.0054430300	0.0041960500	0.0032347500	0.0024936800	0.0019223800	0.0014819800	0.0011424500	0.0008807300	0.0006789500	0.0005234100	0.0004035000</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="189" dip="70" rake="-5" probability="0.4"/>
+     <nodalPlane strike="281" dip="85" rake="-160" probability="0.4"/>
+     <nodalPlane strike="0" dip="30" rake="90" probability="0.05"/>
+     <nodalPlane strike="90" dip="30" rake="90" probability="0.05"/>
+     <nodalPlane strike="180" dip="30" rake="90" probability="0.05"/>
+     <nodalPlane strike="270" dip="30" rake="90" probability="0.05"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="0.7" depth="10"/>
+     <hypoDepth probability="0.3" depth="20"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="48" name="Iblei" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 15.175 37.5134
+                 15.2492 37.5232
+                 15.467 36.6876
+                 14.6167 36.6583
+                 14.4034 37.1825
+                 14.7006 37.3592
+                 15.175 37.5134
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>0</upperSeismoDepth>
+     <lowerSeismoDepth>31</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0102624500	0.0088359000	0.0076076500	0.0065501500	0.0056396300	0.0048556900	0.0041807200	0.0035995700	0.0030992100	0.0026684000	0.0022974800	0.0019781100	0.0017031400	0.0014663900	0.0012625600	0.0010870500	0.0009359500	0.0008058400	0.0006938300	0.0005973800	0.0005143400	0.0004428500	0.0003812800	0.0003282900	0.0002826500	0.0002433600	0.0002095300	0.0001804100	0.0001553300	0.0001337300	0.0001151500	0.0000991400</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="190" dip="80" rake="4" probability="0.45"/>
+     <nodalPlane strike="99" dip="85" rake="169" probability="0.45"/>
+     <nodalPlane strike="0" dip="30" rake="90" probability="0.025"/>
+     <nodalPlane strike="90" dip="30" rake="90" probability="0.025"/>
+     <nodalPlane strike="180" dip="30" rake="90" probability="0.025"/>
+     <nodalPlane strike="270" dip="30" rake="90" probability="0.025"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="0.41" depth="8"/>
+     <hypoDepth probability="0.59" depth="22"/>
+ </hypoDepthDist>
+</areaSource>
+<areaSource id="50" name="Costa_Tirrenica_meridionale" tectonicRegion="Active Shallow Crust">
+    <areaGeometry>
+     <gml:Polygon>
+         <gml:exterior>
+             <gml:LinearRing>
+                 <gml:posList>
+                 13.0827 41.6611
+                 13.3851 41.4214
+                 13.7651 41.3118
+                 14.2852 40.9778
+                 14.5405 40.7779
+                 15.7062 39.6856
+                 16.0402 39.4399
+                 16.0276 39.0035
+                 15.6363 38.3467
+                 15.171 38.29
+                 14.9901 38.7829
+                 15.1125 38.9169
+                 15.2347 39.2245
+                 14.792 39.6862
+                 12.7848 40.8843
+                 12.3735 41.1589
+                 12.7285 41.3921
+                 13.0827 41.6611
+                 </gml:posList>
+             </gml:LinearRing>
+         </gml:exterior>
+     </gml:Polygon>
+     <upperSeismoDepth>0</upperSeismoDepth>
+     <lowerSeismoDepth>22</lowerSeismoDepth>
+     </areaGeometry>
+ <magScaleRel>WC1994</magScaleRel>
+ <ruptAspectRatio>1.0</ruptAspectRatio>
+ <incrementalMFD minMag="4.5" binWidth="0.1">
+     <occurRates>0.0256042500	0.0181682000	0.0128917500	0.0091477000	0.0064910100	0.0046058700	0.0032682200	0.0023190600	0.0016455600	0.0011676500	0.0008285300	0.0005879100	0.0004171700	0.0002960200	0.0002100400	0.0001490400	0.0001057600	0.0000750500	0.0000532400	0.0000377900	0.0000268100</occurRates>
+ </incrementalMFD>
+ <nodalPlaneDist>
+     <nodalPlane strike="0" dip="60" rake="-90" probability="0.125"/>
+     <nodalPlane strike="90" dip="60" rake="-90" probability="0.125"/>
+     <nodalPlane strike="180" dip="60" rake="-90" probability="0.125"/>
+     <nodalPlane strike="270" dip="60" rake="-90" probability="0.125"/>
+     <nodalPlane strike="253" dip="11" rake="-29" probability="0.15"/>
+     <nodalPlane strike="11" dip="84" rake="-99" probability="0.15"/>
+     <nodalPlane strike="0" dip="30" rake="90" probability="0.05"/>
+     <nodalPlane strike="90" dip="30" rake="90" probability="0.05"/>
+     <nodalPlane strike="180" dip="30" rake="90" probability="0.05"/>
+     <nodalPlane strike="270" dip="30" rake="90" probability="0.05"/>
+ </nodalPlaneDist>
+ <hypoDepthDist>
+     <hypoDepth probability="0.46" depth="6"/>
+     <hypoDepth probability="0.54" depth="13"/>
+ </hypoDepthDist>
+</areaSource>
+   </sourceModel>
+</nrml>

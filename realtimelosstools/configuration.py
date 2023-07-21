@@ -183,7 +183,7 @@ class Configuration:
             ]
         )
         self.oelf["min_magnitude"] = self.assign_float_parameter(
-            self.oelf, "min_magnitude", True, 3.0, 10.0
+            self.oelf, "min_magnitude", True, 2.0, 10.0
         )
         self.oelf["max_distance"] = self.assign_float_parameter(
             self.oelf, "max_distance", True, 0.0, 1000.0

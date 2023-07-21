@@ -1,0 +1,41 @@
+description_general: OELF Integration Test
+main_path: DEFINEDWITHINTEST
+oelf_source_model_filename: source_model_for_oelf.xml
+state_dependent_fragilities: True
+mapping_damage_states:
+  no_damage: DS0
+  dmg_1: DS1
+  dmg_2: DS2
+  dmg_3: DS3
+  dmg_4: DS4
+oelf:
+  min_magnitude: 3.5
+  max_distance: 200.0
+  continuous_ses_numbering: True
+  ses_range: 1, 4
+  rupture_generator_seed: 1976
+  rupture_region_properties:
+    Volcanic Shallow:
+      msr: WC1994
+      area_mmax: 7.0
+      aspect_limits: 1.0, 1.5
+      default_usd: 0.0
+      default_lsd: 10.0
+    Active Shallow Crust:
+      msr: Leonard2014_Interplate
+      area_mmax: 7.75
+      aspect_limits: 1.0, 1.5
+      default_usd: 0.0
+      default_lsd: 25.0
+injuries_scale: 1, 2, 3, 4
+injuries_longest_time: 730
+time_of_day_occupancy:
+  residential:
+    day: 0.242853  # approx. 10 am to 6 pm
+    night: 0.9517285  # approx. 10 pm to 6 am
+    transit: 0.532079  # approx. 6 am to 10 am and 6 pm to 10 pm
+timezone: "Europe/Rome"
+store_intermediate: True
+store_openquake: False
+post_process:
+  collect_csv: True

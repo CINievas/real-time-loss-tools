@@ -1,0 +1,6 @@
+dmg_state,N_inspection,N_repair
+DS0,7,0
+DS1,7,15
+DS2,45,365
+DS3,45,1095
+DS4,45,1095
