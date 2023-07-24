@@ -40,7 +40,7 @@ def test_run_rla_01():
     )
 
     # Read configuration file
-    config_filepath = os.path.join(temp_path, "config.yml")
+    config_filepath = os.path.join(temp_path, "config_integration_rla.yml")
     config = Configuration(config_filepath)
     # Override the main path
     config.main_path = deepcopy(temp_path)
@@ -359,7 +359,7 @@ def test_run_rla_02():
     )
 
     # Read configuration file
-    config_filepath = os.path.join(temp_path, "config.yml")
+    config_filepath = os.path.join(temp_path, "config_integration_rla_no_GMFs.yml")
     config = Configuration(config_filepath)
     # Override the main path
     config.main_path = deepcopy(temp_path)
@@ -691,7 +691,7 @@ def test_run_rla_03():
     )
 
     # Read configuration file
-    config_filepath = os.path.join(temp_path, "config.yml")
+    config_filepath = os.path.join(temp_path, "config_integration_rla_low_hazard.yml")
     config = Configuration(config_filepath)
     # Override the main path
     config.main_path = deepcopy(temp_path)
