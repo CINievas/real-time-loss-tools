@@ -302,7 +302,7 @@ def validate_ruptures(ruptures: Dict):
             continue
         counter += 1
     logging.info("%g out of %g ruptures valid" % (counter, nrup))
-    return
+    return counter == nrup
 
 
 RUPTURE_SET_EXPORTER = {
@@ -649,8 +649,11 @@ class StochasticRuptureSet():
         low_aspect, high_aspect = tuple(self.properties[trt]["aspect_limits"])
         aspect_ratio = low_aspect + self.rng.random() * (high_aspect - low_aspect)
         # Take single sample of the HDD and NPD
+        event_depth = event["depth"] \
+            if "depth" in event and not pd.isna(event["depth"]) else None 
         if ("SRC_ID" in event.index) and (event.SRC_ID in list(self.pmfs)):
-            hypo_depth = self._single_sample_pmf(self.pmfs[event.SRC_ID]["hdd"])
+            hypo_depth = event_depth if event_depth else\
+                self._single_sample_pmf(self.pmfs[event.SRC_ID]["hdd"])
             nodal_plane = self._single_sample_pmf(self.pmfs[event.SRC_ID]["npd"])
             usd = event.USD if event.USD else self.properties[trt]["default_usd"]
             lsd = event.LSD if event.LSD else self.properties[trt]["default_lsd"]
@@ -661,7 +664,8 @@ class StochasticRuptureSet():
                 ev_id = ""
             logger.info("Event %s (%.4fE,%.4fN) not in any zone"
                         % (ev_id, event.longitude, event.latitude))
-            hypo_depth = self._single_sample_pmf(self.DEFAULT_PMF["hdd"])
+            hypo_depth = event_depth if event_depth else\
+                self._single_sample_pmf(self.DEFAULT_PMF["hdd"])
             nodal_plane = self._single_sample_pmf(self.DEFAULT_PMF["npd"])
             usd = self.default_usd
             lsd = self.default_lsd
@@ -677,13 +681,20 @@ class StochasticRuptureSet():
             mag = min(event.magnitude, self.properties[trt]["area_mmax"])
         else:
             mag = event.magnitude
+        seismogenic_thickness = lsd - usd
+        if hypo_depth > lsd:
+            # If the earthquake is deeper than the seismogenic depth for the zone
+            # then retain the thickness of the zone for scaling the rupture, but
+            # translate the seismogenic layer so that it is centred on the hypocentre depth
+            lsd = hypo_depth + (seismogenic_thickness / 2.0)
+            usd = max(hypo_depth - (seismogenic_thickness / 2.0), 0.0)
         # Get the area (the magnitude is capped at a magnitude specific region property
         area = self.properties[trt]["msr"].get_median_area(mag, nodal_plane.rake)
         # Get the rupture dimensions for the given area, magnitude and
         # configuration
         rupture_dims = get_rupdims(area,
                                    nodal_plane.dip,
-                                   lsd - usd,
+                                   seismogenic_thickness,
                                    aspect_ratio)
         top_left, top_right, bottom_left, bottom_right = build_rupture(
             usd, lsd, event.magnitude, rupture_dims, nodal_plane.strike,
