@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2022:
-#   Helmholtz-Zentrum Potsdam Deutsches GeoForschungsZentrum GFZ
+# Copyright (C) 2022-2023:
+#   Cecilia Nievas: cecilia.nievas@gfz-potsdam.de
 #
 # This program is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Affero General Public License as published by
@@ -22,10 +22,10 @@ tests_require = ["pytest"]
 
 setup(
     name="real-time-loss-tools",
-    version="0.0.1",
+    version="1.0.1",
     description="",
     keywords="earthquake damage, earthquake loss, rapid loss assessment, operational earthquake loss forecasting",
-    author="Helmholtz-Zentrum Potsdam Deutsches GeoForschungsZentrum GFZ",
+    author="Cecilia Nievas, Helen Crowley, Graeme Weatherill",
     license="AGPLv3+",
     install_requires=[
         "openquake.engine==3.15.0",

@@ -1,4 +1,4 @@
-# Real Time Loss Tools
+# Real-Time Loss Tools
 
 Tools for the assessment of earthquake damage and loss in real-time, developed within the
 [RISE project](http://rise-eu.org/home/).
