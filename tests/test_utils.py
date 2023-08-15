@@ -18,9 +18,11 @@
 
 import os
 import pytz
+import pytest
 import numpy as np
+import pandas as pd
 from datetime import datetime
-from realtimelosstools.utils import MultilinearStepFunction, Time, Files
+from realtimelosstools.utils import MultilinearStepFunction, Time, Files, Loader
 
 
 def test_MultilinearStepFunction():
@@ -229,3 +231,88 @@ def test_find_string_in_file():
 
     assert Files.find_string_in_file(filepath, "gmpe_logic_tree") is True
     assert Files.find_string_in_file(filepath, "something_else") is False
+
+
+def test_load_triggers():
+    # Test 1:
+    # Columns "catalogue_filename" and "type_analysis" exist, "rupture_xml" does not
+    path_to_file = os.path.join(os.path.dirname(__file__), "data", "triggering_01.csv")
+    catalogues_path = os.path.join(os.path.dirname(__file__), "data")
+
+    returned_triggers = Loader.load_triggers(path_to_file, catalogues_path)
+
+    expected_triggers = pd.DataFrame(
+        {
+            "catalogue_filename": ["triggering_01_oelf_01.txt", "triggering_01_rla_01.csv"],
+            "type_analysis": ["OELF", "RLA"],
+            "rupture_xml": ["", ""],
+        }
+    )
+
+    assert returned_triggers.shape[0] == expected_triggers.shape[0]
+    assert returned_triggers.shape[1] == expected_triggers.shape[1]
+
+    for col_name in expected_triggers.columns:
+        assert col_name in returned_triggers.columns
+
+    for col_name in expected_triggers.columns:
+        for row_index in expected_triggers.index:
+            assert (
+                returned_triggers.loc[row_index, col_name]
+                == expected_triggers.loc[row_index, col_name]
+            )
+
+    # Test 2:
+    # Column "catalogue_filename" has wrong name
+    path_to_file = os.path.join(os.path.dirname(__file__), "data", "triggering_02.csv")
+    catalogues_path = os.path.join(os.path.dirname(__file__), "data")
+
+    with pytest.raises(OSError) as excinfo:
+        Loader.load_triggers(path_to_file, catalogues_path)
+    assert "OSError" in str(excinfo.type)
+
+    # Test 3:
+    # Column "type_analysis" has a value different from "OELF" or "RLA"
+    path_to_file = os.path.join(os.path.dirname(__file__), "data", "triggering_03.csv")
+    catalogues_path = os.path.join(os.path.dirname(__file__), "data")
+
+    with pytest.raises(ValueError) as excinfo:
+        Loader.load_triggers(path_to_file, catalogues_path)
+    assert "ValueError" in str(excinfo.type)
+
+    # Test 4:
+    # One of the catalogue files does not exist
+    path_to_file = os.path.join(os.path.dirname(__file__), "data", "triggering_04.csv")
+    catalogues_path = os.path.join(os.path.dirname(__file__), "data")
+
+    with pytest.raises(OSError) as excinfo:
+        Loader.load_triggers(path_to_file, catalogues_path)
+    assert "OSError" in str(excinfo.type)
+
+    # Test 5:
+    # Column "rupture_xml" exists and has empty values (NaNs to be treated as "")
+    path_to_file = os.path.join(os.path.dirname(__file__), "data", "triggering_05.csv")
+    catalogues_path = os.path.join(os.path.dirname(__file__), "data")
+
+    returned_triggers = Loader.load_triggers(path_to_file, catalogues_path)
+
+    expected_triggers = pd.DataFrame(
+        {
+            "catalogue_filename": ["triggering_01_oelf_01.txt", "triggering_01_rla_01.csv"],
+            "type_analysis": ["OELF", "RLA"],
+            "rupture_xml": ["", "rupture_01.xml"],
+        }
+    )
+
+    assert returned_triggers.shape[0] == expected_triggers.shape[0]
+    assert returned_triggers.shape[1] == expected_triggers.shape[1]
+
+    for col_name in expected_triggers.columns:
+        assert col_name in returned_triggers.columns
+
+    for col_name in expected_triggers.columns:
+        for row_index in expected_triggers.index:
+            assert (
+                returned_triggers.loc[row_index, col_name]
+                == expected_triggers.loc[row_index, col_name]
+            )

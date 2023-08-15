@@ -26,12 +26,13 @@ from copy import deepcopy
 from datetime import datetime
 from realtimelosstools.configuration import Configuration
 from realtimelosstools.rla import RapidLossAssessment
+from realtimelosstools.ruptures import RLA_Ruptures
 from realtimelosstools.oelf import OperationalEarthquakeLossForecasting
 from realtimelosstools.stochastic_rupture_generator import StochasticRuptureSet
 from realtimelosstools.exposure_updater import ExposureUpdater
 from realtimelosstools.losses import Losses
 from realtimelosstools.postprocessor import PostProcessor
-from realtimelosstools.utils import Files
+from realtimelosstools.utils import Files, Loader
 from realtimelosstools.writers import Writer
 
 
@@ -98,29 +99,18 @@ def main():
 
     # Read input to simulate triggering (calculations after an earthquake of interest and/or
     # at specific points in time, e.g. mid-night)
-    triggers = pd.read_csv(os.path.join(config.main_path, "triggering.csv"))
+    triggers = Loader.load_triggers(
+        os.path.join(config.main_path, "triggering.csv"),
+        os.path.join(config.main_path, "catalogues")
+    )
     log_summary.append(
         "First filename in triggering.csv is '%s'" % (triggers.loc[0, "catalogue_filename"])
     )
 
-    # Check that 'triggers' only refers to RLA or OELF, abort otherwise
-    for type_analysis in triggers["type_analysis"].to_numpy():
-        if type_analysis != "RLA" and type_analysis != "OELF":
-            error_message = (
-                "Type of analysis '%s' specified in triggering.csv is unknown. "
-                "The software cannot run."
-                % (type_analysis)
-            )
-            logger.critical(error_message)
-            raise ValueError(error_message)
-
     # Load data needed for RLA
     if "RLA" in triggers["type_analysis"].to_numpy():
-        # Source parameters
-        source_parameters_RLA = pd.read_csv(
-            os.path.join(config.main_path, "ruptures", "rla", "source_parameters.csv")
-        )
-        source_parameters_RLA.index = source_parameters_RLA["event_id"]
+        # Verify/build rupture XML files for RLA
+        rla_ruptures = RLA_Ruptures(triggers, config.main_path)
 
         # Damage results from SHM
         damage_results_SHM = pd.read_csv(
@@ -246,7 +236,7 @@ def main():
                 earthquake_params,
                 config.description_general,
                 config.main_path,
-                source_parameters_RLA,
+                rla_ruptures.mapping[cat_filename_i],
                 config.state_dependent_fragilities,
                 consequence_economic,
                 consequence_injuries,

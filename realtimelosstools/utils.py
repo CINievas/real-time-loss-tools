@@ -16,8 +16,10 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see http://www.gnu.org/licenses/.
 
+import os
 import logging
 import numpy as np
+import pandas as pd
 import pytz
 
 
@@ -154,3 +156,92 @@ class Files():
                 exists = True
 
         return exists
+
+
+class Loader():
+    """This class handles operations associated with loading and/or validating input files.
+    """
+
+    @staticmethod
+    def load_triggers(path_to_file, catalogues_path):
+        """
+        This method loads the triggering CSV file and:
+        - checks that the columns "catalogue_filename" and "type_analysis" exist (it raises an
+        error if at least one of the two does not exist);
+        - checks that the column "type_analysis" only contains "OELF" or "RLA" and raises an
+        error otherwise;
+        - adds the "rupture_xml" column if it does not exist, and fills it in with empty
+        strings;
+        - verifies that all catalogue CSV files exist, and raises an error if at least one of
+        them does not.
+
+        Args:
+            path_to_file (str):
+                Path to the triggering CSV file (including name and extension of file).
+            catalogues_path (str):
+                Path to directory where earthquake catalogues are located.
+
+        Returns:
+            triggers (Pandas DataFrame):
+                DataFrame with the contents of the triggering CSV file and the following
+                columns:
+                    catalogue_filename (str):
+                        Name of the catalogue CSV files (which exist under
+                        main_path/catalogues).
+                    type_analysis (str):
+                        Type of analysis to run with the corresponding catalogue, either "RLA"
+                        (rapid loss assessment) or "OELF" (operational earthquake loss
+                        forecast).
+                    rupture_xml (str):
+                        Name of the rupture XML files for the RLA analyses (which exist under
+                        main_path/ruptures/rla). This field can be empty for some/all rows.
+        """
+
+        triggers = pd.read_csv(path_to_file)
+        triggers = triggers.fillna("")
+
+        # Make sure columns "catalogue_filename" and "type_analysis" exist
+        error_message = None
+        if "catalogue_filename" not in triggers.columns:
+            error_message = "catalogue_filename column does not exist in triggering.csv"
+        if "type_analysis" not in triggers.columns:
+            error_message = "type_analysis column does not exist in triggering.csv"
+
+        if error_message is not None:
+            raise OSError(error_message)
+
+        # Make sure "type_analysis" contains only "OELF" or "RLA"
+        type_analysis_unique = triggers["type_analysis"].unique()
+        non_recognised_types = []
+
+        for type_val in type_analysis_unique:
+            if type_val not in ["OELF", "RLA"]:
+                non_recognised_types.append(type_val)
+
+        if len(non_recognised_types) != 0:
+            raise ValueError(
+                "Analysis type(s) not recognised in triggering.csv file "
+                "(supported: OELF, RLA): %s"
+                % (", ".join(non_recognised_types))
+            )
+
+        # Add "rupture_xml" column if it does not exist (fill in with empty strings)
+        if "rupture_xml" not in triggers.columns:
+            triggers["rupture_xml"] = ["" for i in range(triggers.shape[0])]
+
+        # Check if all catalogue files exist
+        missing_triggers = []
+        for i in range(triggers.shape[0]):
+            # Check catalogue file exists
+            if not os.path.isfile(
+                os.path.join(catalogues_path, triggers.loc[i, "catalogue_filename"])
+            ):
+                missing_triggers.append(triggers.loc[i, "catalogue_filename"])
+
+            if len(missing_triggers) != 0:
+                raise OSError(
+                    "The following trigger catalogue files cannot be found under %s: %s"
+                    % (catalogues_path, ", ".join(missing_triggers))
+                )
+
+        return triggers

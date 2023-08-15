@@ -23,6 +23,8 @@ import pandas as pd
 from copy import deepcopy
 from realtimelosstools.rla import RapidLossAssessment
 from realtimelosstools.configuration import Configuration
+from realtimelosstools.ruptures import RLA_Ruptures
+from realtimelosstools.utils import Loader
 
 
 def test_run_rla_01():
@@ -46,7 +48,10 @@ def test_run_rla_01():
     config.main_path = deepcopy(temp_path)
 
     # Read triggers' file
-    triggers = pd.read_csv(os.path.join(config.main_path, "triggering.csv"))
+    triggers = Loader.load_triggers(
+        os.path.join(config.main_path, "triggering.csv"),
+        os.path.join(config.main_path, "catalogues")
+    )
 
     # Read filename of the first RLA trigger
     cat_filename = triggers[triggers.type_analysis == "RLA"]["catalogue_filename"].to_numpy()[0]
@@ -58,11 +63,8 @@ def test_run_rla_01():
     earthquake_df["datetime"] = pd.to_datetime(earthquake_df["datetime"])
     earthquake_params = earthquake_df.loc[0, :].to_dict()
 
-    # Read source parameters
-    source_parameters_RLA = pd.read_csv(
-        os.path.join(config.main_path, "ruptures", "rla", "source_parameters.csv")
-    )
-    source_parameters_RLA.index = source_parameters_RLA["event_id"]
+    # Verify/build rupture XML files for RLA
+    rla_ruptures = RLA_Ruptures(triggers, config.main_path)
 
     # Load the consequence models
     consequence_economic = pd.read_csv(
@@ -133,7 +135,7 @@ def test_run_rla_01():
         earthquake_params,
         config.description_general,
         config.main_path,
-        source_parameters_RLA,
+        rla_ruptures.mapping[cat_filename],
         config.state_dependent_fragilities,
         consequence_economic,
         consequence_injuries,
@@ -365,7 +367,10 @@ def test_run_rla_02():
     config.main_path = deepcopy(temp_path)
 
     # Read triggers' file
-    triggers = pd.read_csv(os.path.join(config.main_path, "triggering.csv"))
+    triggers = Loader.load_triggers(
+        os.path.join(config.main_path, "triggering.csv"),
+        os.path.join(config.main_path, "catalogues")
+    )
 
     # Read filename of the first RLA trigger
     cat_filename = triggers[triggers.type_analysis == "RLA"]["catalogue_filename"].to_numpy()[0]
@@ -377,11 +382,8 @@ def test_run_rla_02():
     earthquake_df["datetime"] = pd.to_datetime(earthquake_df["datetime"])
     earthquake_params = earthquake_df.loc[0, :].to_dict()
 
-    # Read source parameters
-    source_parameters_RLA = pd.read_csv(
-        os.path.join(config.main_path, "ruptures", "rla", "source_parameters.csv")
-    )
-    source_parameters_RLA.index = source_parameters_RLA["event_id"]
+    # Verify/build rupture XML files for RLA
+    rla_ruptures = RLA_Ruptures(triggers, config.main_path)
 
     # Load the consequence models
     consequence_economic = pd.read_csv(
@@ -452,7 +454,7 @@ def test_run_rla_02():
         earthquake_params,
         config.description_general,
         config.main_path,
-        source_parameters_RLA,
+        rla_ruptures.mapping[cat_filename],
         config.state_dependent_fragilities,
         consequence_economic,
         consequence_injuries,
@@ -697,7 +699,10 @@ def test_run_rla_03():
     config.main_path = deepcopy(temp_path)
 
     # Read triggers' file
-    triggers = pd.read_csv(os.path.join(config.main_path, "triggering.csv"))
+    triggers = Loader.load_triggers(
+        os.path.join(config.main_path, "triggering.csv"),
+        os.path.join(config.main_path, "catalogues")
+    )
 
     # Read filename of the first RLA trigger
     cat_filename = triggers[triggers.type_analysis == "RLA"]["catalogue_filename"].to_numpy()[0]
@@ -709,11 +714,8 @@ def test_run_rla_03():
     earthquake_df["datetime"] = pd.to_datetime(earthquake_df["datetime"])
     earthquake_params = earthquake_df.loc[0, :].to_dict()
 
-    # Read source parameters
-    source_parameters_RLA = pd.read_csv(
-        os.path.join(config.main_path, "ruptures", "rla", "source_parameters.csv")
-    )
-    source_parameters_RLA.index = source_parameters_RLA["event_id"]
+    # Verify/build rupture XML files for RLA
+    rla_ruptures = RLA_Ruptures(triggers, config.main_path)
 
     # Load the consequence models
     consequence_economic = pd.read_csv(
@@ -784,7 +786,7 @@ def test_run_rla_03():
         earthquake_params,
         config.description_general,
         config.main_path,
-        source_parameters_RLA,
+        rla_ruptures.mapping[cat_filename],
         config.state_dependent_fragilities,
         consequence_economic,
         consequence_injuries,

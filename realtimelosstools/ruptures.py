@@ -16,9 +16,12 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see http://www.gnu.org/licenses/.
 
+import os
 import logging
 import numpy as np
+import pandas as pd
 from openquake.hazardlib import geo
+from realtimelosstools.writers import Writer
 
 
 logger = logging.getLogger()
@@ -289,3 +292,154 @@ class Rupture:
         rupture_plane["bottomRight"]["depth"] = average_bottom_depth
 
         return strike, dip, rake, hypocenter, rupture_plane
+
+
+class RLA_Ruptures():
+    """
+    This class handles the rupture XML files used for RLA.
+
+    The class is initialised going one by one the RLA triggers. If the trigger specifies a name
+    of a rupture XML file in the column 'rupture_xml', the class verifies that the file exists
+    and raises an error otherwise. If the file exists, it gets assigned to this trigger under
+    the 'mapping' attribute. If the trigger does not speficy a name of oa rupture XML file, the
+    class searches for this earthquake in the 'source_parameters.csv' (by means of the
+    'event_id' indicated in the catalogue file for the trigger) and builds the rupture XML file
+    using the parameters specified in the CSV file. Errors will be raised (1) if the
+    'source_parameters.csv' file cannot be found, (2) if the 'event_id' cannot be found in the
+    'source_parameters.csv' file, or (3) if an XML file already exists with the name
+    "built_rupture_[event_id].xml" (so as to avoid unintentionally overwriting files). If no
+    errors are raised, the name "built_rupture_[event_id].xml" gets assigned to this trigger
+    under the 'mapping' attribute of this class.
+
+    Attributes:
+        self.mapping (dict):
+            Dictionary whose keys are the names of the catalogue CSV files of RLA analyses to
+            be run and whose values are the names of the rupture XML files, located under
+            main_path/ruptures/rla.
+    """
+
+    def __init__(self, triggers, main_path):
+        """
+        Args:
+            triggers (Pandas DataFrame):
+                DataFrame with the following columns:
+                    catalogue_filename (str):
+                        Name of the catalogue CSV files (which exist under
+                        main_path/catalogues).
+                    type_analysis (str):
+                        Type of analysis to run with the corresponding catalogue, either "RLA"
+                        (rapid loss assessment) or "OELF" (operational earthquake loss
+                        forecast).
+                    rupture_xml (str):
+                        Name of the rupture XML files for the RLA analyses (which exist under
+                        main_path/ruptures/rla). This field can be empty for some/all rows.
+            main_path (str):
+                Path to the main running directory, assumed to have the needed structure.
+        """
+
+        rla_rupt_mapping = {}
+
+        for i in range(triggers.shape[0]):
+            if triggers.loc[i, "type_analysis"] != "RLA":
+                continue  # skip triggers that are not RLA
+
+            cat_filename_i = triggers.loc[i, "catalogue_filename"]
+            rupture_xml_i = triggers.loc[i, "rupture_xml"]
+
+            if rupture_xml_i != "":
+                # A rupture XML file has been specified by the user in the triggering CSV file
+                # Check that XML file exists
+                target_filepath = os.path.join(
+                    main_path, "ruptures", "rla", rupture_xml_i
+                )
+                if not os.path.isfile(target_filepath):
+                    raise OSError(
+                        "The triggering CSV file indicates rupture '%s' for trigger '%s' "
+                        "but '%s' cannot be found under %s"
+                        % (
+                            rupture_xml_i,
+                            cat_filename_i,
+                            rupture_xml_i,
+                            os.path.join(main_path, "ruptures", "rla")
+                        )
+                    )
+
+                rla_rupt_mapping[cat_filename_i] = rupture_xml_i
+
+            else:
+                # The user has not specified a rupture XML file
+                # Try to build rupture from source parameters specified in CSV file
+
+                # Read source parameters CSV file
+                source_param_filepath =  os.path.join(
+                    main_path, "ruptures", "rla", "source_parameters.csv"
+                )
+
+                if not os.path.isfile(source_param_filepath):
+                    raise OSError(
+                        "File %s cannot be found. This file is needed because no rupture XML "
+                        "file has been specified in the triggering CSV file for trigger '%s'"
+                        % (
+                            source_param_filepath, cat_filename_i
+                        )
+                    )
+
+                source_parameters_RLA = pd.read_csv(source_param_filepath)
+                source_parameters_RLA.index = source_parameters_RLA["event_id"]
+
+                # Read earthquake event ID
+                earthquake_df = pd.read_csv(
+                    os.path.join(main_path, "catalogues", cat_filename_i)
+                )
+                event_id = earthquake_df.loc[0, "event_id"]
+
+                # Stop if the `event_id` cannot be found in `source_parameters_RLA`
+                if event_id not in source_parameters_RLA.index:
+                    raise OSError(
+                        "Event ID '%s' cannot be found in %s"
+                        % (event_id, source_param_filepath)
+                    )
+
+                # Name of the rupture XML file to be built
+                name_new_rupture_file = "built_rupture_%s.xml" % (event_id)
+                path_new_rupture_file = os.path.join(
+                    main_path, "ruptures", "rla", name_new_rupture_file
+                )
+
+                # Stop if the file already exists
+                if os.path.isfile(path_new_rupture_file):
+                    raise OSError(
+                        "File %s already exists and will not be overwritten. Check the event "
+                        "IDs of all RLA catalogues and the names of the provided rupture XML "
+                        "files to avoid undesired repetitions"
+                        % (path_new_rupture_file)
+                    )
+
+                # Build the rupture from the params. in `source_parameters_RLA` for `event_id`
+                (
+                    strike,
+                    dip,
+                    rake,
+                    hypocenter,
+                    rupture_plane,
+                ) = Rupture.build_rupture_from_ITACA_parameters(
+                    event_id, source_parameters_RLA
+                )
+
+                Writer.write_rupture_xml(
+                    os.path.join(main_path, "ruptures", "rla", name_new_rupture_file),
+                    strike,
+                    dip,
+                    rake,
+                    earthquake_df.loc[0, "magnitude"],
+                    hypocenter,
+                    rupture_plane,
+                )
+
+                rla_rupt_mapping[cat_filename_i] = name_new_rupture_file
+
+            # Check that rupture `rla_rupt_mapping[cat_filename_i]` can be built by OpenQuake
+            # (otherwise raise error)
+            # TO DO
+
+        self.mapping = rla_rupt_mapping

@@ -1,0 +1,3 @@
+catalogue_filename,type_analysis,rupture_xml
+triggering_01_oelf_01.txt,OELF,
+triggering_01_rla_01.csv,RLA,rupture_01.xml

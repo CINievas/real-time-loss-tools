@@ -266,15 +266,20 @@ calculated, etc) and an operational earthquake loss forecast when a short-term s
 catalogue becomes available (an operation potentially triggered in itself by the occurrence of a
 real earthquake, or at pre-defined moments in time).
 
-The `triggering.csv` file consists of two columns:
+The `triggering.csv` file consists of two mandatory columns and a third optional column:
 
 - `catalogue_filename`: name of the catalogue CSV file (each of the files contained in
 `main_path/catalogues`, see explanation on [input files](03_Input.md)); 
 - `type_analysis`: type of analysis to run with the corresponding catalogue, either RLA (rapid
 loss assessment) or OELF (operational earthquake loss forecast). When RLA is indicated, only the
 first row of the catalogue (apart from the column names) is read.
+- `rupture_xml` (optional): name of the rupture XML file for the RLA analyses. Leave empty for
+OELF analyses or when providing a [source_parameters.csv](03_Input.md#rupture-parameters-for-rla)
+file for the software to build the XML rupture. Rupture XML files listed here must exist under
+`main_path/ruptures/rla`. Rupture XML files listed here take precedence over rupture parameters
+in the `source_parameters.csv` for the same earthquake.
 
-Example:
+Example (without `rupture_xml` column):
 
 ```
 catalogue_filename,type_analysis
@@ -283,6 +288,21 @@ real_EQ_01.csv,RLA
 forecast_after_real_EQ_01.csv,OELF
 ...
 ```
+
+Example (with `rupture_xml` column):
+
+```
+catalogue_filename,type_analysis,rupture_xml
+forecast_YYYY_MM_DDT00_00_00.csv,OELF,
+real_EQ_01.csv,RLA,
+forecast_after_real_EQ_01.csv,OELF,
+real_EQ_02.csv,RLA,earthquake_02_rupt.xml
+...
+```
+
+In this last example, the Real-Time Loss Tools will build the rupture for `real_EQ_01.csv,RLA`
+using the parameters in `source_parameters.csv`, and directly take the file
+`earthquake_02_rupt.xml` for `real_EQ_02.csv`.
 
 ## job.ini for OpenQuake
 

@@ -54,7 +54,7 @@ realisation of seismicity), taking the current “real” exposure as a starting
 `current/exposure_model_current.csv` file), as they correspond to seismicity forecasts that may
 or may not occur.
 
-Both RLA and OELF calculations require the rupture XML files to be generated for each earthquake.
+Both RLA and OELF calculations require rupture XML files for each earthquake.
 In the case of OELF, a seismicity forecast is input by the user with a list of realisations of
 seismicity (referred to as "stochastic event sets", SES, following the nomenclature used in
 OpenQuake), each of which contains a number of earthquakes defined, at least, by their
@@ -69,12 +69,15 @@ nodal properties. All other earthquakes in the seismicity forecast that are filt
 the minimum magnitude and/or maximum distance criteria are assumed to not cause any change in
 the damage state of the buildings.
 
-In the case of RLA, the current version of the Real-Time Loss Tools can only generate ruptures
-for normal faults in the form of simple planar ruptures and requires that rupture parameters be
-input by the user in the form of a CSV file whose contents and formats are described
-[here](03_Input.md#source-parameters-for-rla). Future versions will include the possibility to
-load rupture XML files directly (which will allow for any kind of rupture supported by OpenQuake
-to be used).
+In the case of RLA, the user can provide either a rupture XML file in the OpenQuake format or
+a series of rupture parameters by means of a CSV file, which are used by the Real-Time Loss
+Tools to generate the corresponding rupture XML file. The choice can be different for different
+RLA earthquakes in the `triggering.csv` file. The current version of the Real-Time Loss Tools
+can only generate ruptures for normal faults in the form of simple planar ruptures and requires
+that rupture parameters be input by the user in the form of a CSV file whose contents and
+formats are described [here](03_Input.md#rupture-parameters-for-rla). The advantage of providing
+rupture XML files directly as input is that any kind of rupture supported by OpenQuake can be
+used.
 
 As shown in Fig. 1.1 above, the stage of retrieval and storage of damage states differs slightly
 for RLA and OELF calculations as well, as externally-derived probabilities of damage states can

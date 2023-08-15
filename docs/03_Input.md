@@ -16,7 +16,8 @@ of the computations by listing a series of catalogue CSV files (see description 
 directory) and specifying which sort of analysis is to be run for each of them, namely `RLA`
 (Rapid Loss Assessment) or `OELF` (Operation Earthquake Loss Forecasting). Each row of
 `triggering.csv` simulates the triggering of the code to run that particular earthquake or
-catalogue of earthquakes.
+catalogue of earthquakes. Additionally, it may indicate which rupture XML file(s) to use for one
+or more of the RLA triggers.
 
 - [catalogues](#earthquake-catalogues): Directory with a series of CSV files, each of which
 contains parameters associated with one (RLA) or more (OELF) earthquakes. The names of these
@@ -57,12 +58,16 @@ starting the run.
 - `ruptures`: Directory with:
 
   - XML files of the earthquake ruptures, subdivided into `oelf` and `rla`. No pre-existing XML
-  files are needed here (the directories will be populated during the run). The `oelf`
-  sub-directory will be further subdivided as per the different catalogue CSV files (see
-  description of `triggering.csv` and `catalogues` above).
+  files are needed under the `oelf` sub-directory (the directory will be populated during the
+  run). The `oelf` sub-directory will be further subdivided as per the different catalogue CSV
+  files (see description of `triggering.csv` and `catalogues` above).
+  
+  - Rupture XML files in the OpenQuake format under the `ruptures/rla`, if desired and as
+  specified in the [triggering.csv](02_Configuration.md#triggering-file).
   
   - A CSV file with rupture parameters to be used for RLA, under
-  `ruptures/rla/`[source_parameters.csv](#source-parameters-for-rla).
+  `ruptures/rla/`[source_parameters.csv](#rupture-parameters-for-rla), if desired and as
+  specified in the [triggering.csv](02_Configuration.md#triggering-file).
   
   - An XML with the earthquake source model to be used to stochastically generate rupture
   properties for Operational Earthquake Loss Forecasting (OELF), in the
@@ -158,12 +163,12 @@ YYYY-MM-DDTHH:MM:SS);
 - `depth`: hypocentral depth, in km;
 - `catalog_id`: an identifier for internal purposes (if desired);
 - `event_id`: identifier of the event, to be used to retrieve finite-fault rupture parameters
-from `ruptures/rla/`[source_parameters.csv](#source-parameters-for-rla)
+from `ruptures/rla/`[source_parameters.csv](#rupture-parameters-for-rla)
 
 The current version of the Real-Time Loss Tools can only generate simple planar ruptures for
 normal faults with parameters specified as in the Italian Accelerometric Archive (ITACA)
 [website](https://itaca.mi.ingv.it) (Russo et al., 2022). It will search in
-`ruptures/rla/`[source_parameters.csv](#source-parameters-for-rla) for the `event_id` specified
+`ruptures/rla/`[source_parameters.csv](#rupture-parameters-for-rla) for the `event_id` specified
 in the catalogue file.
 
 In the case of OELFs, the catalogue CSV files must contain the following fields:
@@ -188,15 +193,18 @@ building each earthquake rupture.
 
 When no `event_id` is specified, the Real-Time Loss Tools automatically generates one.
 
-## Source Parameters for RLA
+## Rupture Parameters for RLA
 
-The current version of the Real-Time Loss Tools can only generate ruptures for RLA for normal
-faults in the form of simple planar ruptures. In order to do so, it requires a
-`source_parameters.csv` file to exist under `main_path/ruptures/rla/`. 
+For each RLA trigger, the user can either provide a rupture XML file and indicate it in the
+[triggering.csv](02_Configuration.md#triggering-file) file, or provide a series of parameters
+by means of the `source_parameters.csv` file, which must exist under `main_path/ruptures/rla/`.
+In the latter case, the current version of the Real-Time Loss Tools can only generate ruptures
+for normal faults in the form of simple planar ruptures.
 
 Following the nomenclature used by the Italian Accelerometric Archive
 ([ITACA](https://itaca.mi.ingv.it); Russo et al., 2022), `source_parameters.csv` must contain
-the following fields (one row for each of the RLA earthquakes named in `triggering.csv`):
+the following fields (one row for each of the RLA earthquakes named in `triggering.csv` for
+which no rupture XML files are indicated/provided):
 
 - `event_id`: identifier of the earthquake, as in the corresponding catalogue CSV file.
 - `Mw`: moment magnitude;
@@ -213,6 +221,18 @@ of the hypocentre;
 
 Once these parameters are retrieved, the Real-Time Loss Tools create the associated rupture XML
 file and place it under `main_path/ruptures/rla/`.
+
+The connection between each RLA trigger and a set of parameters in the `source_parameters.csv`
+file is provided by the `event_id`, which is indicated in the corresponding catalogue file of
+the trigger.
+
+For any RLA trigger, if a rupture XML file is indicated in the `triggering.csv` file, it will be
+used and any parameters that may exist in the `source_parameters.csv` file for this earthquake
+will be ignored. Note that the sole existence of a rupture XML file under `ruptures/rla` does
+not imply that it will be used: its name must be listed in the `rupture_xml` column of the
+`triggering.csv` file.
+
+Any provided rupture XML files must follow the OpenQuake format.
 
 ## Exposure Model
 

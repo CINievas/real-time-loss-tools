@@ -40,7 +40,7 @@ class RapidLossAssessment:
         earthquake,
         description_general,
         main_path,
-        source_parameters,
+        rupture_xml_filename,
         state_dependent,
         consequence_economic,
         consequence_injuries,
@@ -57,7 +57,7 @@ class RapidLossAssessment:
     ):
         """
         This method uses OpenQuake to run a Rapid Loss Assessment (RLA) due to an input
-        'earthquake' with specified 'source_parameters', using the current status of the
+        'earthquake' with rupture as per 'rupture_xml_filename', using the current status of the
         exposure model, assumed to be a CSV file in OpenQuake format stored under
         'main_path'/current/exposure_model_current.csv, and returning its updated version, which
         is determined combining the damage results from OpenQuake and those obtained through
@@ -78,43 +78,9 @@ class RapidLossAssessment:
                 General description of the run/analysis, used for the OpenQuake job.ini file.
             main_path (str):
                 Path to the main running directory, assumed to have the needed structure.
-            source_parameters (Pandas DataFrame):
-                DataFrame containing parameters of earthquake sources, with the following
-                columns:
-                    event_id (str):
-                        Event ID. This must also be the index of the DataFrame.
-                    Mw (float):
-                        Moment magnitude of the event.
-                    nucleation_lon (float):
-                        Longitude of the nucleation point (hypocentre), in degrees.
-                    nucleation_lat (float):
-                        Latitude of the nucleation point (hypocentre), in degrees.
-                    nucleation_depth (float):
-                        Depth of the nucleation point (hypocentre), in km.
-                    LL_lon (float):
-                        Longitude (in degrees) of the lower left corner of the rupture plane.
-                    LL_lat (float):
-                        Latitude (in degrees) of the lower left corner of the rupture plane.
-                    UR_lon (float):
-                        Longitude (in degrees) of the upper right corner of the rupture plane.
-                    UR_lat (float):
-                        Latitude (in degrees) of the upper right corner of the rupture plane.
-                    LR_lon (float):
-                        Longitude (in degrees) of the lower right corner of the rupture plane.
-                    LR_lat (float):
-                        Latitude (in degrees) of the lower right corner of the rupture plane.
-                    UL_lon (float):
-                        Longitude (in degrees) of the upper left corner of the rupture plane.
-                    UL_lat (float):
-                        Latitude (in degrees) of the upper left corner of the rupture plane.
-                    Z_top (float):
-                        Depth to the top of the rupture, in km.
-                    Strike (float):
-                        Strike of the rupture, in degrees, measured from north.
-                    Dip (float):
-                        Dip of the rupture, in degrees, measured downwards from the horizontal.
-                    Rake (float):
-                        Rake of the rupture, in degrees.
+            rupture_xml_filename (str):
+                Name of the rupture XML file associated with this earthquake, assumed to be
+                located under main_path/ruptures/rla.
             state_dependent (bool):
                 True if state-dependent fragility models are being used to run OpenQuake, False
                 if state-independent fragility models are being used instead.
@@ -348,29 +314,6 @@ class RapidLossAssessment:
             logger.critical(error_message)
             raise OSError(error_message)
 
-        # Define rupture XML
-        name_rupture_file = "rupture_%s.xml" % (earthquake["event_id"])
-
-        (
-            strike,
-            dip,
-            rake,
-            hypocenter,
-            rupture_plane,
-        ) = Rupture.build_rupture_from_ITACA_parameters(
-            earthquake["event_id"], source_parameters
-        )
-
-        Writer.write_rupture_xml(
-            os.path.join(main_path, "ruptures", "rla", name_rupture_file),
-            strike,
-            dip,
-            rake,
-            earthquake["magnitude"],
-            hypocenter,
-            rupture_plane,
-        )
-
         # Load exposure CSV (the exposure model to be used to run OpenQuake now)
         # (this exposure file contains census occupants not adjusted to reflect the damage
         # state of the building or the health status of people)
@@ -414,7 +357,7 @@ class RapidLossAssessment:
             os.path.join(main_path, "current", "job.ini"),
             description,
             time_of_day,
-            "../ruptures/rla/%s" % (name_rupture_file),
+            "../ruptures/rla/%s" % (rupture_xml_filename),
         )
 
         # Run OpenQuake
