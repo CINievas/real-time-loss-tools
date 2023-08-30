@@ -1434,6 +1434,80 @@ class ExposureUpdater:
         return damage_results_OQ_adjusted
 
     @staticmethod
+    def update_OQ_damage_w_logic_tree_weights(damage_results_OQ, logic_tree_weights):
+        """
+        This method processes 'damage_results_OQ' so that the output
+        ('damage_results_OQ_weighted') takes into account the weights of the GMPE logic tree
+        branches as indicated in 'logic_tree_weights'.
+
+        When the GMPE logic tree has more than one branch, the damage results by asset_id
+        retrieved from OpenQuake are full results for each logic tree branch (and the total sum
+        of "value" adds up to many more buildings than in the exposure model). This method
+        multiplies these results by the weight of the corresponding logic tree branch and
+        adds up all values for the same 'asset_id' and 'dmg_state' (and different 'rlz').
+
+        Args:
+            damage_results_OQ (Pandas DataFrame):
+                Pandas DataFrame with numbers of buildings/probabilities of buildings in each
+                damage state. This is output from running OpenQuake. It comprises the following
+                fields:
+                    Index is multiple:
+                        asset_id (str):
+                            ID of the asset (i.e. specific combination of building_id and a
+                            particular building class).
+                        dmg_state (str):
+                            Damage states.
+                    Columns:
+                        value (float):
+                            Probability of or number of buildings in 'dmg_state' for 'asset_id'.
+                        rlz (int):
+                            OpenQuake realisation ID. As the RTLT run only with scenario damage
+                            calculations, this are the IDs of the GMPE logic tree branches.
+                        (Column "loss_type", which is part of OpenQuake's output, is not used).
+            logic_tree_weights (dict):
+                Dictionary whose keys are the realisation IDs (i.e., column 'rlz' of
+                'damage_results_OQ') and whose values are the weights of each realisation (i.e.,
+                each branch of the GMPE logic tree).
+
+        Returns:
+            damage_results_OQ_weighted (Pandas DataFrame):
+                Same structure as 'damage_results_OQ' in the input, but adjusted so that "value"
+                (i.e., the probability of or number of buildings in 'dmg_state' for 'asset_id')
+                takes into account the weights of the GMPE logic tree branches as indicated in
+                'logic_tree_weights'.
+        """
+
+        damage_results_OQ_weighted = deepcopy(damage_results_OQ)
+        assigned_weights = np.array(
+            [
+                logic_tree_weights[damage_results_OQ["rlz"].to_numpy()[i]]
+                for i in range(damage_results_OQ.shape[0])
+            ]
+        )
+        damage_results_OQ_weighted["weighted_value"] = (
+            assigned_weights * damage_results_OQ_weighted["value"]
+        )
+
+        # Add weighted numbers of buildings
+        damage_results_OQ_weighted = damage_results_OQ_weighted.groupby(
+            ["asset_id", "dmg_state"]
+        ).sum(numeric_only=True)
+        damage_results_OQ_weighted = damage_results_OQ_weighted.drop(columns=["value"])
+        damage_results_OQ_weighted = damage_results_OQ_weighted.rename(
+            columns={"weighted_value": "value"}
+        )
+
+        # Fill in columns
+        damage_results_OQ_weighted["rlz"] = np.zeros(
+            [damage_results_OQ_weighted.shape[0]], dtype=int
+        )
+        damage_results_OQ_weighted["loss_type"] = [
+            "structural" for i in range(damage_results_OQ_weighted.shape[0])
+        ]
+
+        return damage_results_OQ_weighted
+
+    @staticmethod
     def summarise_damage_states_per_building_id(exposure):
         """
         This method returns the probability of a building with a certain building_id resulting

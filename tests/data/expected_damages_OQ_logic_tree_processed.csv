@@ -1,0 +1,11 @@
+asset_id,dmg_state,rlz,loss_type,value
+asset_01,dmg_1,0,structural,0.18073286
+asset_01,dmg_2,0,structural,0.18597698
+asset_01,dmg_3,0,structural,0.16280135
+asset_01,dmg_4,0,structural,1.68817171
+asset_01,no_damage,0,structural,0.30493693
+asset_02,dmg_1,0,structural,0.06124677
+asset_02,dmg_2,0,structural,0.07234034
+asset_02,dmg_3,0,structural,0.07185758
+asset_02,dmg_4,0,structural,0.95948700
+asset_02,no_damage,0,structural,0.06409832

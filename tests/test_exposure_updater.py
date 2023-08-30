@@ -1045,6 +1045,52 @@ def test_ensure_no_negative_damage_results_OQ():
     assert "ValueError" in str(excinfo.type)
 
 
+def test_update_OQ_damage_w_logic_tree_weights():
+    filepath = os.path.join(os.path.dirname(__file__), "data", "damages_OQ_logic_tree.csv")
+    damage_results_OQ = pd.read_csv(filepath)
+
+    logic_tree_weights = {
+        0: 0.00188042, 1: 0.00749916, 2: 0.00188042,
+        3: 0.03708736, 4: 0.14790528, 5: 0.03708736,
+        6: 0.08906444, 7: 0.35519111, 8: 0.08906444,
+        9: 0.03708736, 10: 0.14790528, 11: 0.03708736,
+        12: 0.00188042, 13: 0.00749916, 14: 0.00188042,
+    }
+
+    returned_damage_results_OQ_weighted = ExposureUpdater.update_OQ_damage_w_logic_tree_weights(
+        damage_results_OQ, logic_tree_weights
+    )
+
+    # Expected result
+    filepath = os.path.join(
+        os.path.dirname(__file__), "data", "expected_damages_OQ_logic_tree_processed.csv"
+    )
+    expected_damage_results_weighted = pd.read_csv(filepath)
+    new_index = pd.MultiIndex.from_arrays(
+        [expected_damage_results_weighted["asset_id"],
+         expected_damage_results_weighted["dmg_state"]]
+    )
+    expected_damage_results_weighted.index = new_index
+    expected_damage_results_weighted = expected_damage_results_weighted.drop(
+        columns=["asset_id", "dmg_state"]
+    )
+    dmg_states = expected_damage_results_weighted.index.get_level_values("dmg_state").unique()
+    asset_ids = expected_damage_results_weighted.index.get_level_values("asset_id").unique()
+    #import pdb
+    #pdb.set_trace()
+
+    for asset_id in asset_ids:
+        for dmg_state in dmg_states:
+            assert (
+                round(
+                    returned_damage_results_OQ_weighted.loc[(asset_id,  dmg_state), "value"], 6
+                )
+                == round(
+                    expected_damage_results_weighted.loc[(asset_id,  dmg_state), "value"], 6
+                )
+            )
+
+
 def test_summarise_damage_states_per_building_id():
     # Read exposure model
     filepath = os.path.join(

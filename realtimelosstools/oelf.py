@@ -534,6 +534,22 @@ class OperationalEarthquakeLossForecasting():
 
                     try:
                         damage_results_OQ = dstore.read_df("damages-rlzs")
+
+                        # Check if different realisations exist
+                        # (i.e., from different GMPE logic tree branches)
+                        if len(damage_results_OQ["rlz"].unique()) != 1:
+                            rlz_weights_raw = extract(dstore, "full_lt").get_realizations()
+                            rlz_weights = {}
+                            for i, rlz in enumerate(rlz_weights_raw):
+                                rlz_weights[i] = rlz.weight["weight"]
+
+                            # Incorporate logic tree weights to damage results
+                            damage_results_OQ = (
+                                ExposureUpdater.update_OQ_damage_w_logic_tree_weights(
+                                    damage_results_OQ, rlz_weights
+                                )
+                            )
+
                     except KeyError as ke:
                         if (len(ke.args) == 1) and ("damages-rlzs" in ke.args):
                             # OpenQuake's "There is no damage, perhaps the hazard is too small?"
@@ -571,11 +587,17 @@ class OperationalEarthquakeLossForecasting():
                         logger.critical(error_message)
                         raise OSError(error_message)
 
-                new_index = pd.MultiIndex.from_arrays(
-                    [damage_results_OQ["asset_id"], damage_results_OQ["dmg_state"]]
-                )
-                damage_results_OQ.index = new_index
-                damage_results_OQ = damage_results_OQ.drop(columns=["asset_id", "dmg_state"])
+                if (
+                    "asset_id" in damage_results_OQ.columns
+                    and "dmg_state" in damage_results_OQ.columns
+                ):
+                    # If damage_results_OQ has been adjusted as per GMPE logic tree weights,
+                    # this step is not necessary
+                    new_index = pd.MultiIndex.from_arrays(
+                        [damage_results_OQ["asset_id"], damage_results_OQ["dmg_state"]]
+                    )
+                    damage_results_OQ.index = new_index
+                    damage_results_OQ = damage_results_OQ.drop(columns=["asset_id", "dmg_state"])
 
                 if not store_openquake:
                     # Erase the job just run from OpenQuake's database (and HDF5)
