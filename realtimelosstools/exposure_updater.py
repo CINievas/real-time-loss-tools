@@ -1108,11 +1108,16 @@ class ExposureUpdater:
         ).sum(numeric_only=True)
         # Re-assign values of columns that only depend on original_asset_id (retrieve from the
         # original exposure model)
+        original_exposure_model_aux = deepcopy(original_exposure_model)
+        original_exposure_model_aux.set_index(
+            original_exposure_model_aux["original_asset_id"], inplace=True
+        )
+
         for col in columns_by_original_asset_id:
             aux_cols_content = []
             for multiindex in new_exposure_model.index:
                 original_asset_id = multiindex[0]
-                aux_cols_content.append(original_exposure_model.loc[original_asset_id, col])
+                aux_cols_content.append(original_exposure_model_aux.loc[original_asset_id, col])
             new_exposure_model[col] = aux_cols_content
 
         # Eliminate rows for which the number of buildings is zero (defined as < 1E-10)
