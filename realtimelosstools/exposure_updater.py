@@ -1408,33 +1408,37 @@ class ExposureUpdater:
 
         damage_results_OQ_adjusted = deepcopy(damage_results_OQ)
 
-        for asset_id in damage_results_OQ_adjusted.index.get_level_values("asset_id"):
+        filter_neg_vals = (damage_results_OQ_adjusted.value < 0.0)
+        asset_ids_neg_vals = damage_results_OQ_adjusted[filter_neg_vals].index.get_level_values(
+            "asset_id"
+        ).unique()
+
+        for i, asset_id in enumerate(asset_ids_neg_vals):
             damage_results_OQ_asset = damage_results_OQ_adjusted.loc[asset_id, "value"]
 
-            if np.any(damage_results_OQ_asset < 0):  # There are negative values
-                total_bdgs = damage_results_OQ_asset.sum()
+            total_bdgs = damage_results_OQ_asset.sum()
 
-                if abs(damage_results_OQ_asset.min()) / total_bdgs > tolerance:
-                    error_message = (
-                        "There are negative values in the damage results from OpenQuake "
-                        "that exceed the %s tolerance. The program cannot continue running"
-                        % (tolerance)
-                    )
-                    logger.critical(error_message)
-                    raise ValueError(error_message)
-
-                # Set negative numbers to zero
-                damage_results_OQ_asset[damage_results_OQ_asset < 0] = 0
-
-                # Recalculate the other values so as to keep the total number of buildings
-                damage_results_OQ_asset = (
-                    damage_results_OQ_asset / damage_results_OQ_asset.sum() * total_bdgs
+            if abs(damage_results_OQ_asset.min()) / total_bdgs > tolerance:
+                error_message = (
+                    "There are negative values in the damage results from OpenQuake "
+                    "that exceed the %s tolerance. The program cannot continue running"
+                    % (tolerance)
                 )
+                logger.critical(error_message)
+                raise ValueError(error_message)
 
-                # Transfer back to the original DataFrame (damage_results_OQ)
-                damage_results_OQ_adjusted.loc[asset_id, "value"] = (
-                    damage_results_OQ_asset.to_numpy()
-                )
+            # Set negative numbers to zero
+            damage_results_OQ_asset[damage_results_OQ_asset < 0] = 0
+
+            # Recalculate the other values so as to keep the total number of buildings
+            damage_results_OQ_asset = (
+                damage_results_OQ_asset / damage_results_OQ_asset.sum() * total_bdgs
+            )
+
+            # Transfer back to the original DataFrame (damage_results_OQ)
+            damage_results_OQ_adjusted.loc[asset_id, "value"] = (
+                damage_results_OQ_asset.to_numpy()
+            )
 
         return damage_results_OQ_adjusted
 

@@ -212,11 +212,14 @@ class Losses:
         loss_summary = loss_summary.join(consequence_model, on="building_class")
 
         # Calculate the losses
-        losses = np.zeros([loss_summary.shape[0]])
-        for i, row in enumerate(loss_summary.index):
-            loss_ratio = loss_summary.loc[row, loss_summary.loc[row, "damage_state"]] / 100.0
-            losses[i] = loss_ratio * loss_summary.loc[row, "structural"]
-        loss_summary["loss"] = losses
+        loss_ratios = [
+            loss_summary.loc[
+                row,
+                loss_summary.loc[row, "damage_state"]  # corresponding DS column
+            ] / 100.0
+            for row in loss_summary.index
+        ]
+        loss_summary["loss"] = loss_ratios * loss_summary["structural"]
 
         loss_summary = loss_summary.groupby(["building_id"]).sum(numeric_only=True)
 
@@ -308,16 +311,16 @@ class Losses:
             )
 
             # Calculate the losses
-            losses = np.zeros([losses_per_orig_asset_aux.shape[0]])
-            for i, row in enumerate(losses_per_orig_asset_aux.index):
-                loss_ratio = (
-                    losses_per_orig_asset_aux.loc[
-                        row, losses_per_orig_asset_aux.loc[row, "damage_state"]
-                    ] / 100.0
-                )
-                losses[i] = loss_ratio * losses_per_orig_asset_aux.loc[row, time_of_day]
-
-            losses_per_orig_asset["injuries_%s" % (severity)] = losses
+            loss_ratios = [
+                losses_per_orig_asset_aux.loc[
+                    row,
+                    losses_per_orig_asset_aux.loc[row, "damage_state"]  # DS column
+                ] / 100.0
+                for row in losses_per_orig_asset_aux.index
+            ]
+            losses_per_orig_asset["injuries_%s" % (severity)] = (
+                loss_ratios * losses_per_orig_asset_aux[time_of_day]
+            )
             injuries_columns.append("injuries_%s" % (severity))
 
         losses_per_orig_asset = losses_per_orig_asset.groupby(
@@ -327,15 +330,12 @@ class Losses:
         losses_per_orig_asset = losses_per_orig_asset[[*injuries_columns]]
 
         # "Recover" building_id (gets lost when using pd.groupby)
-        building_id_recovered = []
-
-        for i, original_asset_id in enumerate(losses_per_orig_asset.index):
-            bdg_id_i = exposure[
+        losses_per_orig_asset["building_id"] = [
+            exposure[
                 exposure.original_asset_id == original_asset_id
             ]["building_id"].to_numpy()[0]
-            building_id_recovered.append(bdg_id_i)
-
-        losses_per_orig_asset["building_id"] = building_id_recovered
+            for original_asset_id in losses_per_orig_asset.index
+        ]
 
         return losses_per_orig_asset
 

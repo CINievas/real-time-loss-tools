@@ -18,6 +18,7 @@
 
 import logging
 import os
+import numpy as np
 import pandas as pd
 from datetime import datetime
 from openquake.commands.run import main
@@ -435,6 +436,10 @@ class RapidLossAssessment:
         if not store_openquake:  # Erase the job just run from OpenQuake's database (and HDF5)
             Writer.delete_OpenQuake_last_job()
 
+        logger.info(
+            "%s Running of OpenQuake and retrieval of results done" % (np.datetime64('now'))
+        )
+
         # Store damage states from OpenQuake output to CSV (incl. potential negative values)
         if store_intermediate:
             damage_results_OQ.to_csv(
@@ -447,6 +452,10 @@ class RapidLossAssessment:
             )
 
         # Ensure no negative number of buildings in 'damage_results_OQ'
+        logger.info(
+            "%s Ensuring no negative number of buildings in 'damage_results_OQ'"
+            % (np.datetime64('now'))
+        )
         damage_results_OQ = ExposureUpdater.ensure_no_negative_damage_results_OQ(
             damage_results_OQ
         )
@@ -464,6 +473,9 @@ class RapidLossAssessment:
 
         # Update exposure to reflect new damage states
         # (occupants not updated yet)
+        logger.info(
+            "%s Updating exposure with damage states" % (np.datetime64('now'))
+        )
         exposure_updated_damage = ExposureUpdater.update_exposure_with_damage_states(
             state_dependent,
             exposure_run,
@@ -475,10 +487,16 @@ class RapidLossAssessment:
         )
 
         # Get damage states per building ID
+        logger.info(
+            "%s Summarising damage states per building ID"  % (np.datetime64('now'))
+        )
         damage_states = ExposureUpdater.summarise_damage_states_per_building_id(
             exposure_updated_damage
         )
 
+        logger.info(
+            "%s Calculating economic and human losses"  % (np.datetime64('now'))
+        )
         # Get economic losses per building ID
         losses_economic = Losses.expected_economic_loss(
             exposure_updated_damage, consequence_economic

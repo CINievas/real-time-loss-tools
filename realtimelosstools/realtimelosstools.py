@@ -260,6 +260,17 @@ def main():
                 occupancy_factors,
             ) = results
 
+            logger.info(
+                "%s Storing output of trigger %s of %s: %s with %s"
+                % (
+                    np.datetime64('now'),
+                    i+1,
+                    triggers.shape[0],
+                    type_analysis_i,
+                    cat_filename_i
+                )
+            )
+
             # Update 'exposure_model_current.csv'
             exposure_updated.to_csv(
                 os.path.join(config.main_path, "current", "exposure_model_current.csv"),
@@ -423,6 +434,17 @@ def main():
                     config.mapping_damage_states,
                     config.store_intermediate,
                     config.store_openquake,
+                )
+            )
+
+            logger.info(
+                "%s Storing output of trigger %s of %s: %s with %s"
+                % (
+                    np.datetime64('now'),
+                    i+1,
+                    triggers.shape[0],
+                    type_analysis_i,
+                    cat_filename_i
                 )
             )
 
