@@ -329,6 +329,9 @@ class RapidLossAssessment:
 
         # Update exposure to reflect occupants for this earthquake
         # (reflecting injuries and deaths)
+        logger.info(
+            "%s Updating exposed occupants" % (np.datetime64('now'))
+        )
         exposure_run = ExposureUpdater.update_exposure_occupants(
             exposure_full_occupants,
             time_of_day_occupancy,
