@@ -18,6 +18,7 @@
 
 import os
 import shutil
+import logging
 import numpy as np
 import pandas as pd
 from copy import deepcopy
@@ -25,6 +26,9 @@ from realtimelosstools.rla import RapidLossAssessment
 from realtimelosstools.configuration import Configuration
 from realtimelosstools.ruptures import RLA_Ruptures
 from realtimelosstools.utils import Loader
+
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
 
 
 def test_run_rla_01():

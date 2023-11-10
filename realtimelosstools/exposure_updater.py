@@ -969,6 +969,11 @@ class ExposureUpdater:
         # Replace probabilities in damage_results_OQ by probabilities from damage_results_SHM
         # for buildings that are monitored
         if damage_results_SHM is not None:
+            logger.debug(
+                "%s Method 'ExposureUpdater.update_exposure_with_damage_states': "
+                "merging externally-input damage states and OpenQuake damage states"
+                % (np.datetime64('now'))
+            )
             # Create mapping between asset_id (used by OQ) and building_id (used by SHM)
             id_asset_building_mapping = ExposureUpdater.create_mapping_asset_id_building_id(
                 previous_exposure_model
@@ -985,6 +990,11 @@ class ExposureUpdater:
             # No need to update damage states, take 'damage_results_merged' as it is
             damage_results_merged_updated = deepcopy(damage_results_merged)
         else:  # State-independent fragility model assumed, cumulative damage to be calculated
+            logger.debug(
+                "%s Method 'ExposureUpdater.update_exposure_with_damage_states': "
+                "carrying out preliminary steps for using state-independent fragilities"
+                % (np.datetime64('now'))
+            )
             # Damage results (probab. of occurrence) by original_asset_id (instead of by
             # asset_id) for the current earthquake (the one just run)
             asset_id_original_asset_id_mapping = (
@@ -1060,9 +1070,19 @@ class ExposureUpdater:
             )
 
         # Create new exposure model
+        logger.debug(
+            "%s Method 'ExposureUpdater.update_exposure_with_damage_states': "
+            "joining previous exposure model with damage results"
+            % (np.datetime64('now'))
+        )
         new_exposure_model = damage_results_merged_updated.join(previous_exposure_model)
 
         # Re-calculate costs and people
+        logger.debug(
+            "%s Method 'ExposureUpdater.update_exposure_with_damage_states': "
+            "distributing costs and occupants across different damage states"
+            % (np.datetime64('now'))
+        )
         for col_name in ["structural", "census", earthquake_time_of_day]:
             new_exposure_model[col_name] = (
                 new_exposure_model["value"].to_numpy() / new_exposure_model["number"].to_numpy()
@@ -1075,6 +1095,11 @@ class ExposureUpdater:
         new_exposure_model = new_exposure_model.drop(columns=["value", "rlz", "loss_type"])
 
         # Re-write the taxonomy strings
+        logger.debug(
+            "%s Method 'ExposureUpdater.update_exposure_with_damage_states': "
+            "re-generating taxonomy strings"
+            % (np.datetime64('now'))
+        )
         new_taxonomies = [
             "%s/%s"
             % (
@@ -1089,6 +1114,11 @@ class ExposureUpdater:
 
         # Group same damage states for same original_asset_id (e.g. for the same building and
         # class, two instances of "ClassA/DS1" should be grouped in the same row)
+        logger.debug(
+            "%s Method 'ExposureUpdater.update_exposure_with_damage_states': "
+            "grouping same damage states for same original_asset_id"
+            % (np.datetime64('now'))
+        )
         columns_by_original_asset_id = [  # These values depend only on the original_asset_id
             "lon",
             "lat",
@@ -1108,6 +1138,11 @@ class ExposureUpdater:
         ).sum(numeric_only=True)
         # Re-assign values of columns that only depend on original_asset_id (retrieve from the
         # original exposure model)
+        logger.debug(
+            "%s Method 'ExposureUpdater.update_exposure_with_damage_states': "
+            "re-assigning values of columns that only depend on original_asset_id"
+            % (np.datetime64('now'))
+        )
         original_exposure_model_aux = deepcopy(original_exposure_model)
         original_exposure_model_aux.set_index(
             original_exposure_model_aux["original_asset_id"], inplace=True
@@ -1121,12 +1156,22 @@ class ExposureUpdater:
             new_exposure_model[col] = aux_cols_content
 
         # Eliminate rows for which the number of buildings is zero (defined as < 1E-10)
+        logger.debug(
+            "%s Method 'ExposureUpdater.update_exposure_with_damage_states': "
+            "eliminating assets with number of buildings <= 1e-10"
+            % (np.datetime64('now'))
+        )
         filter_keep_nonzeros = new_exposure_model["number"] > 1e-10
         new_exposure_model = new_exposure_model[filter_keep_nonzeros]
 
         # Re-arrange index (up to now it is MultiIndex on (original_asset_id, taxonomy), need to
         # make it based again on ("asset_id", "dmg_state"), "asset_id" being that of the
         # previous exposure model; also need to recover contents of "taxonomy" as a column)
+        logger.debug(
+            "%s Method 'ExposureUpdater.update_exposure_with_damage_states': "
+            "re-defining index"
+            % (np.datetime64('now'))
+        )
         new_exposure_model["taxonomy"] = new_exposure_model.index.get_level_values("taxonomy")
         new_exposure_model["dmg_state"] = [
             mapping_damage_states[
@@ -1144,11 +1189,21 @@ class ExposureUpdater:
         new_exposure_model["original_asset_id"] = original_asset_id
 
         # Order the DataFrame by asset_id and dmg_state (ascending order)
+        logger.debug(
+            "%s Method 'ExposureUpdater.update_exposure_with_damage_states': "
+            "re-ordering by asset_id and dmg_state"
+            % (np.datetime64('now'))
+        )
         new_exposure_model = new_exposure_model.sort_values(
             by=[("asset_id"), ("dmg_state")], ascending=True
         )
 
         # Create new asset_id for the next calculation
+        logger.debug(
+            "%s Method 'ExposureUpdater.update_exposure_with_damage_states': "
+            "creating asset_id for the next earthquake"
+            % (np.datetime64('now'))
+        )
         new_exposure_model["id"] = [
             "exp_%s" % (j) for j in range(1, new_exposure_model.shape[0] + 1)
         ]
@@ -1275,6 +1330,11 @@ class ExposureUpdater:
         # Retrieve c factors for the date+time of the earthquake to run (one key per
         # damage state, e.g. {"DS0": 1, "DS1": 1, "DS2": 0, "DS3": 0, "DS4": 0}; they will all
         # be equal to 1 if no earthquake has been run before)
+        logger.debug(
+            "%s Method 'ExposureUpdater.update_exposure_occupants': "
+            "retrieving factors for the date+time of the current earthquake"
+            % (np.datetime64('now'))
+        )
         occupancy_factors = Losses.get_occupancy_factors(
             earthquake_datetime, mapping_damage_states, include_oelf, main_path
         )
@@ -1287,7 +1347,17 @@ class ExposureUpdater:
                 break  # once one factor is not zero, there is not need to keep on checking
 
         if not all_factors_null:
+            logger.debug(
+                "%s Method 'ExposureUpdater.update_exposure_occupants': "
+                "there are some non-zero factors --> occupants are non-zero"
+                % (np.datetime64('now'))
+            )
             # Get occupancy factors (0 or 1) per asset of 'exposure_full_occupants'
+            logger.debug(
+                "%s Method 'ExposureUpdater.update_exposure_occupants': "
+                "retrieving occupancy factors per asset"
+                % (np.datetime64('now'))
+            )
             occupancy_factors_per_asset = Losses.get_occupancy_factors_per_asset(
                 exposure_updated_occupants["taxonomy"].to_numpy(), occupancy_factors
             )
@@ -1295,6 +1365,11 @@ class ExposureUpdater:
             # Retrieve injuries (only for assets for which 'occupancy_factors_per_asset'=1)
             # (the method loops through the assets, hence looping only through necessary ones;
             # they will all be equal to zero if no earthquake has been run before)
+            logger.debug(
+                "%s Method 'ExposureUpdater.update_exposure_occupants': "
+                "retrieving injuries"
+                % (np.datetime64('now'))
+            )
             original_asset_ids_unique = (
                 exposure_updated_occupants["original_asset_id"].unique()
             )
@@ -1311,6 +1386,11 @@ class ExposureUpdater:
             injured_still_away.index.rename("original_asset_id")
 
             # Get time-of-day factors per asset
+            logger.debug(
+                "%s Method 'ExposureUpdater.update_exposure_occupants': "
+                "getting time-of-day factors per asset"
+                % (np.datetime64('now'))
+            )
             time_of_day_factors_per_asset = Losses.get_time_of_day_factors_per_asset(
                 exposure_updated_occupants["occupancy"].to_numpy(),
                 earthquake_time_of_day,
@@ -1328,7 +1408,12 @@ class ExposureUpdater:
                 },
                 index=exposure_updated_occupants.index
             )
-            for original_asset_id in original_asset_ids_unique:
+            for i, original_asset_id in enumerate(original_asset_ids_unique):
+                logger.debug(
+                    "%s Method 'ExposureUpdater.update_exposure_occupants': "
+                    "calculating number of injured still away for original_asset_id %s of %s"
+                    % (np.datetime64('now'), i+1, len(original_asset_ids_unique))
+                )
                 # Filter 'exposure_updated_occupants' for this 'original_asset_id'
                 orig_asset_id_filter = (
                     exposure_updated_occupants.original_asset_id == original_asset_id
@@ -1350,6 +1435,11 @@ class ExposureUpdater:
                 ] = by_asset_aux
 
             # Calculate the occupants at the time of the day of 'earthquake_time_of_day'
+            logger.debug(
+                "%s Method 'ExposureUpdater.update_exposure_occupants': "
+                "calculating %s occupants for current earthquake"
+                % (np.datetime64('now'), earthquake_time_of_day)
+            )
             occupants_at_time_of_day = np.zeros([exposure_updated_occupants.shape[0]])
             occupants_at_time_of_day = (
                 time_of_day_factors_per_asset
@@ -1361,6 +1451,11 @@ class ExposureUpdater:
             )
         else:
             # Do not retrieve injuries, occupants are zero for all assets
+            logger.debug(
+                "%s Method 'ExposureUpdater.update_exposure_occupants': "
+                "all zero factors --> occupants are zero for all assets"
+                % (np.datetime64('now'))
+            )
             occupants_at_time_of_day = np.zeros([exposure_updated_occupants.shape[0]])
 
         exposure_updated_occupants[earthquake_time_of_day] = occupants_at_time_of_day

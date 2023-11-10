@@ -1,5 +1,6 @@
 description_general: description of the run  # General description, used for the OpenQuake job.ini file.
 main_path: path/to/running/directory  #Path to the main running directory, assumed to have the needed structure.
+debug_logging: False
 oelf_source_model_filename: source_model.xml  # Name of the XML file with the source model to be used in OELF.
 state_dependent_fragilities: True  # True if the fragility models used to run OpenQuake are state-dependent, False otherwise.
 mapping_damage_states:  # From least severe to most severe. Keys are as output by OpenQuake, values are as labelled in the fragility/exposure.

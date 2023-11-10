@@ -57,6 +57,8 @@ def main():
         state_dependent_message = "Running with state-independent fragility models"
     logger.info(state_dependent_message)
 
+    logger.setLevel(config.logging_level)
+
     # Log relevant summary parameters (to create log file that allows
     # for a quick check of correct input)
     log_summary.append("Real-Time Loss Tools has started")

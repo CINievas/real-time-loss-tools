@@ -200,6 +200,11 @@ class Losses:
             loss_summary = loss_summary.drop(columns=["id"])
 
         # Create separate columns for building class and damage state
+        logger.debug(
+            "%s Method 'Losses.expected_economic_loss': "
+            "separating building class from damage state"
+            % (np.datetime64('now'))
+        )
         taxonomy = loss_summary["taxonomy"].to_numpy()
         loss_summary["damage_state"] = [
             taxonomy[i].split("/")[-1] for i in range(loss_summary.shape[0])
@@ -209,9 +214,19 @@ class Losses:
         ]
 
         # Join the 'loss_summary' with the 'consequence_model'
+        logger.debug(
+            "%s Method 'Losses.expected_economic_loss': "
+            "combining damaged exposure model with consequence model"
+            % (np.datetime64('now'))
+        )
         loss_summary = loss_summary.join(consequence_model, on="building_class")
 
         # Calculate the losses
+        logger.debug(
+            "%s Method 'Losses.expected_economic_loss': "
+            "calculating economic losses"
+            % (np.datetime64('now'))
+        )
         loss_ratios = [
             loss_summary.loc[
                 row,
@@ -292,6 +307,11 @@ class Losses:
         losses_per_orig_asset = deepcopy(exposure)
 
         # Create separate columns for building class and damage state
+        logger.debug(
+            "%s Method 'Losses.expected_human_loss_per_original_asset_id': "
+            "separating building class from damage state"
+            % (np.datetime64('now'))
+        )
         taxonomy = losses_per_orig_asset["taxonomy"].to_numpy()
         losses_per_orig_asset["building_class"] = [
             "/".join(taxonomy[i].split("/")[:-1]) for i in range(losses_per_orig_asset.shape[0])
@@ -303,14 +323,30 @@ class Losses:
         injuries_columns = []
 
         for severity in consequence_model:
+            logger.debug(
+                "%s Method 'Losses.expected_human_loss_per_original_asset_id': "
+                "calculating injuries of severity %s"
+                % (np.datetime64('now'), severity)
+            )
+
             losses_per_orig_asset_aux = deepcopy(losses_per_orig_asset)
 
             # Join the 'losses_per_orig_asset_aux' with the consequence model
+            logger.debug(
+                "%s Method 'Losses.expected_human_loss_per_original_asset_id', severity %s: "
+                "joining damaged exposure with consequence model"
+                % (np.datetime64('now'), severity)
+            )
             losses_per_orig_asset_aux = losses_per_orig_asset_aux.join(
                 consequence_model[severity], on="building_class"
             )
 
             # Calculate the losses
+            logger.debug(
+                "%s Method 'Losses.expected_human_loss_per_original_asset_id', severity %s: "
+                "calculating number of people"
+                % (np.datetime64('now'), severity)
+            )
             loss_ratios = [
                 losses_per_orig_asset_aux.loc[
                     row,
@@ -323,6 +359,11 @@ class Losses:
             )
             injuries_columns.append("injuries_%s" % (severity))
 
+        logger.debug(
+            "%s Method 'Losses.expected_human_loss_per_original_asset_id': "
+            "grouping by original_asset_id"
+            % (np.datetime64('now'))
+        )
         losses_per_orig_asset = losses_per_orig_asset.groupby(
             ["original_asset_id"]
         ).sum(numeric_only=True)  # original_asset_id becomes index
@@ -330,6 +371,11 @@ class Losses:
         losses_per_orig_asset = losses_per_orig_asset[[*injuries_columns]]
 
         # "Recover" building_id (gets lost when using pd.groupby)
+        logger.debug(
+            "%s Method 'Losses.expected_human_loss_per_original_asset_id': "
+            "recovering building_id for the grouping by original_asset_id"
+            % (np.datetime64('now'))
+        )
         losses_per_orig_asset["building_id"] = [
             exposure[
                 exposure.original_asset_id == original_asset_id
@@ -532,6 +578,11 @@ class Losses:
         """
 
         # Define timeline in UTC
+        logger.debug(
+            "%s Method 'Losses.calculate_injuries_recovery_timeline': "
+            "defining timeline in UTC"
+            % (np.datetime64('now'))
+        )
         timeline_injuries_relative = Losses.define_timeline_recovery_relative(
             recovery_injuries["N_discharged"].to_numpy(), 0, longest_time
         )
@@ -547,6 +598,11 @@ class Losses:
         f_severity = deepcopy(recovery_injuries)
 
         for i, time_threshold in enumerate(timeline_injuries_relative):
+            logger.debug(
+                "%s Method 'Losses.calculate_injuries_recovery_timeline': "
+                "defining f_severity for time threshold %s of %s"
+                % (np.datetime64('now'), i+1, len(timeline_injuries_relative))
+            )
             # Initialise with zeros
             f_severity_aux = np.zeros([f_severity.shape[0]], dtype=int)
             # Turn to ones the cases where the time threshold is < the N_discharge number of days
@@ -567,7 +623,12 @@ class Losses:
             index=losses_human_per_orig_asset_id.index  # index is "original_asset_id"
         )
 
-        for time_threshold in timeline_injuries_absolute:
+        for j, time_threshold in enumerate(timeline_injuries_absolute):
+            logger.debug(
+                "%s Method 'Losses.calculate_injuries_recovery_timeline': "
+                "calculating injured people still away for time threshold %s of %s"
+                % (np.datetime64('now'), j+1, len(timeline_injuries_absolute))
+            )
             time_threshold_str = str(time_threshold.astype("datetime64[s]"))
             injured_still_away_aux = np.zeros([losses_human_per_orig_asset_id.shape[0]])
             for i, orig_asset_id in enumerate(losses_human_per_orig_asset_id.index):
@@ -633,6 +694,11 @@ class Losses:
         """
 
         # Define timeline in UTC
+        logger.debug(
+            "%s Method 'Losses.calculate_repair_recovery_timeline': "
+            "defining timeline in UTC"
+            % (np.datetime64('now'))
+        )
         timeline_damage_relative = Losses.define_timeline_recovery_relative(
             recovery_damage["N_damage"].to_numpy(), 0, longest_time
         )
@@ -649,6 +715,11 @@ class Losses:
         )
 
         for i, time_threshold in enumerate(timeline_damage_relative):
+            logger.debug(
+                "%s Method 'Losses.calculate_repair_recovery_timeline': "
+                "defining damage_factors for time threshold %s of %s"
+                % (np.datetime64('now'), i+1, len(timeline_damage_relative))
+            )
             # Initialise with zeros
             occupancy_factors_aux = np.zeros([recovery_damage.shape[0]], dtype=int)
             # Turn to ones the cases where the time threshold is >= the N_damage number of days

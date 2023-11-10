@@ -498,20 +498,30 @@ class RapidLossAssessment:
         )
 
         logger.info(
-            "%s Calculating economic and human losses"  % (np.datetime64('now'))
+            "%s Calculating economic losses"  % (np.datetime64('now'))
         )
         # Get economic losses per building ID
         losses_economic = Losses.expected_economic_loss(
             exposure_updated_damage, consequence_economic
         )
 
+        logger.info(
+            "%s Calculating human losses"  % (np.datetime64('now'))
+        )
         # Calculate human losses per asset of 'exposure_updated_damage'
         losses_human_per_asset = Losses.expected_human_loss_per_original_asset_id(
             exposure_updated_damage, time_of_day, consequence_injuries
         )
+
+        logger.debug(
+            "%s Calculating human losses per building ID" % (np.datetime64('now'))
+        )
         # Calculate human losses per building ID
         losses_human = Losses.expected_human_loss_per_building_id(losses_human_per_asset)
 
+        logger.debug(
+            "%s Calculating timeline of recovery due to health" % (np.datetime64('now'))
+        )
         # Calculate timeline of recovery (to define occupants for next earthquake)
         injured_still_away = Losses.calculate_injuries_recovery_timeline(
             losses_human_per_asset,
@@ -519,12 +529,19 @@ class RapidLossAssessment:
             recovery_longest_time,
             earthquake["datetime"],
         )
+        logger.debug(
+            "%s Calculating timeline of recovery due to inspection/repair"
+            % (np.datetime64('now'))
+        )
         occupancy_factors = Losses.calculate_repair_recovery_timeline(
             recovery_damage, recovery_longest_time, earthquake["datetime"]
         )
 
         # Store new exposure CSV
         if store_intermediate:
+            logger.debug(
+                "%s Storing intermediate-step updated exposure model" % (np.datetime64('now'))
+            )
             name_exposure_csv_file_next = (
                 "exposure_model_after_%s.csv" % (earthquake["event_id"])
             )

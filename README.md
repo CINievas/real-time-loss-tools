@@ -119,6 +119,10 @@ navigate to the directory where you placed `config.yml`. Then type:
 
 The program will start to run.
 
+### Execution in debug mode
+
+In order to get debug information in the log, set `debug_logging: True` in `config.yml`.
+
 ### Example files
 
 A full set of example input and output files can be found

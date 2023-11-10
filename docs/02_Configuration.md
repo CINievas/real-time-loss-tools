@@ -20,6 +20,11 @@ will use this description as `description` within the `job.ini` file.
 Path to the main running directory, assumed to have the required
 [file structure](03_Input.md#assumed-file-structure).
 
+### `debug_logging`
+
+Optional parameter. Set to `True` to get debug level logs. Skip or set to `False` to get info
+level logs only (no debug messages).
+
 ### `oelf_source_model_filename`
 
 Name of the XML file that contains the source model needed to create the earthquake ruptures to

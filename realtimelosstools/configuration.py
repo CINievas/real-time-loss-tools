@@ -34,6 +34,10 @@ class Configuration:
         self.main_path (str):
             Path to the directory that contains the input files and where output files will be
             placed. It needs to have a pre-defined structure (please see the documentation).
+        self.logging_level (bool):
+            If "debug_logging" in the configuration file is True, 'logging_level' will be set to
+            DEBUG mode. If False, or if parameter "debug_logging" is not provided,
+            'logging_level' will be set to INFO.
         self.oelf_source_model_filename (str):
             Name of the XML file with the earthquake source model to be used to stochastically
             generate rupture properties for Operational Earthquake Loss Forecasting (OELF).
@@ -153,6 +157,16 @@ class Configuration:
         self.description_general = self.assign_parameter(config, "description_general")
 
         self.main_path = self.assign_parameter(config, "main_path")
+
+        if "debug_logging" in config:
+            self.debug_logging = self.assign_boolean_parameter(config, "debug_logging")
+        else:
+            self.debug_logging = False
+
+        self.logging_level = logging.INFO
+        if "debug_logging" in config:
+            if self.assign_boolean_parameter(config, "debug_logging"):
+                self.logging_level = logging.DEBUG
 
         self.oelf_source_model_filename = self.assign_parameter(
             config, "oelf_source_model_filename"
