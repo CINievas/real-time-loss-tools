@@ -320,7 +320,7 @@ class Losses:
             taxonomy[i].split("/")[-1] for i in range(losses_per_orig_asset.shape[0])
         ]
 
-        injuries_columns = []
+        how_to_group = {"building_id": "first"}
 
         for severity in consequence_model:
             logger.debug(
@@ -357,7 +357,8 @@ class Losses:
             losses_per_orig_asset["injuries_%s" % (severity)] = (
                 loss_ratios * losses_per_orig_asset_aux[time_of_day]
             )
-            injuries_columns.append("injuries_%s" % (severity))
+
+            how_to_group["injuries_%s" % (severity)] = sum
 
         logger.debug(
             "%s Method 'Losses.expected_human_loss_per_original_asset_id': "
@@ -365,23 +366,8 @@ class Losses:
             % (np.datetime64('now'))
         )
         losses_per_orig_asset = losses_per_orig_asset.groupby(
-            ["original_asset_id"]
-        ).sum(numeric_only=True)  # original_asset_id becomes index
-
-        losses_per_orig_asset = losses_per_orig_asset[[*injuries_columns]]
-
-        # "Recover" building_id (gets lost when using pd.groupby)
-        logger.debug(
-            "%s Method 'Losses.expected_human_loss_per_original_asset_id': "
-            "recovering building_id for the grouping by original_asset_id"
-            % (np.datetime64('now'))
-        )
-        losses_per_orig_asset["building_id"] = [
-            exposure[
-                exposure.original_asset_id == original_asset_id
-            ]["building_id"].to_numpy()[0]
-            for original_asset_id in losses_per_orig_asset.index
-        ]
+            ["original_asset_id"]  # original_asset_id becomes index
+        ).agg(how_to_group)  # sum injuries, keep building_id
 
         return losses_per_orig_asset
 
