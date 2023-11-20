@@ -1483,7 +1483,9 @@ class ExposureUpdater:
 
 
     @staticmethod
-    def ensure_no_negative_damage_results_OQ(damage_results_OQ, tolerance=0.0001):
+    def ensure_no_negative_damage_results_OQ(
+        damage_results_OQ, tolerance=0.0001, n_rows_simplified=100000
+    ):
         """
         This method ensures that there are no negative numbers of buildings in the column
         "value" of 'damage_results_OQ', by setting them to zero and adjusting the number of
@@ -1510,6 +1512,11 @@ class ExposureUpdater:
                         are not used).
             tolerance (float):
                 Default: 0.0001 (= 0.01%).
+            n_rows_simplified (int):
+                If the number of rows of 'damage_results_OQ' is smaller than 'n_rows_simplified',
+                the adjustment of the number of buildings is carried out by 'asset_id'. If it is
+                larger, the adjustment is done in a simplified way, taking 'damage_results_OQ'
+                as a whole.
 
         Returns:
             damage_results_OQ_adjusted (Pandas DataFrame):
@@ -1523,6 +1530,38 @@ class ExposureUpdater:
         damage_results_OQ_adjusted = deepcopy(damage_results_OQ)
 
         filter_neg_vals = (damage_results_OQ_adjusted.value < 0.0)
+
+        if filter_neg_vals.sum() == 0:  # there are no negative values
+            # nothing to be done
+            return damage_results_OQ_adjusted
+
+        if damage_results_OQ_adjusted.shape[0] > n_rows_simplified:
+            # Simplified procedure (adjusting the whole DataFrame all together)
+            total_bdgs = damage_results_OQ_adjusted["value"].sum()
+            negative_bdgs = abs(damage_results_OQ_adjusted[filter_neg_vals]["value"].sum())
+
+            if negative_bdgs / total_bdgs > tolerance:
+                error_message = (
+                    "There total of negative values in the damage results from OpenQuake "
+                    "exceeds the %s tolerance. The program cannot continue running"
+                    % (tolerance)
+                )
+                logger.critical(error_message)
+                raise ValueError(error_message)
+
+            # Set negative numbers to zero
+            damage_results_OQ_adjusted.loc[filter_neg_vals, "value"] = 0
+
+            # Recalculate the other values so as to keep the total number of buildings
+            damage_results_OQ_adjusted["value"] = (
+                damage_results_OQ_adjusted["value"] / damage_results_OQ_adjusted["value"].sum()
+                * total_bdgs
+            )
+
+            return damage_results_OQ_adjusted
+
+        # If there are negative values and damage_results_OQ_adjusted.shape[0]
+        # <= n_rows_simplified, adjust the number of buildings by 'asset_id'
         asset_ids_neg_vals = damage_results_OQ_adjusted[filter_neg_vals].index.get_level_values(
             "asset_id"
         ).unique()

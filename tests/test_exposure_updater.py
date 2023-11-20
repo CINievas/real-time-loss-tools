@@ -1027,6 +1027,32 @@ def test_ensure_no_negative_damage_results_OQ():
             expected_damage_results_OQ.loc[multiindex, "value"], 5
         )
 
+    # Test case in which the number of rows of the damage input are more than
+    # 'n_rows_simplified' and, as a consequence, the simplified procedure is used
+    returned_damage_results_OQ = ExposureUpdater.ensure_no_negative_damage_results_OQ(
+        damage_results_OQ, tolerance=0.0001, n_rows_simplified=100
+    )
+
+    expected_damage_results_OQ = pd.read_csv(
+        os.path.join(
+            os.path.dirname(__file__), "data", "expected_damages_OQ_negative_simplified.csv"
+        )
+    )
+    new_index = pd.MultiIndex.from_arrays(
+        [expected_damage_results_OQ["asset_id"], expected_damage_results_OQ["dmg_state"]]
+    )
+    expected_damage_results_OQ.index = new_index
+    expected_damage_results_OQ = expected_damage_results_OQ.drop(
+        columns=["asset_id", "dmg_state"]
+    )
+
+    assert returned_damage_results_OQ.shape == expected_damage_results_OQ.shape
+
+    for multiindex in expected_damage_results_OQ.index:
+        assert round(returned_damage_results_OQ.loc[multiindex, "value"], 5) == round(
+            expected_damage_results_OQ.loc[multiindex, "value"], 5
+        )
+
     # Test case in which there is nothing to adjust (input the already adjusted case)
     returned_damage_results_OQ = ExposureUpdater.ensure_no_negative_damage_results_OQ(
         expected_damage_results_OQ, tolerance=0.0001
