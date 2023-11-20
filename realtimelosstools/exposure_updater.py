@@ -1653,19 +1653,17 @@ class ExposureUpdater:
         # Add weighted numbers of buildings
         damage_results_OQ_weighted = damage_results_OQ_weighted.groupby(
             ["asset_id", "dmg_state"]
-        ).sum(numeric_only=True)
-        damage_results_OQ_weighted = damage_results_OQ_weighted.drop(columns=["value"])
+        ).agg(
+            {
+                "rlz": "first",  # keep first value of rlz, i.e. 0
+                "loss_type": "first",  # keep first value of 'loss_type'
+                "weighted_value": sum
+            }
+        )
+
         damage_results_OQ_weighted = damage_results_OQ_weighted.rename(
             columns={"weighted_value": "value"}
         )
-
-        # Fill in columns
-        damage_results_OQ_weighted["rlz"] = np.zeros(
-            [damage_results_OQ_weighted.shape[0]], dtype=int
-        )
-        damage_results_OQ_weighted["loss_type"] = [
-            "structural" for i in range(damage_results_OQ_weighted.shape[0])
-        ]
 
         return damage_results_OQ_weighted
 
