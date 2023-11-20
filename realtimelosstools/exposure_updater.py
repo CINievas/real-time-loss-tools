@@ -1069,13 +1069,40 @@ class ExposureUpdater:
                 )
             )
 
+        # Eliminate rows for which the number of buildings is zero (defined as < 1E-10)
+        # (it is faster to do it on the damage results than after merging the damage results
+        # with the previous exposure model; the fundamental concept behind this is that
+        # buildings cannot heal themselves, but OQ will still output the rows associated with
+        # "healing", i.e. going backwards in damage, and these rows will have zero buildings)
+        logger.debug(
+            "%s Method 'ExposureUpdater.update_exposure_with_damage_states': "
+            "eliminating assets with number of buildings <= 1e-10"
+            % (np.datetime64('now'))
+        )
+        filter_keep_nonzeros = damage_results_merged_updated["value"] > 1e-10
+        damage_results_merged_updated = damage_results_merged_updated[filter_keep_nonzeros]
+
         # Create new exposure model
         logger.debug(
             "%s Method 'ExposureUpdater.update_exposure_with_damage_states': "
             "joining previous exposure model with damage results"
             % (np.datetime64('now'))
         )
-        new_exposure_model = damage_results_merged_updated.join(previous_exposure_model)
+        # Detach the damage state from the building class string (it is faster to do it before
+        # joining with the new damage states)
+        previous_exposure_model_without_ds = deepcopy(previous_exposure_model)
+        previous_exposure_model_without_ds["taxonomy"] = [
+            "%s"
+            % (
+                "/".join(
+                    previous_exposure_model_without_ds["taxonomy"].to_numpy()[j].split("/")[:-1]
+                )
+            )
+            for j in range(previous_exposure_model_without_ds.shape[0])
+        ]
+        new_exposure_model = damage_results_merged_updated.join(
+            previous_exposure_model_without_ds
+        )
 
         # Re-calculate costs and people
         logger.debug(
@@ -1100,17 +1127,18 @@ class ExposureUpdater:
             "re-generating taxonomy strings"
             % (np.datetime64('now'))
         )
-        new_taxonomies = [
-            "%s/%s"
-            % (
-                "/".join(new_exposure_model["taxonomy"].to_numpy()[j].split("/")[:-1]),
-                mapping_damage_states.loc[
-                    new_exposure_model.index.get_level_values("dmg_state")[j], "fragility"
-                ],
-            )
-            for j in range(new_exposure_model.shape[0])
-        ]
+        mapping_damage_states["fragility_aux"] = [
+            "/%s"
+            % (mapping_damage_states["fragility"].to_numpy()[j])
+            for j in range(mapping_damage_states.shape[0])
+        ]  # Add the "/" to the front of the damage state names
+        new_exposure_model = new_exposure_model.join(mapping_damage_states, on="dmg_state")
+        new_taxonomies = new_exposure_model["taxonomy"] + new_exposure_model["fragility_aux"]
         new_exposure_model["taxonomy"] = new_taxonomies
+
+        new_exposure_model = new_exposure_model.drop(
+            columns=["fragility", "fragility_aux"]
+        )
 
         # Group same damage states for same original_asset_id (e.g. for the same building and
         # class, two instances of "ClassA/DS1" should be grouped in the same row)
@@ -1154,15 +1182,6 @@ class ExposureUpdater:
                 original_asset_id = multiindex[0]
                 aux_cols_content.append(original_exposure_model_aux.loc[original_asset_id, col])
             new_exposure_model[col] = aux_cols_content
-
-        # Eliminate rows for which the number of buildings is zero (defined as < 1E-10)
-        logger.debug(
-            "%s Method 'ExposureUpdater.update_exposure_with_damage_states': "
-            "eliminating assets with number of buildings <= 1e-10"
-            % (np.datetime64('now'))
-        )
-        filter_keep_nonzeros = new_exposure_model["number"] > 1e-10
-        new_exposure_model = new_exposure_model[filter_keep_nonzeros]
 
         # Re-arrange index (up to now it is MultiIndex on (original_asset_id, taxonomy), need to
         # make it based again on ("asset_id", "dmg_state"), "asset_id" being that of the
