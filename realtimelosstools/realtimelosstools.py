@@ -252,6 +252,7 @@ def main():
                 damage_results_SHM.loc[:, earthquake_params["event_id"]],
                 config.store_intermediate,
                 config.store_openquake,
+                config.number_cores,
             )
             (
                 exposure_updated,
@@ -436,6 +437,7 @@ def main():
                     config.mapping_damage_states,
                     config.store_intermediate,
                     config.store_openquake,
+                    config.number_cores,
                 )
             )
 

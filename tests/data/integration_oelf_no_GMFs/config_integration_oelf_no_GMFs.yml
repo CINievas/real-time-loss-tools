@@ -1,5 +1,6 @@
 description_general: OELF Integration Test
 main_path: DEFINEDWITHINTEST
+number_cores: 1
 oelf_source_model_filename: source_model_for_oelf.xml
 state_dependent_fragilities: True
 mapping_damage_states:

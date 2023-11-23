@@ -38,6 +38,9 @@ class Configuration:
             If "debug_logging" in the configuration file is True, 'logging_level' will be set to
             DEBUG mode. If False, or if parameter "debug_logging" is not provided,
             'logging_level' will be set to INFO.
+        self.number_cores (int):
+            Number of cores to be used for processing whenever parallelisation is possible. This
+            parameter does not apply to OpenQuake, which has its own parallelisation strategy.
         self.oelf_source_model_filename (str):
             Name of the XML file with the earthquake source model to be used to stochastically
             generate rupture properties for Operational Earthquake Loss Forecasting (OELF).
@@ -132,6 +135,7 @@ class Configuration:
     REQUIRES = [
         "description_general",
         "main_path",
+        "number_cores",
         "oelf_source_model_filename",
         "state_dependent_fragilities",
         "mapping_damage_states",
@@ -167,6 +171,10 @@ class Configuration:
         if "debug_logging" in config:
             if self.assign_boolean_parameter(config, "debug_logging"):
                 self.logging_level = logging.DEBUG
+
+        self.number_cores = self.assign_integer_parameter(
+            config, "number_cores"
+        )
 
         self.oelf_source_model_filename = self.assign_parameter(
             config, "oelf_source_model_filename"
