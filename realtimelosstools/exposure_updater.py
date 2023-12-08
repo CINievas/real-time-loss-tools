@@ -1660,7 +1660,7 @@ class ExposureUpdater:
                 raise ValueError(error_message)
 
             # Set negative numbers to zero
-            damage_results_OQ_asset[damage_results_OQ_asset < 0] = 0
+            damage_results_OQ_asset = damage_results_OQ_asset.clip(0.0, np.inf)
 
             # Recalculate the other values so as to keep the total number of buildings
             damage_results_OQ_asset = (
