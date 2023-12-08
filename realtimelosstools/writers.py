@@ -21,6 +21,7 @@ import logging
 import fileinput
 import getpass
 from openquake.commonlib import datastore
+from openquake.commonlib.logs import get_calc_ids
 from openquake.commands.purge import purge_one
 
 
@@ -224,7 +225,7 @@ class Writer:
         """
 
         datadir = datastore.get_datadir()
-        calc_id = datastore.get_calc_ids(datadir)
+        calc_id = get_calc_ids(datadir)
         purge_one(calc_id[-1], getpass.getuser(), True)
 
         return
