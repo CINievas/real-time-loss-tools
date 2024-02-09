@@ -25,6 +25,10 @@ Path to the main running directory, assumed to have the required
 Optional parameter. Set to `True` to get debug level logs. Skip or set to `False` to get info
 level logs only (no debug messages).
 
+### `number_cores`
+
+Number of CPUs to be used for computational processes that are parallelised.
+
 ### `oelf_source_model_filename`
 
 Name of the XML file that contains the source model needed to create the earthquake ruptures to

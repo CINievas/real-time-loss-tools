@@ -22,7 +22,7 @@ tests_require = ["pytest"]
 
 setup(
     name="real-time-loss-tools",
-    version="1.0.1",
+    version="1.1.0",
     description="",
     keywords="earthquake damage, earthquake loss, rapid loss assessment, operational earthquake loss forecasting",
     author="Cecilia Nievas, Helen Crowley, Graeme Weatherill",

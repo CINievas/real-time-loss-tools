@@ -241,6 +241,9 @@ The initial exposure model is input by means of two files that follow the OpenQu
 - `exposure_model_undamaged.csv` (within the `exposure_models` directory)
 - `exposure_model.xml` (within the `current` directory)
 
+While OpenQuake can take as input several CSV files, as long as they are all named in the XML
+file, the Real-Time Loss Tools are designed to work with just one exposure CSV file.
+
 Each row of `exposure_model_undamaged.csv` corresponds to a building or set of buildings
 associated with a particular location and building class (as in any model to be used with
 OpenQuake). Apart from the standard fields needed for OpenQuake, the Real-Time Loss Tools
