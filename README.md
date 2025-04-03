@@ -86,12 +86,6 @@ The virtual environment can be deactivated by typing:
 - `pytz`
 - `openquake.engine 3.15`
 
-## Documentation
-
-For scientific documentation, please see [Citation](#citation) down below.
-
-Software documentation: click [here](docs/README.md).
-
 ## Running
 
 ### Preparation
@@ -138,13 +132,33 @@ grant agreement No. 821115.
 
 ## Citation
 
-Please cite the two references below:
+Please cite:
+
+Nievas CI, Crowley H, Weatherill G, Cotton F (2025) Real-Time Loss Tools: Open-Source Software
+for Time- and State-Dependent Seismic Damage and Loss Calculations - Features and Application to
+the 2023 Turkiye-Syria Sequence. Seismica, 4(1).
+[https://doi.org/10.26443/seismica.v4i1.1238](https://doi.org/10.26443/seismica.v4i1.1238)
+
+## Documentation
+
+Software documentation: click [here](docs/README.md).
+
+Scientific documentation:
+
+Nievas CI, Crowley H, Weatherill G, Cotton F (2025) Real-Time Loss Tools: Open-Source Software
+for Time- and State-Dependent Seismic Damage and Loss Calculations - Features and Application to
+the 2023 Turkiye-Syria Sequence. Seismica, 4(1).
+[https://doi.org/10.26443/seismica.v4i1.1238](https://doi.org/10.26443/seismica.v4i1.1238)
+
+Additional documentation (more details, input formats, etc):
 
 Nievas CI, Crowley H, Reuland Y, Weatherill G, Baltzopoulos G, Bayliss K, Chatzi E, Chioccarelli
-E, Guéguen P, Iervolino I, Marzocchi W, Naylor M, Orlacchio M, Pejovic J, Popovic N, Serafini F,
+E, Gueguen P, Iervolino I, Marzocchi W, Naylor M, Orlacchio M, Pejovic J, Popovic N, Serafini F,
 Serdar N (2023) Integration of RISE innovations in the fields of OELF, RLA and SHM.
 RISE Project Deliverable 6.1. Available at
 [http://static.seismo.ethz.ch/rise/deliverables/Deliverable_6.1.pdf](http://static.seismo.ethz.ch/rise/deliverables/Deliverable_6.1.pdf).
+
+## Software DOI
 
 Nievas CI, Crowley H, Weatherill G (2023) Real-Time Loss Tools. Zenodo.
 [https://doi.org/10.5281/zenodo.7948699](https://doi.org/10.5281/zenodo.7948699)
