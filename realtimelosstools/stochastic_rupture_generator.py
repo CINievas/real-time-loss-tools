@@ -36,7 +36,7 @@ from openquake.baselib.node import Node
 from openquake.hazardlib import nrml, mfd
 from openquake.hazardlib.pmf import PMF
 from openquake.hazardlib.geo import geodetic, Point, PlanarSurface, NodalPlane
-from openquake.hazardlib.scalerel import Leonard2014_Interplate
+from openquake.hazardlib.scalerel.leonard2014 import Leonard2014_Interplate
 
 
 logger = logging.getLogger()

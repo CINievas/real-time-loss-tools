@@ -25,12 +25,14 @@ import numpy as np
 import pandas as pd
 from datetime import datetime
 from openquake.commands.run import main
+from openquake.calculators.extract import extract
+from openquake.commonlib.datastore import read
 from openquake.hazardlib import geo
 from realtimelosstools.ruptures import Rupture
 from realtimelosstools.exposure_updater import ExposureUpdater
 from realtimelosstools.losses import Losses
 from realtimelosstools.writers import Writer
-from realtimelosstools.utils import Time
+from realtimelosstools.utils import Time, OpenQuakeDataStoreHandler
 
 
 logger = logging.getLogger()
@@ -533,13 +535,21 @@ class OperationalEarthquakeLossForecasting():
                 path_to_job_ini = os.path.join(main_path, "current", "job.ini")
 
                 try:
-                    calc = main([path_to_job_ini])
+                    calc_id = main(path_to_job_ini)
 
                     # Retrieve damage states from OpenQuake output
-                    dstore = calc.datastore.open("r")
+                    dstore = read(calc_id)
 
                     try:
-                        damage_results_OQ = dstore.read_df("damages-rlzs")
+                        damage_results_OQ_raw325 = dstore.read_df("damages-rlzs")
+
+                        oq_asset_id_mapping = OpenQuakeDataStoreHandler.retrieve_exposure_asset_id_mapping(
+                            extract(dstore, "assetcol").array
+                        )
+
+                        damage_results_OQ = OpenQuakeDataStoreHandler.backward_compatibility_damage(
+                            damage_results_OQ_raw325, oq_asset_id_mapping
+                        )
 
                         # Check if different realisations exist
                         # (i.e., from different GMPE logic tree branches)
@@ -587,6 +597,15 @@ class OperationalEarthquakeLossForecasting():
                     else:
                         error_message = (
                             "OpenQuake has crashed for %s "
+                            "and Real-Time Loss Tools has not been able to solve it"
+                            % (description)
+                        )
+                        logger.critical(error_message)
+                        raise OSError(error_message)
+
+                except AssertionError as ae:
+                        error_message = (
+                            "OpenQuake has crashed with an AssertionError "
                             "and Real-Time Loss Tools has not been able to solve it"
                             % (description)
                         )

@@ -18,73 +18,48 @@ community.
 
 ## Installation
 
-It is recommended that a Python 3.8 virtual environment be created so as to install and run the
-software from within it. To do so, type:
+It is recommended that a Python >= 3.12 virtual environment be created so as to install and run
+the software from within it.
 
-```bash
-$ python3.8 -m venv YourPreferredName
-```
+There are two main steps to this installation: (1) installation of the OpenQuake engine and (2)
+installation of the Real-Time Loss Tools themselves. Detailed steps are provided in what
+follows.
 
-`YourPreferredName` will be the name of the virtual environment. Activate it by doing:
+### Installing the OpenQuake Engine
 
-```bash
-$ source YourPreferredName/bin/activate
-```
+1. Create a new Python >= 3.12 virtual environment and activate it (it is strongly recommended
+to upgrade pip: `pip install --upgrade pip`).
+2. Clone OpenQuake v3.25.1 from [https://github.com/gem/oq-engine.git](https://github.com/gem/oq-engine.git)
+(e.g., `git clone --single-branch --branch v3.25.1 https://github.com/gem/oq-engine.git`).
+3. Navigate to the local OpenQuake repository and run
+`pip install -r requirements-py312-osname.txt`, where `osname` stands for the name of your OS
+(e.g., `requirements-py312-linux64.txt` for Linux).
+4. From the same local OpenQuake repository run `pip3 install -e .`.
+5. If older versions of OpenQuake had been installed, it might be necessary to update the
+database by doing `oq engine --upgrade-db`.
 
-Before doing anything else, upgrade `pip` to its latest version (not doing so might result in
-errors during installation that will not indicate that the problem lies in the version of
-`pip`):
 
-```bash
-(YourPreferredName) $ pip install --upgrade pip
-```
-
-Move within your directory structure to a location where you would like to clone the present
-repository. From there, do:
-
-```bash
-(YourPreferredName) $ git clone https://git.gfz-potsdam.de/cnievas/real-time-loss-tools.git
-(YourPreferredName) $ cd real-time-loss-tools
-(YourPreferredName) $ pip3 install -e .
-```
-
-The last command will install the `Real Time Loss Tools` and all its dependencies, including the
-[OpenQuake engine](https://github.com/gem/oq-engine). If you already have a version of OpenQuake
-installed in your computer, even if it is within a virtual environment, the different versions
-or installations will share the same underlying database and it might be necessary to stop and
-re-start it to be able to run the `Real Time Loss Tools`. The error that might flag up if this
-is the case might not be fully self-explanatory, and so it is recommended to stop and re-start
-the database as a precautionary measure by doing:
-
-```bash
-(YourPreferredName) $ oq dbserver stop
-(YourPreferredName) $ oq dbserver start
-```
-
-Please note that mixing different versions of OpenQuake can lead to the database becoming
-unusable with older versions.
-
-The virtual environment can be deactivated by typing:
-
-```bash
-(YourPreferredName) $ deactivate
-```
+### Installing the Real-Time Loss Tools
+1. Activate the virtual environment created in Step 1 above (if not already activated).
+1. Clone the `real-time-loss-tools` repository
+(`git clone https://git.gfz-potsdam.de/real-time-loss-tools/real-time-loss-tools.git`).
+2. Navigate to the local `real-time-loss-tools` repository and run `pip3 install -e .`.
 
 ### Software dependencies
 
-- Python 3.8 or above (tested only with Python 3.8 and 3.9)
+- Python 3.12 or above
+- OpenQuake engine 3.25.1 or above
 
 ### Python libraries
 
-- `pyyaml`
-- `numpy`
-- `pandas`
-- `shapely`
-- `pyproj`
-- `rtree`
-- `geopandas`
-- `pytz`
-- `openquake.engine 3.15`
+- `pyyaml` (v6.0.3 or above)
+- `numpy` (v2.2.6 or above)
+- `pandas` (v2.2.3 or above)
+- `shapely` (v2.1.0 or above)
+- `pyproj` (v3.7.2 or above)
+- `rtree` (v1.4.1 or above)
+- `geopandas` (v1.1.1 or above)
+- `pytz` (v2023.3 or above)
 
 ## Running
 
@@ -167,7 +142,7 @@ Nievas CI, Crowley H, Weatherill G (2023) Real-Time Loss Tools. Zenodo.
 
 ## Copyright and copyleft
 
-Copyright (C) 2022-2023 Cecilia Nievas: cecilia.nievas@gfz-potsdam.de
+Copyright (C) 2022-2026 Cecilia Nievas: cecilia.nievas@gfz-potsdam.de
 
 This program is free software: you can redistribute it and/or modify it
 under the terms of the GNU Affero General Public License as published by

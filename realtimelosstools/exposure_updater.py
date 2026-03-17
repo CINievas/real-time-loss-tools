@@ -1692,6 +1692,26 @@ class ExposureUpdater:
                 Pandas DataFrame with numbers of buildings/probabilities of buildings in each
                 damage state. This is output from running OpenQuake. It comprises the following
                 fields:
+                    Index: consecutive integers starting with 0.
+                    Columns:
+                        asset_id (str): Asset IDs from 'exposure'.
+                        rlz (int): All zeroes.
+                        loss_type (str): All as per 'loss_type'.
+                        dmg_state (str): Damage states as per 'mapping_damage_states' and
+                            'exposure'.
+                        value (float): Number of buildings of 'asset_id' in each
+                            'dmg_state', as per 'exposure'.
+            logic_tree_weights (dict):
+                Dictionary whose keys are the realisation IDs (i.e., column 'rlz' of
+                'damage_results_OQ') and whose values are the weights of each realisation (i.e.,
+                each branch of the GMPE logic tree).
+
+        Returns:
+            damage_results_OQ_weighted (Pandas DataFrame):
+                The contents are the same as 'damage_results_OQ' in the input, but adjusted so
+                that "value" (i.e., the probability of or number of buildings in 'dmg_state' for
+                'asset_id') takes into account the weights of the GMPE logic tree branches as
+                indicated in 'logic_tree_weights', and the following structure:
                     Index is multiple:
                         asset_id (str):
                             ID of the asset (i.e. specific combination of building_id and a
@@ -1705,17 +1725,6 @@ class ExposureUpdater:
                             OpenQuake realisation ID. As the RTLT run only with scenario damage
                             calculations, this are the IDs of the GMPE logic tree branches.
                         (Column "loss_type", which is part of OpenQuake's output, is not used).
-            logic_tree_weights (dict):
-                Dictionary whose keys are the realisation IDs (i.e., column 'rlz' of
-                'damage_results_OQ') and whose values are the weights of each realisation (i.e.,
-                each branch of the GMPE logic tree).
-
-        Returns:
-            damage_results_OQ_weighted (Pandas DataFrame):
-                Same structure as 'damage_results_OQ' in the input, but adjusted so that "value"
-                (i.e., the probability of or number of buildings in 'dmg_state' for 'asset_id')
-                takes into account the weights of the GMPE logic tree branches as indicated in
-                'logic_tree_weights'.
         """
 
         damage_results_OQ_weighted = deepcopy(damage_results_OQ)
@@ -1736,7 +1745,7 @@ class ExposureUpdater:
             {
                 "rlz": "first",  # keep first value of rlz, i.e. 0
                 "loss_type": "first",  # keep first value of 'loss_type'
-                "weighted_value": sum
+                "weighted_value": "sum"
             }
         )
 
@@ -1907,7 +1916,7 @@ class ExposureUpdater:
         asset_ids = list(exposure.index)
         buildings_per_asset_id = exposure["number"].to_numpy()
         dmg_states_exposure = [
-            exposure["taxonomy"][i].split("/")[-1] for i in range(exposure.shape[0])
+            exposure.loc[exposure.index[i], "taxonomy"].split("/")[-1] for i in range(exposure.shape[0])
         ]
 
         dmg_states_oq = list(mapping_damage_states.index)

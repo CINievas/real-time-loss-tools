@@ -22,25 +22,25 @@ tests_require = ["pytest"]
 
 setup(
     name="real-time-loss-tools",
-    version="1.1.0",
+    version="1.2.0",
     description="",
     keywords="earthquake damage, earthquake loss, rapid loss assessment, operational earthquake loss forecasting",
     author="Cecilia Nievas, Helen Crowley, Graeme Weatherill",
     license="AGPLv3+",
     install_requires=[
-        "openquake.engine==3.15.0",
-        "pyyaml",
-        "numpy",
-        "pandas",
-        "rtree",
-        "shapely",
-        "pyproj",
-        "geopandas",
+        "pyyaml>=6.0.3",
+        "numpy>=2.2.6",
+        "pandas>=2.2.3",
+        "rtree>=1.4.1",
+        "shapely>=2.1.0",
+        "pyproj>=3.7.2",
+        "geopandas>=1.1.1",
+        "pytz>=2023.3"
     ],
     extras_require={
         "tests": tests_require,
     },
     packages=find_packages(),
     entry_points={"console_scripts": ["rtlt = realtimelosstools.realtimelosstools:main"]},
-    python_requires=">=3.8",
+    python_requires=">=3.12",
 )

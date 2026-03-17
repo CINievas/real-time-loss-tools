@@ -358,7 +358,7 @@ class Losses:
                 loss_ratios * losses_per_orig_asset_aux[time_of_day]
             )
 
-            how_to_group["injuries_%s" % (severity)] = sum
+            how_to_group["injuries_%s" % (severity)] = "sum"
 
         logger.debug(
             "%s Method 'Losses.expected_human_loss_per_original_asset_id': "
@@ -994,8 +994,8 @@ class Losses:
 
         expected_costs_occupants = exposure_model.groupby(["building_id"]).agg(
             {
-                "structural": sum,
-                "census": sum
+                "structural": "sum",
+                "census": "sum"
             }
         )
 
