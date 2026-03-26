@@ -1421,68 +1421,80 @@ class ExposureUpdater:
                 time_of_day_factors,
             )
 
-            # Calculate number of injured still away per asset of 'exposure_updated_occupants',
-            # done going one by one the 'original_asset_id' in the exposure model, and
-            # distributing the number of injured still away for that 'original_asset_id' into
-            # the different damage states (i.e. different rows of exposure associated with
-            # 'original_asset_id') proportionally to the distribution of 'census' occupants
-            logger.debug(
-                "%s Method 'ExposureUpdater.update_exposure_occupants': "
-                "calculating number of injured still away for each asset, using %s core(s)"
-                % (np.datetime64('now'), number_cores)
-            )
-
-            injured_still_away_as_tuples = [  # prepare input for parallelisation
-                (
-                    injured_still_away.index.to_numpy()[i],  # original_asset_id
-                    injured_still_away["number_injured"].to_numpy()[i]
+            if injured_still_away["number_injured"].sum() > 1E-15:
+                # Calculate number of injured still away per asset of 'exposure_updated_occupants',
+                # done going one by one the 'original_asset_id' in the exposure model, and
+                # distributing the number of injured still away for that 'original_asset_id' into
+                # the different damage states (i.e. different rows of exposure associated with
+                # 'original_asset_id') proportionally to the distribution of 'census' occupants
+                logger.debug(
+                    "%s Method 'ExposureUpdater.update_exposure_occupants': "
+                    "calculating number of injured still away for each asset, using %s core(s)"
+                    % (np.datetime64('now'), number_cores)
                 )
-                for i in range(injured_still_away.shape[0])
-            ]
 
-            # Parallelise processing of each 'original_asset_id'
-            p = Pool(processes=number_cores)
-            func = partial(
-                ExposureUpdater.distribute_injured_still_away_proportionally_to_census,
-                exposure_updated_occupants[["census", "original_asset_id"]]  # index implicit
-            )
-            all_results = p.map(func, injured_still_away_as_tuples)  # all_results is one list
-            p.close()
-            p.join()
+                injured_still_away_as_tuples = [  # prepare input for parallelisation
+                    (
+                        injured_still_away.index.to_numpy()[i],  # original_asset_id
+                        injured_still_away["number_injured"].to_numpy()[i]
+                    )
+                    for i in range(injured_still_away.shape[0])
+                ]
 
-            # Flatten results (to be able to build a DataFrame)
-            results_flattened_asset_ids = []
-            results_flattened_number_injured = []
-            for subtuple in all_results:  # each tuple corresponds to one 'original_asset_id'
-                for item in subtuple[0]:
-                    results_flattened_asset_ids.append(item)
-                for item in subtuple[1]:
-                    results_flattened_number_injured.append(item)
-
-            # Gather all number of people still away per asset_id in a DataFrame
-            injured_still_away_per_asset = pd.DataFrame(
-                {
-                    "number_injured": results_flattened_number_injured
-                },
-                index=results_flattened_asset_ids
-            )
-            injured_still_away_per_asset.index.name = "asset_id"
-
-            # Calculate the occupants at the time of the day of 'earthquake_time_of_day'
-            logger.debug(
-                "%s Method 'ExposureUpdater.update_exposure_occupants': "
-                "calculating %s occupants for current earthquake"
-                % (np.datetime64('now'), earthquake_time_of_day)
-            )
-            occupants_at_time_of_day = np.zeros([exposure_updated_occupants.shape[0]])
-            occupants_at_time_of_day = (
-                time_of_day_factors_per_asset
-                * occupancy_factors_per_asset
-                * (
-                    exposure_updated_occupants["census"].to_numpy()
-                    - injured_still_away_per_asset["number_injured"].to_numpy()
+                # Parallelise processing of each 'original_asset_id'
+                p = Pool(processes=number_cores)
+                func = partial(
+                    ExposureUpdater.distribute_injured_still_away_proportionally_to_census,
+                    exposure_updated_occupants[["census", "original_asset_id"]]  # index implicit
                 )
-            )
+                all_results = p.map(func, injured_still_away_as_tuples)  # all_results is one list
+                p.close()
+                p.join()
+
+                # Flatten results (to be able to build a DataFrame)
+                results_flattened_asset_ids = []
+                results_flattened_number_injured = []
+                for subtuple in all_results:  # each tuple corresponds to one 'original_asset_id'
+                    for item in subtuple[0]:
+                        results_flattened_asset_ids.append(item)
+                    for item in subtuple[1]:
+                        results_flattened_number_injured.append(item)
+
+                # Gather all number of people still away per asset_id in a DataFrame
+                injured_still_away_per_asset = pd.DataFrame(
+                    {
+                        "number_injured": results_flattened_number_injured
+                    },
+                    index=results_flattened_asset_ids
+                )
+                injured_still_away_per_asset.index.name = "asset_id"
+
+                # Calculate the occupants at the time of the day of 'earthquake_time_of_day'
+                logger.debug(
+                    "%s Method 'ExposureUpdater.update_exposure_occupants': "
+                    "calculating %s occupants for current earthquake"
+                    % (np.datetime64('now'), earthquake_time_of_day)
+                )
+                occupants_at_time_of_day = np.zeros([exposure_updated_occupants.shape[0]])
+                occupants_at_time_of_day = (
+                    time_of_day_factors_per_asset
+                    * occupancy_factors_per_asset
+                    * (
+                        exposure_updated_occupants["census"].to_numpy()
+                        - injured_still_away_per_asset["number_injured"].to_numpy()
+                    )
+                )
+            else: # ( injured_still_away["number_injured"].sum() <= 1E-15)
+                logger.debug(
+                    "%s Method 'ExposureUpdater.update_exposure_occupants': "
+                    "no injured still away"
+                    % (np.datetime64('now'))
+                )
+                occupants_at_time_of_day = (
+                    time_of_day_factors_per_asset
+                    * occupancy_factors_per_asset
+                    * exposure_updated_occupants["census"].to_numpy()  # no injuries to subtract
+                )
         else:
             # Do not retrieve injuries, occupants are zero for all assets
             logger.debug(
