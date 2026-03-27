@@ -142,6 +142,7 @@ def test_run_rla_01():
         rla_ruptures.mapping[cat_filename],
         config.state_dependent_fragilities,
         consequence_economic,
+        True, # calculate_casualties
         consequence_injuries,
         recovery_damage,
         recovery_injuries,
@@ -473,6 +474,7 @@ def test_run_rla_02():
         rla_ruptures.mapping[cat_filename],
         config.state_dependent_fragilities,
         consequence_economic,
+        True, # calculate_casualties
         consequence_injuries,
         recovery_damage,
         recovery_injuries,
@@ -807,6 +809,7 @@ def test_run_rla_03():
         rla_ruptures.mapping[cat_filename],
         config.state_dependent_fragilities,
         consequence_economic,
+        True, # calculate_casualties
         consequence_injuries,
         recovery_damage,
         recovery_injuries,

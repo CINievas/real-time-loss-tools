@@ -33,7 +33,7 @@ files need to be listed in `triggering.csv`.
   the run. The needed parameters are explained [here](02_Configuration.md#jobini-for-openquake).
 
   - [exposure_model.xml](#exposure-model): XML file defining the exposure input for OpenQuake.
-  It needs to exist before putting the software to run. 
+  It needs to exist before putting the software to run.
   
   - `exposure_model_current.csv`: CSV file defining the exposure input for OpenQuake. It needs
   to **NOT** exist before putting the software to run, otherwise it will not run. The software
@@ -85,36 +85,37 @@ remain the same all throughout. These files are:
 
   - [fragility_model.xml](#fragility-models): XML file of the fragility model, in OpenQuake
   input format.
-  
+
   - [exposure_vulnerability_mapping.csv](#fragility-models): CSV file with the
   exposure-to-vulnerability mapping, if desired and specified in the `job.ini` file that it
   needs to be used.
-  
+
   - [gmpe_logic_tree.xml](#ground-motion-models): XML file of the ground motion logic tree, in
   [OpenQuake input format](https://docs.openquake.org/oq-engine/master/manual/hazard.html#defining-logic-trees).
-  
+
   - [site_model.csv](#ground-motion-models): CSV file of the site model, in OpenQuake input
   format.
-  
+
   - [consequences_economic.csv](#economic-and-human-consequence-models): CSV file with economic
   loss ratios (as percentages) per building class (row) and damage state (including the no
   damage case).
-  
+
   - [consequences_injuries_severity_X.csv](#economic-and-human-consequence-models): CSV file
   with human loss ratios (as percentages) per building class (row) and damage state (including
   the no damage case), for every injury severity level `X` listed in the `config.yml` file under
   [injuries_scale](02_Configuration.md#injuries_scale).
-  
+
   - [recovery_damage.csv](#timelines-for-damage-inspection-and-hospitalisations): CSV file with
   the number of days that it takes to inspect (column `N_inspection` and to repair or replace
   (column `N_repair`) a building in each damage state (column `dmg_state`). Each row corresponds
-  to a damage state.
-  
+  to a damage state. Only necessary if `calculate_casualties` in the `config.yml` is True.
+
   - [recovery_injuries.csv](#timelines-for-damage-inspection-and-hospitalisations): CSV file
   with the number of days that it takes for a person with different severities of injury (column
   `injuries_scale`) to be able to return to their building/s due only to their health condition
   (column `N_discharged`). If the injuries scale covers death, use a very large number for
-  `N_discharged` under this category.
+  `N_discharged` under this category. Only necessary if `calculate_casualties` in the
+  `config.yml` is True.
 
 Before running the software, the user needs to set up the structure under `main_path` as
 follows:
@@ -146,7 +147,8 @@ under `triggering.csv`.
 - `static` needs to contain `fragility_model.xml`, `gmpe_logic_tree.xml`, `site_model.csv`,
 `consequences_economic.csv`, `consequences_injuries_severity_X.csv` (for every injury
 severity level `X` listed in the `config.yml` file under `injuries_scale`),
-`recovery_damage.csv`, and `recovery_injuries.csv`. 
+`recovery_damage.csv`, and `recovery_injuries.csv` (the two latter are only necessary if
+`calculate_casualties` in the `config.yml` is True).
 
 ## Earthquake Catalogues
 

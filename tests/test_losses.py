@@ -617,7 +617,7 @@ def test_check_consequence_models():
     exposure_model.index = exposure_model.index.rename("asset_id")
     exposure_model = exposure_model.drop(columns=["id"])
 
-    returned_costs_occupants = Losses.get_expected_costs_occupants(exposure_model)
+    returned_costs_occupants = Losses.get_expected_costs_occupants(exposure_model, True)
 
     expected_costs_occupants = pd.read_csv(
         os.path.join(

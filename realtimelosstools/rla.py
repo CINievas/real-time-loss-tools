@@ -46,6 +46,7 @@ class RapidLossAssessment:
         rupture_xml_filename,
         state_dependent,
         consequence_economic,
+        calculate_casualties,
         consequence_injuries,
         recovery_damage,
         recovery_injuries,
@@ -96,6 +97,8 @@ class RapidLossAssessment:
                     Columns:
                         One per damage state (float): They contain the mean loss ratios (as
                         percentages) for each building class and damage state.
+            calculate_casualties (bool):
+                If True, casualties are calculated.
             consequence_injuries (dict of Pandas DataFrame):
                 Dictionary whose keys are the injury severity levels and whose contents are
                 Pandas DataFrames with the consequence models for injuries in terms of mean
@@ -307,20 +310,23 @@ class RapidLossAssessment:
         # Description
         description = "%s, event ID %s" % (description_general, earthquake["event_id"])
 
-        # Determine time of the day (used for number of occupants)
-        local_hour = Time.determine_local_time_from_utc(
-            (earthquake["datetime"]).to_pydatetime(), local_timezone
-        )
-        time_of_day = Time.interpret_time_of_the_day(local_hour.hour)
-
-        if time_of_day == "error":
-            error_message = (
-                "Something went wrong when determining the time of the day for earthquake "
-                "with event ID %s. UTC time is %s. Local time is %s. The program cannot run."
-                % (earthquake["event_id"], earthquake["datetime"], local_hour)
+        if calculate_casualties:
+            # Determine time of the day (used for number of occupants)
+            local_hour = Time.determine_local_time_from_utc(
+                (earthquake["datetime"]).to_pydatetime(), local_timezone
             )
-            logger.critical(error_message)
-            raise OSError(error_message)
+            time_of_day = Time.interpret_time_of_the_day(local_hour.hour)
+
+            if time_of_day == "error":
+                error_message = (
+                    "Something went wrong when determining the time of the day for earthquake "
+                    "with event ID %s. UTC time is %s. Local time is %s. The program cannot run."
+                    % (earthquake["event_id"], earthquake["datetime"], local_hour)
+                )
+                logger.critical(error_message)
+                raise OSError(error_message)
+        else:
+            time_of_day = None
 
         # Load exposure CSV (the exposure model to be used to run OpenQuake now)
         # (this exposure file contains census occupants not adjusted to reflect the damage
@@ -335,10 +341,12 @@ class RapidLossAssessment:
 
         # Update exposure to reflect occupants for this earthquake
         # (reflecting injuries and deaths)
-        logger.info(
-            "%s Updating exposed occupants" % (np.datetime64('now'))
-        )
+        if calculate_casualties:
+            logger.info(
+                "%s Updating exposed occupants" % (np.datetime64('now'))
+            )
         exposure_run = ExposureUpdater.update_exposure_occupants(
+            calculate_casualties,
             exposure_full_occupants,
             time_of_day_occupancy,
             time_of_day,
@@ -528,37 +536,42 @@ class RapidLossAssessment:
             exposure_updated_damage, consequence_economic
         )
 
-        logger.info(
-            "%s Calculating human losses"  % (np.datetime64('now'))
-        )
-        # Calculate human losses per asset of 'exposure_updated_damage'
-        losses_human_per_asset = Losses.expected_human_loss_per_original_asset_id(
-            exposure_updated_damage, time_of_day, consequence_injuries
-        )
+        if calculate_casualties:
+            logger.info(
+                "%s Calculating human losses"  % (np.datetime64('now'))
+            )
+            # Calculate human losses per asset of 'exposure_updated_damage'
+            losses_human_per_asset = Losses.expected_human_loss_per_original_asset_id(
+                exposure_updated_damage, time_of_day, consequence_injuries
+            )
 
-        logger.debug(
-            "%s Calculating human losses per building ID" % (np.datetime64('now'))
-        )
-        # Calculate human losses per building ID
-        losses_human = Losses.expected_human_loss_per_building_id(losses_human_per_asset)
+            logger.debug(
+                "%s Calculating human losses per building ID" % (np.datetime64('now'))
+            )
+            # Calculate human losses per building ID
+            losses_human = Losses.expected_human_loss_per_building_id(losses_human_per_asset)
 
-        logger.debug(
-            "%s Calculating timeline of recovery due to health" % (np.datetime64('now'))
-        )
-        # Calculate timeline of recovery (to define occupants for next earthquake)
-        injured_still_away = Losses.calculate_injuries_recovery_timeline(
-            losses_human_per_asset,
-            recovery_injuries,
-            recovery_longest_time,
-            earthquake["datetime"],
-        )
-        logger.debug(
-            "%s Calculating timeline of recovery due to inspection/repair"
-            % (np.datetime64('now'))
-        )
-        occupancy_factors = Losses.calculate_repair_recovery_timeline(
-            recovery_damage, recovery_longest_time, earthquake["datetime"]
-        )
+            logger.debug(
+                "%s Calculating timeline of recovery due to health" % (np.datetime64('now'))
+            )
+            # Calculate timeline of recovery (to define occupants for next earthquake)
+            injured_still_away = Losses.calculate_injuries_recovery_timeline(
+                losses_human_per_asset,
+                recovery_injuries,
+                recovery_longest_time,
+                earthquake["datetime"],
+            )
+            logger.debug(
+                "%s Calculating timeline of recovery due to inspection/repair"
+                % (np.datetime64('now'))
+            )
+            occupancy_factors = Losses.calculate_repair_recovery_timeline(
+                recovery_damage, recovery_longest_time, earthquake["datetime"]
+            )
+        else:
+            injured_still_away = None
+            losses_human = None
+            occupancy_factors = None
 
         # Store new exposure CSV
         if store_intermediate:

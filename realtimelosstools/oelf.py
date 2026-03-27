@@ -55,6 +55,7 @@ class OperationalEarthquakeLossForecasting():
         main_path,
         original_exposure_model,
         consequence_economic,
+        calculate_casualties,
         consequence_injuries,
         recovery_damage,
         recovery_injuries,
@@ -180,6 +181,8 @@ class OperationalEarthquakeLossForecasting():
                     Columns:
                         One per damage state (float): They contain the mean loss ratios (as
                         percentages) for each building class and damage state.
+            calculate_casualties (bool):
+                If True, casualties are calculated.
             consequence_injuries (dict of Pandas DataFrame):
                 Dictionary whose keys are the injury severity levels and whose contents are
                 Pandas DataFrames with the consequence models for injuries in terms of mean
@@ -387,19 +390,20 @@ class OperationalEarthquakeLossForecasting():
                 % (np.datetime64('now'), k+1, len(oef_ses_ids))
             )
 
-            # Create sub-directory to store "injured_still_away" and "occupancy_factors" files
-            # (this sub-directory and all its contents will be erased at the end of this SES)
-            path_to_occupants_oelf = os.path.join(main_path, "current", "occupants", "oelf")
-            if not os.path.exists(path_to_occupants_oelf):
-                os.mkdir(path_to_occupants_oelf)
-            else:
-                error_message = (
-                    "The directory %s already exists and may contain results from "
-                    "a previous run. The program will stop."
-                    % (path_to_occupants_oelf)
-                )
-                logger.critical(error_message)
-                raise OSError(error_message)
+            if calculate_casualties:
+                # Create sub-directory to store "injured_still_away" and "occupancy_factors" files
+                # (this sub-directory and all its contents will be erased at the end of this SES)
+                path_to_occupants_oelf = os.path.join(main_path, "current", "occupants", "oelf")
+                if not os.path.exists(path_to_occupants_oelf):
+                    os.mkdir(path_to_occupants_oelf)
+                else:
+                    error_message = (
+                        "The directory %s already exists and may contain results from "
+                        "a previous run. The program will stop."
+                        % (path_to_occupants_oelf)
+                    )
+                    logger.critical(error_message)
+                    raise OSError(error_message)
 
             # Earthquakes that belong only to this realisation of seismicity (SES)
             filter_realisation = (forecast_catalogue["ses_id"] == oef_ses_id)
@@ -436,29 +440,32 @@ class OperationalEarthquakeLossForecasting():
                     description_general, forecast_name, eq_id
                 )
 
-                # Determine time of the day (used for number of occupants)
-                local_hour = Time.determine_local_time_from_utc(
-                    (events_in_ses.loc[eq_id, "datetime"]).to_pydatetime(),
-                    local_timezone
-                )
-                time_of_day = Time.interpret_time_of_the_day(
-                    local_hour.hour
-                )
-
-                if time_of_day == "error":
-                    error_message = (
-                        "Something went wrong when determining the time of the day for "
-                        "earthquake of %s with event ID %s. UTC time is %s. Local time is %s. "
-                        "The program cannot run."
-                        % (
-                            forecast_name,
-                            eq_id,
-                            events_in_ses.loc[eq_id, "datetime"],
-                            local_hour,
-                        )
+                if calculate_casualties:
+                    # Determine time of the day (used for number of occupants)
+                    local_hour = Time.determine_local_time_from_utc(
+                        (events_in_ses.loc[eq_id, "datetime"]).to_pydatetime(),
+                        local_timezone
                     )
-                    logger.critical(error_message)
-                    raise OSError(error_message)
+                    time_of_day = Time.interpret_time_of_the_day(
+                        local_hour.hour
+                    )
+
+                    if time_of_day == "error":
+                        error_message = (
+                            "Something went wrong when determining the time of the day for "
+                            "earthquake of %s with event ID %s. UTC time is %s. Local time is %s. "
+                            "The program cannot run."
+                            % (
+                                forecast_name,
+                                eq_id,
+                                events_in_ses.loc[eq_id, "datetime"],
+                                local_hour,
+                            )
+                        )
+                        logger.critical(error_message)
+                        raise OSError(error_message)
+                else:
+                    time_of_day = None
 
                 # Load exposure CSV (the exposure model to be used to run OpenQuake with this
                 # earthquake). This exposure file contains census occupants not adjusted to
@@ -475,6 +482,7 @@ class OperationalEarthquakeLossForecasting():
                     # Update exposure to reflect occupants for this earthquake
                     # (reflecting injuries and deaths)
                     exposure_run = ExposureUpdater.update_exposure_occupants(
+                        calculate_casualties,  # Nothing will change if this is False
                         exposure_full_occupants,
                         time_of_day_occupancy,
                         time_of_day,
@@ -484,7 +492,7 @@ class OperationalEarthquakeLossForecasting():
                         main_path,
                         number_cores
                     )
-                else:
+                else:  # either there cannot be occupants or 'calculate_casualties' is False
                     # Assume all occupants are zero
                     exposure_run = deepcopy(exposure_full_occupants)
                     exposure_run[time_of_day] = np.zeros([exposure_run.shape[0]])
@@ -657,59 +665,64 @@ class OperationalEarthquakeLossForecasting():
                     time_of_day,
                 )
 
-                # Calculate human losses per asset of 'exposure_updated_damage'
-                losses_human_per_asset = Losses.expected_human_loss_per_original_asset_id(
-                    exposure_updated_damage, time_of_day, consequence_injuries
-                )
-                # Calculate human losses per building ID
-                losses_human_per_building_id = Losses.expected_human_loss_per_building_id(
-                    losses_human_per_asset
-                )
-
-                # Concatenate human losses from all earthquakes in the stochastic event set
-                if losses_human_all_events is None:
-                    # First earthquake
-                    losses_human_all_events = deepcopy(losses_human_per_building_id)
-                else:
-                    losses_human_all_events = pd.concat(
-                        [losses_human_all_events, losses_human_per_building_id]
+                if calculate_casualties:
+                    # Calculate human losses per asset of 'exposure_updated_damage'
+                    losses_human_per_asset = Losses.expected_human_loss_per_original_asset_id(
+                        exposure_updated_damage, time_of_day, consequence_injuries
+                    )
+                    # Calculate human losses per building ID
+                    losses_human_per_building_id = Losses.expected_human_loss_per_building_id(
+                        losses_human_per_asset
                     )
 
-                # Calculate timeline of recovery (to define occupants for next earthquake)
-                # (only if there could be occupants for this earthquake, otherwise skip)
-                if there_can_be_occupants:
-                    # Calculate number of injured people still away in time
-                    injured_still_away = Losses.calculate_injuries_recovery_timeline(
-                        losses_human_per_asset,
-                        recovery_injuries,
-                        recovery_longest_time,
-                        events_in_ses.loc[eq_id, "datetime"],
-                    )
-                    # Calculate factors regarding people being allowed to go back to buildings
-                    occupancy_factors = Losses.calculate_repair_recovery_timeline(
-                        recovery_damage,
-                        recovery_longest_time,
-                        events_in_ses.loc[eq_id, "datetime"],
-                    )
+                    # Concatenate human losses from all earthquakes in the stochastic event set
+                    if losses_human_all_events is None:
+                        # First earthquake
+                        losses_human_all_events = deepcopy(losses_human_per_building_id)
+                    else:
+                        losses_human_all_events = pd.concat(
+                            [losses_human_all_events, losses_human_per_building_id]
+                        )
 
-                    # Store number of injured people away from the building in time, per asset ID
-                    injured_still_away.to_csv(
-                        os.path.join(
-                            path_to_occupants_oelf,
-                            "injured_still_away_after_OELF_%s.csv" % (eq_id)
-                        ),
-                        index=True,
-                    )
+                    # Calculate timeline of recovery (to define occupants for next earthquake)
+                    # (only if there could be occupants for this earthquake, otherwise skip)
+                    if there_can_be_occupants:
+                        # Calculate number of injured people still away in time
+                        injured_still_away = Losses.calculate_injuries_recovery_timeline(
+                            losses_human_per_asset,
+                            recovery_injuries,
+                            recovery_longest_time,
+                            events_in_ses.loc[eq_id, "datetime"],
+                        )
+                        # Calculate factors regarding people being allowed to go back to buildings
+                        occupancy_factors = Losses.calculate_repair_recovery_timeline(
+                            recovery_damage,
+                            recovery_longest_time,
+                            events_in_ses.loc[eq_id, "datetime"],
+                        )
 
-                    # Store occupancy factors (0: people not allowed in, 1: people allowed in) as a
-                    # function of time and damage state
-                    occupancy_factors.to_csv(
-                        os.path.join(
-                            path_to_occupants_oelf,
-                            "occupancy_factors_after_OELF_%s.csv" % (eq_id)
-                        ),
-                        index=True,
-                    )
+                        # Store number of injured people away from the building in time, per asset ID
+                        injured_still_away.to_csv(
+                            os.path.join(
+                                path_to_occupants_oelf,
+                                "injured_still_away_after_OELF_%s.csv" % (eq_id)
+                            ),
+                            index=True,
+                        )
+
+                        # Store occupancy factors (0: people not allowed in, 1: people allowed in) as a
+                        # function of time and damage state
+                        occupancy_factors.to_csv(
+                            os.path.join(
+                                path_to_occupants_oelf,
+                                "occupancy_factors_after_OELF_%s.csv" % (eq_id)
+                            ),
+                            index=True,
+                        )
+                else: # 'calculate_casualties' is False
+                    injured_still_away = None
+                    losses_human_all_events = None
+                    occupancy_factors = None
 
                 # Store new exposure CSV
                 if store_intermediate:
@@ -738,18 +751,19 @@ class OperationalEarthquakeLossForecasting():
                 exposure_updated_damage, consequence_economic
             )
 
-            # Add human losses due to all events
-            # (i.e. get total human losses from this stochastic event set)
-            if losses_human_all_events is None:
-                # None of the earthquakes of this stochastic event set were run
-                # (too small or far away) --> assign zero injuries to all building IDs
-                losses_human_all_events = Losses.assign_zero_human_losses(
-                    original_exposure_model, list(consequence_injuries.keys())
-                )
-            else:
-                losses_human_all_events = losses_human_all_events.groupby(["building_id"]).sum(
-                    numeric_only=True
-                )
+            if calculate_casualties:
+                # Add human losses due to all events
+                # (i.e. get total human losses from this stochastic event set)
+                if losses_human_all_events is None:
+                    # None of the earthquakes of this stochastic event set were run
+                    # (too small or far away) --> assign zero injuries to all building IDs
+                    losses_human_all_events = Losses.assign_zero_human_losses(
+                        original_exposure_model, list(consequence_injuries.keys())
+                    )
+                else:
+                    losses_human_all_events = losses_human_all_events.groupby(["building_id"]).sum(
+                        numeric_only=True
+                    )
 
             # Store damage states, economic losses and human losses per building ID
             if store_intermediate:
@@ -773,15 +787,16 @@ class OperationalEarthquakeLossForecasting():
                     index=True,
                 )
 
-                losses_human_all_events.to_csv(
-                    os.path.join(
-                        path_to_outputs,
-                        "losses_human_after_OELF_%s_realisation_%s.csv" % (
-                            forecast_name, oef_ses_id
-                        )
-                    ),
-                    index=True,
-                )
+                if calculate_casualties:
+                    losses_human_all_events.to_csv(
+                        os.path.join(
+                            path_to_outputs,
+                            "losses_human_after_OELF_%s_realisation_%s.csv" % (
+                                forecast_name, oef_ses_id
+                            )
+                        ),
+                        index=True,
+                    )
 
             # Concatenate damage states from all stochastic event sets
             if damage_states_all_ses is None:
@@ -801,18 +816,19 @@ class OperationalEarthquakeLossForecasting():
                     [losses_economic_all_ses, losses_economic]
                 )
 
-            # Concatenate human losses from all stochastic event sets
-            if losses_human_all_ses is None:
-                # First realisation
-                losses_human_all_ses = deepcopy(losses_human_all_events)
-            else:
-                losses_human_all_ses = pd.concat(
-                    [losses_human_all_ses, losses_human_all_events]
-                )
+            if calculate_casualties:
+                # Concatenate human losses from all stochastic event sets
+                if losses_human_all_ses is None:
+                    # First realisation
+                    losses_human_all_ses = deepcopy(losses_human_all_events)
+                else:
+                    losses_human_all_ses = pd.concat(
+                        [losses_human_all_ses, losses_human_all_events]
+                    )
 
-            # Erase 'path_to_occupants_oelf' and all its contents
-            # (next SES needs to start clean)
-            shutil.rmtree(path_to_occupants_oelf)
+                # Erase 'path_to_occupants_oelf' and all its contents
+                # (next SES needs to start clean)
+                shutil.rmtree(path_to_occupants_oelf)
 
         # Average damage states per building ID for all stochastic event sets
         damage_states_all_ses = damage_states_all_ses.groupby(
@@ -824,10 +840,11 @@ class OperationalEarthquakeLossForecasting():
             numeric_only=True
         ) / len(oef_ses_ids)
 
-        # Average human losses per building ID for all stochastic event sets
-        losses_human_all_ses = losses_human_all_ses.groupby(["building_id"]).sum(
-            numeric_only=True
-        ) / len(oef_ses_ids)
+        if calculate_casualties:
+            # Average human losses per building ID for all stochastic event sets
+            losses_human_all_ses = losses_human_all_ses.groupby(["building_id"]).sum(
+                numeric_only=True
+            ) / len(oef_ses_ids)
 
         return damage_states_all_ses, losses_economic_all_ses, losses_human_all_ses
 

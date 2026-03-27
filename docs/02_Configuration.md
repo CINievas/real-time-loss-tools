@@ -40,6 +40,11 @@ Set to `True` if the fragility models used to run OpenQuake are state-dependent,
 otherwise. See details on the behaviour of the software with each option
 [here](01_Overview.md#cumulative-damage-state-dependent-vs-state-independent-fragility-models).
 
+### `calculate_casualties`
+
+Set to `True` to indicate the software to calculate casualties (and account for them when
+determining number of occupants for future earthquakes), set to `False` otherwise.
+
 ### `mapping_damage_states`
 
 These parameters link the names of damage states as they are output by OpenQuake and as they are
@@ -74,7 +79,7 @@ damage.
 
 Maximum epicentral distance between the earthquake source and the exposure sites to run the
 earthquake. Earthquakes in the OELF catalogues located farther away from the exposure sites than
-`max_distance` are assumed to produce no additional damage. 
+`max_distance` are assumed to produce no additional damage.
 
 **continuous_ses_numbering**
 
@@ -130,7 +135,7 @@ ruptures.
 ### `injuries_scale`
 
 Scale of severity of human casualties (injuries, deaths), given as a list separated by comma and
-space (", "). Example:
+space (", "). Only necessary if `calculate_casualties` is True. Example:
 
 ```
 injuries_scale = 1, 2, 3, 4
@@ -140,15 +145,17 @@ injuries_scale = 1, 2, 3, 4
 
 Maximum number of days after an earthquake has occurred that will be used to build the timeline
 of occupants for the future, irrespective of the number of days indicated in
-`recovery_damage.csv` or `recovery_injuries.csv`.
+`recovery_damage.csv` or `recovery_injuries.csv`. Only necessary if `calculate_casualties` is
+True.
 
 ### `time_of_day_occupancy`
 
 Factors to be used to multiply the number of census occupants to obtain the number of people in
-a building at a certain time of the day. They need to be specified for each occupancy case
-covered by the occupancy field of the exposure CSV file. For each occupancy, factors for day,
-night and transit times are needed. The following example shows the factors that correspond to
-Italy in the European Seismic Risk Model 2020 (ESRM20; Crowley et al., 2020, 2021).
+a building at a certain time of the day. Only necessary if `calculate_casualties` is True. They
+need to be specified for each occupancy case covered by the occupancy field of the exposure CSV
+file. For each occupancy, factors for day, night and transit times are needed. The following
+example shows the factors that correspond to Italy in the European Seismic Risk Model 2020
+(ESRM20; Crowley et al., 2020, 2021).
 
 ```
 time_of_day_occupancy:
@@ -174,7 +181,7 @@ for ESRM20 factors for other European countries.
 Local time zone in the format of the [IANA Time Zone Database](https://www.iana.org/time-zones),
 used to convert from UTC time (in which the earthquakes are specified) to local time, for the
 purpose of determining the time of the day of the earthquake and, as a consequence, the number
-of occupants in the buildings. Example:
+of occupants in the buildings. Only necessary if `calculate_casualties` is True. Example:
 
 ```
 timezone = "Europe/Rome"

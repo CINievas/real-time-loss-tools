@@ -67,11 +67,6 @@ def main():
     log_summary.append("%s is path in config file" % (config.main_path))
     log_summary.append("%s is current path" % (os.getcwd()))
 
-    state_dep = Files.find_string_in_file(
-        os.path.join(config.main_path, "current", "job.ini"), "state_dependent"
-    )
-    log_summary.append("State dependent: %s" %(state_dep))
-
     # If 'exposure_model_current.csv' already exists, code cannot run (the 'main_path' indicated
     # in the configuration file may refer to a directory from a previous run that the user may
     # not want to overwrite)
@@ -87,17 +82,18 @@ def main():
         raise OSError(error_message)
 
     # Create sub-directory to store files associated with number of occupants in time
-    path_to_occupants = os.path.join(config.main_path, "current", "occupants")
-    if not os.path.exists(path_to_occupants):
-        os.mkdir(path_to_occupants)
-    else:
-        error_message = (
-            "The directory 'occupants' already exists under %s/current and may contain "
-            "results from a previous run. The program will stop."
-            % (config.main_path)
-        )
-        logger.critical(error_message)
-        raise OSError(error_message)
+    if config.calculate_casualties:
+        path_to_occupants = os.path.join(config.main_path, "current", "occupants")
+        if not os.path.exists(path_to_occupants):
+            os.mkdir(path_to_occupants)
+        else:
+            error_message = (
+                "The directory 'occupants' already exists under %s/current and may contain "
+                "results from a previous run. The program will stop."
+                % (config.main_path)
+            )
+            logger.critical(error_message)
+            raise OSError(error_message)
 
     # Read input to simulate triggering (calculations after an earthquake of interest and/or
     # at specific points in time, e.g. mid-night)
@@ -134,49 +130,57 @@ def main():
     consequence_economic = consequence_economic.drop(columns=["Taxonomy"])
 
     consequence_injuries = {}
-    for severity in config.injuries_scale:
-        consequence_injuries[severity] = pd.read_csv(
-            os.path.join(
-                config.main_path, "static", "consequences_injuries_severity_%s.csv" % (severity)
+    if config.calculate_casualties:
+        for severity in config.injuries_scale:
+            consequence_injuries[severity] = pd.read_csv(
+                os.path.join(
+                    config.main_path, "static", "consequences_injuries_severity_%s.csv" % (severity)
+                )
             )
-        )
-        consequence_injuries[severity].set_index(
-            consequence_injuries[severity]["Taxonomy"], drop=True, inplace=True
-        )
-        consequence_injuries[severity] = consequence_injuries[severity].drop(
-            columns=["Taxonomy"]
-        )
+            consequence_injuries[severity].set_index(
+                consequence_injuries[severity]["Taxonomy"], drop=True, inplace=True
+            )
+            consequence_injuries[severity] = consequence_injuries[severity].drop(
+                columns=["Taxonomy"]
+            )
 
-    # Load the recovery times (used for updating occupants)
-    recovery_damage = pd.read_csv(
-        os.path.join(config.main_path, "static", "recovery_damage.csv"),
-        dtype={"dmg_state": str, "N_inspection": int, "N_repair":int},
-    )
-    recovery_damage.set_index(recovery_damage["dmg_state"], drop=True, inplace=True)
-    recovery_damage = recovery_damage.drop(columns=["dmg_state"])
-    recovery_damage["N_damage"] = recovery_damage["N_inspection"] + recovery_damage["N_repair"]
+    if config.calculate_casualties:
+        # Load the recovery times (used for updating occupants)
+        recovery_damage = pd.read_csv(
+            os.path.join(config.main_path, "static", "recovery_damage.csv"),
+            dtype={"dmg_state": str, "N_inspection": int, "N_repair":int},
+        )
+        recovery_damage.set_index(recovery_damage["dmg_state"], drop=True, inplace=True)
+        recovery_damage = recovery_damage.drop(columns=["dmg_state"])
+        recovery_damage["N_damage"] = recovery_damage["N_inspection"] + recovery_damage["N_repair"]
 
-    sum_days = recovery_damage["N_damage"].sum()
-    if sum_days < 0.1:
-        log_summary.append("No update of occupants in 'recovery_damage'")
+        sum_days = recovery_damage["N_damage"].sum()
+        if sum_days < 0.1:
+            log_summary.append("No update of occupants in 'recovery_damage'")
+        else:
+            log_summary.append("With update of occupants in 'recovery_damage'")
+
+        # Smallest number of days to allow people back into buildings
+        shortest_recovery_span = recovery_damage["N_damage"].min()  # days
     else:
-        log_summary.append("With update of occupants in 'recovery_damage'")
+        recovery_damage = None
+        shortest_recovery_span = 0
 
-    # Smallest number of days to allow people back into buildings
-    shortest_recovery_span = recovery_damage["N_damage"].min()  # days
+    if config.calculate_casualties:
+        recovery_injuries = pd.read_csv(
+            os.path.join(config.main_path, "static", "recovery_injuries.csv"),
+            dtype={"injuries_scale": str, "N_discharged": int},
+        )
+        recovery_injuries.set_index(recovery_injuries["injuries_scale"], drop=True, inplace=True)
+        recovery_injuries = recovery_injuries.drop(columns=["injuries_scale"])
 
-    recovery_injuries = pd.read_csv(
-        os.path.join(config.main_path, "static", "recovery_injuries.csv"),
-        dtype={"injuries_scale": str, "N_discharged": int},
-    )
-    recovery_injuries.set_index(recovery_injuries["injuries_scale"], drop=True, inplace=True)
-    recovery_injuries = recovery_injuries.drop(columns=["injuries_scale"])
-
-    sum_days = recovery_injuries["N_discharged"].sum()
-    if sum_days < 0.1:
-        log_summary.append("No update of occupants in 'recovery_injuries'")
+        sum_days = recovery_injuries["N_discharged"].sum()
+        if sum_days < 0.1:
+            log_summary.append("No update of occupants in 'recovery_injuries'")
+        else:
+            log_summary.append("With update of occupants in 'recovery_injuries'")
     else:
-        log_summary.append("With update of occupants in 'recovery_injuries'")
+        recovery_injuries = None
 
     # Load the "initial" exposure model
     exposure_model_undamaged = pd.read_csv(
@@ -241,6 +245,7 @@ def main():
                 rla_ruptures.mapping[cat_filename_i],
                 config.state_dependent_fragilities,
                 consequence_economic,
+                config.calculate_casualties,
                 consequence_injuries,
                 recovery_damage,
                 recovery_injuries,
@@ -280,28 +285,29 @@ def main():
                 index=False,
             )
 
-            # Store number of injured people away from the building in time, per asset ID
-            injured_still_away.to_csv(
-                os.path.join(
-                    config.main_path,
-                    "current",
-                    "occupants",
-                    "injured_still_away_after_RLA_%s.csv" % (cat_name)
-                ),
-                index=True,
-            )
+            if config.calculate_casualties:
+                # Store number of injured people away from the building in time, per asset ID
+                injured_still_away.to_csv(
+                    os.path.join(
+                        config.main_path,
+                        "current",
+                        "occupants",
+                        "injured_still_away_after_RLA_%s.csv" % (cat_name)
+                    ),
+                    index=True,
+                )
 
-            # Store occupancy factors (0: people not allowed in, 1: people allowed in) as a
-            # function of time and damage state
-            occupancy_factors.to_csv(
-                os.path.join(
-                    config.main_path,
-                    "current",
-                    "occupants",
-                    "occupancy_factors_after_RLA_%s.csv" % (cat_name)
-                ),
-                index=True,
-            )
+                # Store occupancy factors (0: people not allowed in, 1: people allowed in) as a
+                # function of time and damage state
+                occupancy_factors.to_csv(
+                    os.path.join(
+                        config.main_path,
+                        "current",
+                        "occupants",
+                        "occupancy_factors_after_RLA_%s.csv" % (cat_name)
+                    ),
+                    index=True,
+                )
 
             # Store damage states per building ID
             damage_states.to_csv(
@@ -323,15 +329,16 @@ def main():
                 index=True,
             )
 
-            # Store human losses per building ID
-            losses_human.to_csv(
-                os.path.join(
-                    config.main_path,
-                    "output",
-                    "losses_human_after_RLA_%s.csv" % (cat_name)
-                ),
-                index=True,
-            )
+            if config.calculate_casualties:
+                # Store human losses per building ID
+                losses_human.to_csv(
+                    os.path.join(
+                        config.main_path,
+                        "output",
+                        "losses_human_after_RLA_%s.csv" % (cat_name)
+                    ),
+                    index=True,
+                )
 
             # Update 'date_latest_rla'
             date_latest_rla = (earthquake_params["datetime"]).to_pydatetime()
@@ -400,21 +407,24 @@ def main():
                 export_type='xml', # Type of file for export
             )
 
-            # Determine if occupants need to be updated (or considered zero), based on the time
-            # ellapsed since the last real (RLA) earthquake and the shortest recovery span
-            # specified by the user (shortest time to allow occupants back in)
-            there_can_be_occupants = (
-                OperationalEarthquakeLossForecasting.can_there_be_occupants(
-                    forecast_cat, date_latest_rla, shortest_recovery_span, (59./(3600.*24.))
+            if config.calculate_casualties:
+                # Determine if occupants need to be updated (or considered zero), based on the time
+                # ellapsed since the last real (RLA) earthquake and the shortest recovery span
+                # specified by the user (shortest time to allow occupants back in)
+                there_can_be_occupants = (
+                    OperationalEarthquakeLossForecasting.can_there_be_occupants(
+                        forecast_cat, date_latest_rla, shortest_recovery_span, (59./(3600.*24.))
+                    )
                 )
-            )
-            if there_can_be_occupants:
-                logger.info("There might be occupants in buildings during OELF calculation.")
+                if there_can_be_occupants:
+                    logger.info("There might be occupants in buildings during OELF calculation.")
+                else:
+                    logger.info(
+                        "Occupants are all zero during OELF calculation "
+                        "(too short time since last real earthquake)"
+                    )
             else:
-                logger.info(
-                    "Occupants are all zero during OELF calculation "
-                    "(too short time since last real earthquake)"
-                )
+                there_can_be_occupants = False
 
             damage_states, losses_economic, losses_human = (
                 OperationalEarthquakeLossForecasting.run_oelf(
@@ -428,6 +438,7 @@ def main():
                     config.main_path,
                     exposure_model_undamaged,
                     consequence_economic,
+                    config.calculate_casualties,
                     consequence_injuries,
                     recovery_damage,
                     recovery_injuries,
@@ -472,20 +483,21 @@ def main():
                 index=True,
             )
 
-            # Store human losses per building ID
-            losses_human.to_csv(
-                os.path.join(
-                    config.main_path,
-                    "output",
-                    "losses_human_after_OELF_%s.csv" % (forecast_name)
-                ),
-                index=True,
-            )
+            if config.calculate_casualties:
+                # Store human losses per building ID
+                losses_human.to_csv(
+                    os.path.join(
+                        config.main_path,
+                        "output",
+                        "losses_human_after_OELF_%s.csv" % (forecast_name)
+                    ),
+                    index=True,
+                )
 
     # Post-process individual outputs
     if config.post_process["collect_csv"]:
         exposure_expected_costs_occupants = Losses.get_expected_costs_occupants(
-            exposure_model_undamaged
+            exposure_model_undamaged, config.calculate_casualties
         )
         PostProcessor.export_collected_output_damage(
             config.main_path, processed_rla, processed_oelf
@@ -495,13 +507,14 @@ def main():
             config.main_path, processed_rla, processed_oelf, exposure_expected_costs_occupants
         )
 
-        PostProcessor.export_collected_output_losses_human(
-            config.main_path,
-            config.injuries_scale,
-            processed_rla,
-            processed_oelf,
-            exposure_expected_costs_occupants,
-        )
+        if config.calculate_casualties:
+            PostProcessor.export_collected_output_losses_human(
+                config.main_path,
+                config.injuries_scale,
+                processed_rla,
+                processed_oelf,
+                exposure_expected_costs_occupants,
+            )
 
     # Save 'log_summary' (to create log file that allows for a quick check of correct input)
     log_summary.append("Real-Time Loss Tools has finished")

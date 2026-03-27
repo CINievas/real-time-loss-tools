@@ -4,6 +4,7 @@ debug_logging: False
 number_cores: 4  # Number of cores to use whenever parallelisation is possible (does not apply to OpenQuake)
 oelf_source_model_filename: source_model.xml  # Name of the XML file with the source model to be used in OELF.
 state_dependent_fragilities: True  # True if the fragility models used to run OpenQuake are state-dependent, False otherwise.
+calculate_casualties: True  # True to calculate casualties (and account for them in occupants of future earthquakes), False otherwise.
 mapping_damage_states:  # From least severe to most severe. Keys are as output by OpenQuake, values are as labelled in the fragility/exposure.
   no_damage: DS0  # least severe
   dmg_1: DS1

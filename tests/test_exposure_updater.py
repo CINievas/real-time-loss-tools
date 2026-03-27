@@ -1234,6 +1234,7 @@ def test_update_exposure_occupants():
 
     # Execute the method
     returned_exposure_updated_occupants = ExposureUpdater.update_exposure_occupants(
+        True, # calculate_casualties
         exposure_full_occupants,
         time_of_day_factors,
         earthquake_time_of_day,
@@ -1288,6 +1289,7 @@ def test_update_exposure_occupants():
 
     # Execute the method
     returned_exposure_updated_occupants = ExposureUpdater.update_exposure_occupants(
+        True, # calculate_casualties
         exposure_full_occupants,
         time_of_day_factors,
         earthquake_time_of_day,
@@ -1343,6 +1345,7 @@ def test_update_exposure_occupants():
 
     # Execute the method
     returned_exposure_updated_occupants = ExposureUpdater.update_exposure_occupants(
+        True, # calculate_casualties
         exposure_full_occupants,
         time_of_day_factors,
         earthquake_time_of_day,

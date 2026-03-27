@@ -952,11 +952,12 @@ class Losses:
         return time_of_day_factors_per_asset
 
     @staticmethod
-    def get_expected_costs_occupants(exposure_model):
+    def get_expected_costs_occupants(exposure_model, calculate_casualties):
         """
         This method calculates the expected total replacement cost and total number of census
-        occupants (i.e. occupants irrespective of the time of the day) per building_id of the
-        input 'exposure_model', whose structure is that on the OpenQuake exposure CSV format.
+        occupants (i.e. occupants irrespective of the time of the day, only if
+        'calculate_casualties'is True) per building_id of the input 'exposure_model', whose
+        structure is that on the OpenQuake exposure CSV format.
 
         Args:
             exposure_model (Pandas DataFrame):
@@ -977,6 +978,9 @@ class Losses:
                         census (float):
                             Total number of occupants in this asset (all buildings in "number"),
                             irrespective of the time of the day.
+            calculate_casualties (bool):
+                If True, the output will include census occupants. If False, the output will
+                only include replacement costs.
 
         Returns:
             expected_costs_occupants (Pandas DataFrame):
@@ -992,11 +996,11 @@ class Losses:
                             Total number of occupants in this 'building_id'.
         """
 
-        expected_costs_occupants = exposure_model.groupby(["building_id"]).agg(
-            {
-                "structural": "sum",
-                "census": "sum"
-            }
-        )
+        if calculate_casualties:
+            grouping_dic = {"structural": "sum", "census": "sum"}
+        else:
+            grouping_dic = {"structural": "sum"}
+
+        expected_costs_occupants = exposure_model.groupby(["building_id"]).agg(grouping_dic)
 
         return expected_costs_occupants

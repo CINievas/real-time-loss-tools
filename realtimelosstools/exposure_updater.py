@@ -284,7 +284,7 @@ class ExposureUpdater:
                 ].shape[0]
                 for damage_state in unique_damage_states:
                     damage_results_merged.loc[(asset_id, damage_state), "value"] = (
-                        damage_results_SHM.loc[(building_id, damage_state)]
+                        damage_results_SHM.loc[(building_id, damage_state)].astype("float32")
                         / how_many_asset_ids
                     )
 
@@ -1113,9 +1113,11 @@ class ExposureUpdater:
             % (np.datetime64('now'))
         )
         for col_name in ["structural", "census", earthquake_time_of_day]:
-            new_exposure_model[col_name] = (
-                new_exposure_model["value"].to_numpy() / new_exposure_model["number"].to_numpy()
-            ) * new_exposure_model[col_name].to_numpy()
+            if col_name in new_exposure_model.columns:
+                new_exposure_model[col_name] = (
+                    new_exposure_model["value"].to_numpy() /
+                    new_exposure_model["number"].to_numpy()
+                ) * new_exposure_model[col_name].to_numpy()
 
         # Replace the contents of "number" with the contents of "value"
         new_exposure_model["number"] = new_exposure_model["value"]
@@ -1149,7 +1151,7 @@ class ExposureUpdater:
             "grouping same damage states for same original_asset_id"
             % (np.datetime64('now'))
         )
-        columns_by_original_asset_id = [  # These values depend only on the original_asset_id
+        columns_by_original_asset_id_raw = [  # These values depend only on the original_asset_id
             "lon",
             "lat",
             "id_1",
@@ -1161,6 +1163,10 @@ class ExposureUpdater:
             "occupancy",
             "building_id",
         ]
+        columns_by_original_asset_id = []
+        for col in columns_by_original_asset_id_raw:
+            if col in new_exposure_model:  # not all columns might exist in exposure CSV
+                columns_by_original_asset_id.append(col)
         new_exposure_model = new_exposure_model.drop(columns=columns_by_original_asset_id)
         # Sum number of buildings, people, costs for rows that need to be grouped
         new_exposure_model = new_exposure_model.groupby(
@@ -1242,6 +1248,7 @@ class ExposureUpdater:
 
     @staticmethod
     def update_exposure_occupants(
+        calculate_casualties,
         exposure_full_occupants,
         time_of_day_factors,
         earthquake_time_of_day,
@@ -1252,9 +1259,10 @@ class ExposureUpdater:
         number_cores=1
     ):
         """
-        This method calculates the number of occupants in each asset of
-        'exposure_full_occupants' at the time of 'earthquake_datetime', considering whether
-        people are allowed to return to the buildings, as well as their health status.
+        If 'calculate_casualties' is True, this method calculates the number of occupants in
+        each asset of 'exposure_full_occupants' at the time of 'earthquake_datetime',
+        considering whether people are allowed to return to the buildings, as well as their
+        health status. No action is carried out if 'calculate_casualties' is False.
 
         It assumes that files containing the number of injured people still not able to return
         to their buildings as well as files with factors that define whether people are allowed
@@ -1348,6 +1356,9 @@ class ExposureUpdater:
                 of 'earthquake_datetime', considering whether people are allowed to return to
                 the buildings and their health status.
         """
+
+        if not calculate_casualties:
+            return exposure_full_occupants
 
         exposure_updated_occupants = deepcopy(exposure_full_occupants)
 

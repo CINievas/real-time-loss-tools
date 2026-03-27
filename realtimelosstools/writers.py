@@ -186,7 +186,8 @@ class Writer:
             new_description (str):
                 Description to be written to job.ini.
             new_time_of_day (str):
-                Time of day ("day", "night", "transit") to be written to job.ini.
+                Time of day ("day", "night", "transit") to be written to job.ini. If None,
+                nothing is updated in job.ini.
             new_name_rupture_file (str):
                 Name of the rupture XML file to be written to job.ini.
         """
@@ -205,7 +206,7 @@ class Writer:
                     text_to_search = line
                     replacement_text = "description = %s\n" % (new_description)
                     print(line.replace(text_to_search, replacement_text), end='')
-                elif "time_event =" in line:
+                elif ("time_event =" in line) and (new_time_of_day is not None):
                     text_to_search = line
                     replacement_text = "time_event = %s\n" % (new_time_of_day)
                     print(line.replace(text_to_search, replacement_text), end='')

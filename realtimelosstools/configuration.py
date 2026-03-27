@@ -48,6 +48,9 @@ class Configuration:
         self.state_dependent_fragilities (bool):
             True if state-dependent fragility models are being used to run OpenQuake, False if
             state-independent fragility models are being used instead.
+        self.calculate_casualties (bool):
+            True to indicate the software to calculate casualties (and account for them when
+            determining occupants for future earthquakes), False otherwise.
         self.mapping_damage_states (Pandas DataFrame):
             Mapping between the names of damage states as output by OpenQuake and as labelled in
             the fragility model. In the yml configuration file it is defined by means of a
@@ -138,15 +141,19 @@ class Configuration:
         "number_cores",
         "oelf_source_model_filename",
         "state_dependent_fragilities",
+        "calculate_casualties",
         "mapping_damage_states",
         "oelf",
-        "injuries_scale",
-        "injuries_longest_time",
-        "time_of_day_occupancy",
-        "timezone",
         "store_intermediate",
         "store_openquake",
         "post_process"
+    ]
+
+    REQUIRES_CASUALTIES = [
+        "injuries_scale",
+        "injuries_longest_time",
+        "time_of_day_occupancy",
+        "timezone"
     ]
 
     def __init__(self, filepath):
@@ -182,6 +189,10 @@ class Configuration:
 
         self.state_dependent_fragilities = self.assign_boolean_parameter(
             config, "state_dependent_fragilities"
+        )
+
+        self.calculate_casualties = self.assign_boolean_parameter(
+            config, "calculate_casualties"
         )
 
         mapping_damage_states_aux = self.assign_hierarchical_parameters(
@@ -244,6 +255,8 @@ class Configuration:
         self.assign_rupture_generator_properties(config)
 
         # Terminate if critical parameters are missing (not all parameters are critical)
+        if self.calculate_casualties:
+            self.REQUIRES = self.REQUIRES + self.REQUIRES_CASUALTIES
         for key_parameter in self.REQUIRES:
             if getattr(self, key_parameter) is None:
                 error_message = (
