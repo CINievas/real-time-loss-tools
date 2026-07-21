@@ -189,11 +189,16 @@ Optional fields for the OELF catalogue files are:
 
 - `depth`: hypocentral depth, in km;
 - `event_id`: unique identifier of the earthquake within a stochastic event set.
+- `model_id`: unique identifier of the seismicity model used to generate the stochastic event
+set.
 
 When no `depth` is specified, the depth is sampled by the stochastic rupture generator when
 building each earthquake rupture.
 
 When no `event_id` is specified, the Real-Time Loss Tools automatically generates one.
+
+When no `model_id` is specified, the Real-Time Loss Tools automatically assigns all earthquakes
+to `model_id=1`.
 
 ## Rupture Parameters for RLA
 

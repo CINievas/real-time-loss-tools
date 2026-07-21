@@ -517,10 +517,17 @@ class OperationalEarthquakeLossForecasting():
                     continue
 
                 # Identify rupture XML
-                name_rupture_file = "RUP_%s-%s.xml" % (
-                    events_in_ses.loc[eq_id, "ses_id"],
-                    events_in_ses.loc[eq_id, "event_id"]
-                )
+                if "model_id" in events_in_ses.columns:
+                    name_rupture_file = "RUP_%s-%s-%s.xml" % (
+                        events_in_ses.loc[eq_id, "model_id"],
+                        events_in_ses.loc[eq_id, "ses_id"],
+                        events_in_ses.loc[eq_id, "event_id"]
+                    )
+                else:
+                    name_rupture_file = "RUP_%s-%s.xml" % (
+                        events_in_ses.loc[eq_id, "ses_id"],
+                        events_in_ses.loc[eq_id, "event_id"]
+                    )
 
                 # Update exposure XML
                 Writer.update_exposure_xml(
@@ -849,7 +856,9 @@ class OperationalEarthquakeLossForecasting():
         return damage_states_all_ses, losses_economic_all_ses, losses_human_all_ses
 
     @staticmethod
-    def format_seismicity_forecast(forecast_catalogue, add_event_id=True, add_depth=False):
+    def format_seismicity_forecast(
+        forecast_catalogue, add_event_id=True, add_model_id=True, add_depth=False
+    ):
         """This method reformats 'forecast_catalogue' so that its fields are those required by
         the Real Time Loss Tools and its earthquakes are ordered, firstly, by stochastic event
         set (SES), and secondly in chronological order (within each SES).
@@ -874,6 +883,10 @@ class OperationalEarthquakeLossForecasting():
                 If True, a field named "event_id" will be added to 'forecast_catalogue'. Unique IDs
                 will be assigned to each earthquake within each stochastic event set (SES), in
                 chronlogical order. Default: True.
+            add_model_id (bool):
+                If True, a field named "model_id" will be added to 'forecast_catalogue'. All
+                "model_id" values will be 1, as it will be assumed that all earthquakes have
+                been generated with the same seismicity model. Default: True.
             add_depth (bool):
                 If True, and if "Depth" or "depth" are not already fields of 'forecast_catalogue',
                 a "depth" field will be added to 'forecast_catalogue' and filled in with numpy.nan.
@@ -886,14 +899,18 @@ class OperationalEarthquakeLossForecasting():
                     latitude (float): Latitude of the hypocentre.
                     magnitude (float): Moment magnitude.
                     datetime (Numpy datetime64): Date and time.
-                    ses_id (int): ID of the stochastic event set that the
-                    earthquake belongs to.
+                    model_id (int): ID of the seismicity model used to generate the stochastic
+                        event set to which the earthquake belongs (only output if 'add_model_id'
+                        is True or if 'forecast_catalogue' had a 'model_id' field already).
+                    ses_id (int): ID of the stochastic event set that the earthquake belongs to.
                     event_id (str): Unique identifier of an earthquake within a Stochastic Event
-                    Set (only output if 'add_event_id' is True and 'forecast_catalogue' did not
-                    have an 'event_id' field already).
+                        Set (only output if 'add_event_id' is True or if 'forecast_catalogue'
+                        had an 'event_id' field already).
                     depth (float): Depth of the hypocentre (only output if 'add_depth' is True).
-                The index is called "EQID" and it has the format "[ses_id]-[event_id]". It is
-                not created if "event_id" is missing and 'add_event_id' is False.
+                If "event_id" exists or 'add_event_id' is true, "out_catalogue" is assigned an
+                index called "EQID". If "model_id" exists or 'add_model_id' is True, the format
+                of the index is "[model_id]-[ses_id]-[event_id]". If "model_id" does not exist
+                and 'add_model_id' is False, the format of the index is "[ses_id]-[event_id]".
         """
 
         out_catalogue = deepcopy(forecast_catalogue)
@@ -938,10 +955,29 @@ class OperationalEarthquakeLossForecasting():
 
             out_catalogue["event_id"] = event_ids
 
+        if add_model_id and "model_id" not in columns_input:
+            # All earthquakes assumed to stem from the same seismicity model,
+            # hereafter labelled "1"
+            out_catalogue["model_id"] = np.ones(out_catalogue.shape[0], dtype=int)
+
         if ("event_id" in out_catalogue.columns) and ("ses_id" in out_catalogue.columns):
-            out_catalogue["EQID"] = pd.Series([
-                "{:g}-{:g}".format(cat_id, ev_id)
-                for (cat_id, ev_id) in zip(out_catalogue["ses_id"], out_catalogue["event_id"])])
+            if "model_id" in out_catalogue.columns:
+                out_catalogue["EQID"] = pd.Series([
+                    "{:g}-{:g}-{:g}".format(mod_id, cat_id, ev_id)
+                    for (mod_id, cat_id, ev_id) in zip(
+                        out_catalogue["model_id"],
+                        out_catalogue["ses_id"],
+                        out_catalogue["event_id"]
+                    )
+                ])
+            else:
+                out_catalogue["EQID"] = pd.Series([
+                    "{:g}-{:g}".format(cat_id, ev_id)
+                    for (cat_id, ev_id) in zip(
+                        out_catalogue["ses_id"], out_catalogue["event_id"]
+                    )
+                ])
+
             out_catalogue.set_index("EQID", drop=True, inplace=True)
 
         return out_catalogue

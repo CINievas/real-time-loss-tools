@@ -612,9 +612,18 @@ class StochasticRuptureSet():
         catalogue = gpd.GeoDataFrame(catalogue, geometry=catalogue_geom, crs='EPSG:4326')
         if catalogue.index.name != "EQID":
             # Set a unique ID for each event by joining the catalog ID and the event ID
-            catalogue["EQID"] = pd.Series([
-                "{:g}-{:g}".format(cat_id, ev_id)
-                for (cat_id, ev_id) in zip(catalogue["ses_id"], catalogue["event_id"])])
+            # (include model ID if it exists)
+            if "model_id" in catalogue.columns:
+                catalogue["EQID"] = pd.Series([
+                    "{:g}-{:g}-{:g}".format(mod_id, cat_id, ev_id)
+                    for (mod_id, cat_id, ev_id) in zip(
+                        catalogue["model_id"], catalogue["ses_id"], catalogue["event_id"]
+                    )
+                ])
+            else:
+                catalogue["EQID"] = pd.Series([
+                    "{:g}-{:g}".format(cat_id, ev_id)
+                    for (cat_id, ev_id) in zip(catalogue["ses_id"], catalogue["event_id"])])
             catalogue.set_index("EQID", drop=True, inplace=True)
         catalogue_cart = catalogue.to_crs("EPSG:3035")
         # Assign the corresponding source geometry to each earthquake (earthquake entries will

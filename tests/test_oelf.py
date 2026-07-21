@@ -34,7 +34,7 @@ def test_format_seismicity_forecast():
 
     # Test case 1: add both event_id and depth
     returned_forecast = OperationalEarthquakeLossForecasting.format_seismicity_forecast(
-        forecast, add_event_id=True, add_depth=True
+        forecast, add_event_id=True, add_model_id=False, add_depth=True
     )
     expected_forecast = pd.read_csv(
         os.path.join(os.path.dirname(__file__), "data", "oef_catalogue_expected_add_both.csv"),
@@ -64,7 +64,7 @@ def test_format_seismicity_forecast():
 
     # Test case 2: add only event_id
     returned_forecast = OperationalEarthquakeLossForecasting.format_seismicity_forecast(
-        forecast, add_event_id=True, add_depth=False
+        forecast, add_event_id=True, add_model_id=False, add_depth=False
     )
     expected_forecast = pd.read_csv(
         os.path.join(os.path.dirname(__file__), "data", "oef_catalogue_expected_add_event_id.csv"),
@@ -95,7 +95,7 @@ def test_format_seismicity_forecast():
 
     # Test case 3: add only depth
     returned_forecast = OperationalEarthquakeLossForecasting.format_seismicity_forecast(
-        forecast, add_event_id=False, add_depth=True
+        forecast, add_event_id=False, add_model_id=False, add_depth=True
     )
     expected_forecast = pd.read_csv(
         os.path.join(os.path.dirname(__file__), "data", "oef_catalogue_expected_add_depth.csv"),
@@ -121,6 +121,41 @@ def test_format_seismicity_forecast():
                 else:
                     assert round(returned_forecast.loc[row, column], 5) == round(
                         expected_forecast.loc[row, column], 5
+                    )
+
+    # Test case 4: add only event_id and model_id
+    returned_forecast = OperationalEarthquakeLossForecasting.format_seismicity_forecast(
+        forecast, add_event_id=True, add_model_id=True, add_depth=False
+    )
+    expected_forecast = pd.read_csv(
+        os.path.join(
+            os.path.dirname(__file__),
+            "data",
+            "oef_catalogue_expected_add_event_id_and_model_id.csv"
+        ),
+        sep=",",
+    )
+    expected_forecast["datetime"] = pd.to_datetime(expected_forecast["datetime"])
+    expected_forecast.set_index("EQID", drop=True, inplace=True)
+
+    assert len(returned_forecast.index) == len(expected_forecast.index)
+    assert len(returned_forecast.columns) == len(expected_forecast.columns)
+    assert "depth" not in returned_forecast.columns
+
+    for eqid in expected_forecast.index:
+        for column in expected_forecast.columns:
+            if column in ["longitude", "latitude", "magnitude"]:
+                assert round(returned_forecast.loc[eqid, column], 5) == round(
+                    expected_forecast.loc[eqid, column], 5
+                )
+            elif column in ["datetime", "ses_id", "event_id"]:
+                assert returned_forecast.loc[eqid, column] == expected_forecast.loc[eqid, column]
+            elif column in ["depth"]:
+                if np.isnan(expected_forecast.loc[eqid, column]):
+                    assert np.isnan(returned_forecast.loc[eqid, column])
+                else:
+                    assert round(returned_forecast.loc[eqid, column], 5) == round(
+                        expected_forecast.loc[eqid, column], 5
                     )
 
 
@@ -372,14 +407,14 @@ def test_run_oelf_01():
 
     # Check that the correct rupture XML files have been created
     ruptures_should_exist = [
-        "RUP_1-1.xml", "RUP_1-2.xml", "RUP_1-3.xml",
-        "RUP_3-2.xml", "RUP_3-3.xml",
-        "RUP_4-1.xml", "RUP_4-3.xml"
+        "RUP_1-1-1.xml", "RUP_1-1-2.xml", "RUP_1-1-3.xml",
+        "RUP_1-3-2.xml", "RUP_1-3-3.xml",
+        "RUP_1-4-1.xml", "RUP_1-4-3.xml"
     ]
     for rupt_filename in ruptures_should_exist:
         assert os.path.exists(os.path.join(path_to_ruptures, rupt_filename))
     # Earthquake 3-1 should be filtered out
-    assert not os.path.exists(os.path.join(path_to_ruptures, "RUP_3-1.xml"))
+    assert not os.path.exists(os.path.join(path_to_ruptures, "RUP_1-3-1.xml"))
 
     # Check that damage and losses have been output for all SES, including SES 2, even though it
     # does not exist in the input catalogue
@@ -437,31 +472,31 @@ def test_run_oelf_01():
 
     # Check that occupants are being placed in buildings only when they should be
     occupants = {
-        "exposure_model_after_1-1.csv": (
+        "exposure_model_after_1-1-1.csv": (
             "night",
             (
                 exposure_model_undamaged["census"].sum()
                 * config.time_of_day_occupancy["residential"]["night"]
             )
         ),
-        "exposure_model_after_1-2.csv": ("night", 0.0),
-        "exposure_model_after_1-3.csv": ("day", 0.0),
-        "exposure_model_after_3-2.csv": (
+        "exposure_model_after_1-1-2.csv": ("night", 0.0),
+        "exposure_model_after_1-1-3.csv": ("day", 0.0),
+        "exposure_model_after_1-3-2.csv": (
             "transit",
             (
                 exposure_model_undamaged["census"].sum()
                 * config.time_of_day_occupancy["residential"]["transit"]
             )
         ),
-        "exposure_model_after_3-3.csv": ("transit", 0.0),
-        "exposure_model_after_4-1.csv": (
+        "exposure_model_after_1-3-3.csv": ("transit", 0.0),
+        "exposure_model_after_1-4-1.csv": (
             "day",
             (
                 exposure_model_undamaged["census"].sum()
                 * config.time_of_day_occupancy["residential"]["day"]
             )
         ),
-        "exposure_model_after_4-3.csv": ("night", 0.0),
+        "exposure_model_after_1-4-3.csv": ("night", 0.0),
     }
 
     for exposure_after in occupants:
