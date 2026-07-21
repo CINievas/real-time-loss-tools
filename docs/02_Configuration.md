@@ -109,6 +109,20 @@ ses_range: 1, 10000
 results in the Real-Time Loss Tools considering the existence of 10,000 stochastic event sets,
 irrespective of how many of them contain eartquakes in the OELF catalogues CSV files.
 
+**number_seismicity_models**
+
+Number of seismicity models used to generate the input OELF catalogues. Integer > 0. The
+software assumes that all input OELF catalogues have been generated using this same number of
+seismicity models.
+
+**seismicity_models_weights**
+
+Used to pass on different weights for different seismicity models that may have been used to
+generate the input OELF catalogue. It can either be:
+- "uniform": Uniform weights (`1/number_seismicity_models`) assigned to all seismicity models.
+- "from_file": File `static/seismicity_models_weights.csv` must exist, and the software will
+retrieve weights from there.
+
 **rupture_generator_seed**
 
 Optional seed (positive non-zero integer) to set for the random number generator that controls

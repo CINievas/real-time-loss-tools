@@ -16,6 +16,8 @@ oelf:
   max_distance: 200.0  # Maximum epicentral distance between earthquake source and site to actually run the earthquake.
   continuous_ses_numbering: True  # If True, the software will assume there are as many stochastic event sets as indicated in 'ses_range', with an increment of 1.
   ses_range: 1, 10000  # Start and end number of the ID of the stochastic event sets, given as a list separated by comma and space (", ").
+  number_seismicity_models: 3  # Integer > 0. Number of seismicity models used to generate the input catalogues.
+  seismicity_models_weights: from_file # Options: "from_file" (seismicity_models_weights.csv sought) or "uniform" (uniform weights assumed).
   rupture_generator_seed: 1976  # (Optional) Seed (positive non-zero) for the random number generator controlling the stochastic rupture simulations.
   rupture_region_properties:  # (Optional) Tectonic-region dependent configuration of regional rupture properties.
     Volcanic Shallow:

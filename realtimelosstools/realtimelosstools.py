@@ -182,6 +182,20 @@ def main():
     else:
         recovery_injuries = None
 
+    # Load weights for different OELF seismicity models
+    if "OELF" in triggers["type_analysis"].to_numpy():
+        oelf_model_weights = Loader.load_OELF_weights(
+            config.oelf["seismicity_models_weights"],
+            config.oelf["number_seismicity_models"],
+            os.path.join(config.main_path, "static", "seismicity_models_weights.csv")
+        )
+        if oelf_model_weights.shape[0] != config.oelf["number_seismicity_models"]:
+            # If the number of models in the weights CSV file is different, update the number
+            # in the configuration
+            config.oelf["number_seismicity_models"] = num_models
+
+    import pdb
+    pdb.set_trace()
     # Load the "initial" exposure model
     exposure_model_undamaged = pd.read_csv(
             os.path.join(config.main_path, "exposure_models", "exposure_model_undamaged.csv")
@@ -352,6 +366,7 @@ def main():
                 forecast_cat, add_event_id=True, add_depth=False
             )  # The index of 'forecast_cat' is the unique ID "[ses_id]-[event_id]"
 
+            pdb.set_trace()
             # Filter catalogue as per minimum magnitude and maximum distance (so as to not build
             # ruptures for earthquakes that will not be used to calculate damage)
             exposure_lons, exposure_lats = ExposureUpdater.get_unique_exposure_locations(

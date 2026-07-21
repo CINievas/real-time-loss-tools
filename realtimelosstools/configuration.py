@@ -87,6 +87,11 @@ class Configuration:
                 Start and end number of the ID of the stochastic event sets, which will be used
                 to define the IDs of the stochastic event sets only if
                 'continuous_ses_numbering' is True. Both start and end numbers are included.
+            number_seismicity_models (int):
+                Number of seismicity models used to generate the input OELF catalogues.
+            seismicity_models_weights (str):
+                String used to indicate whether the weights associated with different seismicity
+                models are "uniform" or should be read "from_file".
             rupture_generator_seed (int):
                 Optional seed to set for the random number generator controlling the stochastic
                 rupture simulations. Must be positive non-zero to reproduce same rupture set.
@@ -213,6 +218,8 @@ class Configuration:
                 "max_distance",
                 "continuous_ses_numbering",
                 "ses_range",
+                "number_seismicity_models",
+                "seismicity_models_weights"
             ]
         )
         self.oelf["min_magnitude"] = self.assign_float_parameter(
@@ -229,6 +236,27 @@ class Configuration:
         )
         self.oelf["ses_range"][0] = int(self.oelf["ses_range"][0])
         self.oelf["ses_range"][1] = int(self.oelf["ses_range"][1])
+
+        self.oelf["number_seismicity_models"] = self.assign_integer_parameter(
+            self.oelf, "number_seismicity_models"
+        )
+        if self.oelf["number_seismicity_models"] < 1:
+            error_message = ("Error: parameter 'number_seismicity_models' can only be > 0.")
+            logger.critical(error_message)
+            raise OSError(error_message)
+        self.oelf["seismicity_models_weights"] = self.assign_parameter(
+            self.oelf, "seismicity_models_weights"
+        ).lower()
+        if (
+            (self.oelf["seismicity_models_weights"]!="from_file") and
+            (self.oelf["seismicity_models_weights"]!="uniform")
+        ):
+                error_message = (
+                    "Error: parameter 'seismicity_models_weights' can only be "
+                    "'from_file' or 'uniform'  The program cannot run."
+                )
+                logger.critical(error_message)
+                raise OSError(error_message)
 
         self.injuries_scale = self.assign_listed_parameters(config, "injuries_scale")
 

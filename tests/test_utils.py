@@ -320,6 +320,118 @@ def test_load_triggers():
             )
 
 
+def test_load_OELF_weights():
+    # Test 1: all three columns exist, weights add up to 1
+    path_to_file = os.path.join(
+        os.path.dirname(__file__), "data", "seismicity_models_weights_01.csv"
+    )
+
+    returned_weights = Loader.load_OELF_weights("from_file", 2, path_to_file)
+
+    expected_weights = pd.DataFrame(
+        {"model_id": [1, 2], "model_name": ["Model_A", "Model_B"], "weight": [0.25, 0.75]}
+    )
+    expected_weights.set_index(expected_weights["model_id"], inplace=True)
+    expected_weights.drop(columns=["model_id"], inplace=True)
+
+    assert returned_weights.shape[0] == expected_weights.shape[0]
+    assert returned_weights.shape[1] == expected_weights.shape[1]
+
+    for model_id in expected_weights.index:
+        assert (
+            returned_weights.loc[model_id, "model_name"] ==
+            expected_weights.loc[model_id, "model_name"]
+        )
+        assert (
+            round(returned_weights.loc[model_id, "weight"], 5) ==
+            round(expected_weights.loc[model_id, "weight"], 5)
+        )
+
+    # Test 2: all three columns exist, weights do not add up to 1
+    path_to_file = os.path.join(
+        os.path.dirname(__file__), "data", "seismicity_models_weights_02.csv"
+    )
+
+    with pytest.raises(OSError) as excinfo:
+        Loader.load_OELF_weights("from_file", 2, path_to_file)
+    assert "OSError" in str(excinfo.type)
+
+    # Test 3: the "model_name" column is missing, weights add up to 1
+    path_to_file = os.path.join(
+        os.path.dirname(__file__), "data", "seismicity_models_weights_03.csv"
+    )
+
+    returned_weights = Loader.load_OELF_weights("from_file", 2, path_to_file)
+
+    expected_weights = pd.DataFrame(
+        {"model_id": [1, 2], "model_name": ["1", "2"], "weight": [0.25, 0.75]}
+    )
+    expected_weights.set_index(expected_weights["model_id"], inplace=True)
+    expected_weights.drop(columns=["model_id"], inplace=True)
+
+    assert returned_weights.shape[0] == expected_weights.shape[0]
+    assert returned_weights.shape[1] == expected_weights.shape[1]
+
+    for model_id in expected_weights.index:
+        assert (
+            returned_weights.loc[model_id, "model_name"] ==
+            expected_weights.loc[model_id, "model_name"]
+        )
+        assert (
+            round(returned_weights.loc[model_id, "weight"], 5) ==
+            round(expected_weights.loc[model_id, "weight"], 5)
+        )
+
+    # Test 4: all three columns exist, but "weight" column is called "weights"
+    # and thus does not exist
+    path_to_file = os.path.join(
+        os.path.dirname(__file__), "data", "seismicity_models_weights_04.csv"
+    )
+
+    with pytest.raises(OSError) as excinfo:
+        Loader.load_OELF_weights("from_file", 2, path_to_file)
+    assert "OSError" in str(excinfo.type)
+
+    # Test 5: create uniform weights
+    path_to_file = os.path.join(
+        os.path.dirname(__file__), "data", "name_is_irrelevant.csv"
+    )
+
+    returned_weights = Loader.load_OELF_weights("uniform", 5, path_to_file)
+
+    expected_weights = pd.DataFrame(
+        {
+            "model_id": [1, 2, 3, 4, 5],
+            "model_name": ["1", "2", "3", "4", "5"],
+            "weight": [0.2, 0.2, 0.2, 0.2, 0.2]
+        }
+    )
+    expected_weights.set_index(expected_weights["model_id"], inplace=True)
+    expected_weights.drop(columns=["model_id"], inplace=True)
+
+    assert returned_weights.shape[0] == expected_weights.shape[0]
+    assert returned_weights.shape[1] == expected_weights.shape[1]
+
+    for model_id in expected_weights.index:
+        assert (
+            returned_weights.loc[model_id, "model_name"] ==
+            expected_weights.loc[model_id, "model_name"]
+        )
+        assert (
+            round(returned_weights.loc[model_id, "weight"], 5) ==
+            round(expected_weights.loc[model_id, "weight"], 5)
+        )
+
+    # Test 6: "seismicity_models_weights" parameter is not supported
+    path_to_file = os.path.join(
+        os.path.dirname(__file__), "data", "name_is_irrelevant.csv"
+    )
+
+    with pytest.raises(OSError) as excinfo:
+        Loader.load_OELF_weights("something_random", 2, path_to_file)
+    assert "OSError" in str(excinfo.type)
+
+
 def test_OpenQuakeDataStoreHandler_retrieve_exposure_asset_id_mapping():
 
     # OpenQuake output

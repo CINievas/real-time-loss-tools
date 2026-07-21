@@ -117,6 +117,10 @@ remain the same all throughout. These files are:
   `N_discharged` under this category. Only necessary if `calculate_casualties` in the
   `config.yml` is True.
 
+  - [seismicity_models_weights.csv](#weights-for-different-oelf-seismicity-models): optional CSV
+  file with the weights of each seismicity model used to generate the input OELF catalogues.
+  Needed only if `seismicity_models_weights` in the `config.yml` file is `from_file`.
+
 Before running the software, the user needs to set up the structure under `main_path` as
 follows:
 
@@ -533,5 +537,17 @@ If all values in `recovery_damage.csv` and `recovery_injuries.csv` are set to ze
 update of occupants is carried out, which means that all occupants are assumed to be able and
 allowed to occupy the buildings during all earthquakes, even if they are injured or the building
 is fully damaged).
+
+## Weights for Different OELF Seismicity Models
+
+The `seismicity_models_weights.csv` file (placed under `main_path/static`) is only necessary if
+(1) at least one of the triggers is an OELF calculation and (2) the parameter
+`seismicity_models_weights` in the `config.yml` file is `from_file`. It must contain two
+columns. The first one, labelled `model_id`, must contain integers that identify the seismicity
+models used to generate the OELF catalogues. They must be the same integers indicated in the
+catalogues themselves. The second one, labelled `weight`, must contain the weight of the model,
+and all weights must add up to 1.0. A third optional column, labelled `model_name`, can be used
+to assign a name to each `model_id`. The `model_name` will be used in the outputs. If not
+provided, the `model_id` will be used instead.
 
 Return to [documentation index](README.md).

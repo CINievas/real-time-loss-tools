@@ -246,6 +246,91 @@ class Loader():
 
         return triggers
 
+    @staticmethod
+    def load_OELF_weights(config_weights_source, number_models, filepath, tolerance=1E-5):
+        """
+        This method returns a Pandas DataFrame with the weights of different seismicity models
+        used to generate the input OELF catalogues.
+
+        If 'config_weights_source' is "uniform", uniform weights (1/number_models) are assigned
+        to all seismicity models.
+
+        If 'config_weights_source' is "from_file", the weights are retrieved from the CSV file
+        under 'static/seismicity_models_weights.csv', which is assumed to exist. This method
+        checks that all weights add up to 1.0. If the CSV file does not contain a "model_name"
+        column, it creates it by copying the "model_id" column
+
+        Args:
+            config_weights_source (str):
+                Either "uniform" or "from_file" (see above).
+            number_models (int):
+                Number of seismicity models used to generate the input OELF catalogues.
+            filepath (str):
+                Path to CSV files with weights.
+            tolerance (float):
+                Tolerance to be used when checking that the sum of weights is 1.0. Default: 1E-5.
+
+        Returns:
+            oelf_model_weights (Pandas DataFrame):
+                DataFrame with index "model_id" and the following columns:
+                    model_name (str):
+                        Name of the model.
+                    weight (float):
+                        Weight of the model.
+        """
+
+        if config_weights_source=="from_file":
+            oelf_model_weights = pd.read_csv(filepath)
+            if (
+                ("model_id" not in oelf_model_weights.columns) or
+                ("weight" not in oelf_model_weights.columns)
+            ):
+                error_message = (
+                    "Loader.load_OELF_weights(): either 'model_id' or 'weight' are missing from "
+                    "static/seismicity_models_weights.csv."
+                )
+                raise OSError(error_message)
+
+            weights_sum = oelf_model_weights["weight"].sum()
+
+            if ((weights_sum > 1.0 + tolerance) or (weights_sum < 1.0 - tolerance)):
+                error_message = (
+                    "Loader.load_OELF_weights(): the sum of weights of the different seismicity "
+                    "models is %s, outside the tolerance (1-%s, 1+%s). Check "
+                    "static/seismicity_models_weights.csv."
+                    % (
+                        "{:.10f}".format(weights_sum),
+                        "{:.10f}".format(tolerance),
+                        "{:.10f}".format(tolerance)
+                    )
+                )
+                raise OSError(error_message)
+
+        elif config_weights_source=="uniform":
+            oelf_model_weights = pd.DataFrame(
+                {
+                    "model_id": list(range(1,number_models+1)),
+                    "weight": [1.0/number_models for i in range(number_models)]
+                }
+            )
+
+        else:
+            error_message = (
+                "Loader.load_OELF_weights() cannot recognise config_weights_source=%s. "
+                "Possible values are 'from_file' and 'uniform'."
+                % (config_weights_source)
+            )
+            raise OSError(error_message)
+
+        if "model_name" not in oelf_model_weights.columns:
+            oelf_model_weights["model_name"] = oelf_model_weights["model_id"].astype(str)
+
+        oelf_model_weights.set_index(oelf_model_weights["model_id"], inplace=True)
+        oelf_model_weights.drop(columns=["model_id"], inplace=True)
+
+        return oelf_model_weights
+
+
 class OpenQuakeDataStoreHandler():
     """This class handles operations associated with OpenQuake's DataStore class.
     """
