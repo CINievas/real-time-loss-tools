@@ -38,11 +38,11 @@ buildings per `building_id` for each damage state due to each RLA.
 If [store_intermediate](02_Configuration.md#store_intermediate) is set to `True` in the
 `config.yml` file, one sub-folder will be created for each OELF catalogue and, within each
 subfolder:
-- `damage_states_after_OELF_forecast_name_X_realisation_N.csv`: Expected probabilities or number
-of buildings per `building_id` in each damage state after the calculation run for stochastic
-event set `N` of the OELF catalogue with name `forecast_name_X`. Values are cumulative (i.e.,
-considering damage from all RLAs run before this OELF catalogue and this stochastic event set
-itself).
+- `damage_states_after_OELF_forecast_name_X_model_M_realisation_N.csv`: Expected probabilities
+or number of buildings per `building_id` in each damage state after the calculation run for
+stochastic event set `N` of model `M` of the OELF catalogue with name `forecast_name_X`. Valuesare
+cumulative (i.e., considering damage from all RLAs run before this OELF catalogue and this
+stochastic event set itself).
 
 If [store_intermediate](02_Configuration.md#store_intermediate) is set to `True` in the
 `config.yml` file, the following files/directories are created under
@@ -111,10 +111,10 @@ economic loss ratio minus economic loss ratio up to the previous earthquake). Eq
 If [store_intermediate](02_Configuration.md#store_intermediate) is set to `True` in the
 `config.yml` file, one sub-folder will be created for each OELF catalogue and, within each
 subfolder:
-- `losses_economic_after_OELF_forecast_name_X_realisation_N.csv`: Expected economic losses per
-`building_id` after the calculation run for stochastic event set `N` of the OELF catalogue with
-name `forecast_name_X`. Values are cumulative (i.e., considering damage from all RLAs run before
-this OELF catalogue and this stochastic event set itself).
+- `losses_economic_after_OELF_forecast_name_X_model_M_realisation_N.csv`: Expected economic
+losses per `building_id` after the calculation run for stochastic event set `N` of model `M` of
+the OELF catalogue with name `forecast_name_X`. Values are cumulative (i.e., considering damage
+from all RLAs run before this OELF catalogue and this stochastic event set itself).
 
 ## Human Casualties
 
@@ -163,11 +163,152 @@ as a percentage.
 If [store_intermediate](02_Configuration.md#store_intermediate) is set to `True` in the
 `config.yml` file, one sub-folder will be created for each OELF catalogue and, within each
 subfolder:
-- `losses_human_after_OELF_forecast_name_X_realisation_N.csv`: Expected human casualties of all
-severity levels (one column per injury severity level `X`) per `building_id` after the
-calculation run for stochastic event set `N` of the OELF catalogue with name `forecast_name_X`.
-Values are cumulative (i.e., considering damage from all RLAs run before this OELF catalogue and
-this stochastic event set itself).
+- `losses_human_after_OELF_forecast_name_X_model_M_realisation_N.csv`: Expected human casualties
+of all severity levels (one column per injury severity level `X`) per `building_id` after the
+calculation run for stochastic event set `N` of model `M` of the OELF catalogue with name
+`forecast_name_X`. Values are cumulative (i.e., considering damage from all RLAs run before this
+OELF catalogue and this stochastic event set itself).
+
+## Exceedance Curves and Statistics from Catalogues of Seismicity (OELF)
+
+When at least one of the triggers in `triggering.csv` corresponds to an OELF calculation, the
+following additional ouputs are produced:
+
+### Exceedance Curves per Seismicity Model and `building_id`
+
+For each `forecast_name_X`, the following files are created under the subfolder
+`exceed_curves_by_model_and_bdg_id`:
+- `exceed_curves_by_model_and_bdg_id_DSY_OELF_forecast_name_X.csv`: number of buildings in
+damage state DSY.
+- `exceed_curves_by_model_and_bdg_id_injuries_J_OELF_forecast_name_X.csv`: number of human
+casualties of severity level J.
+- `exceed_curves_by_model_and_bdg_id_loss_OELF_forecast_name_X.csv`: economic losses.
+
+All these files contain exceedance curves with the following structure:
+- First column "model_id": The ID of the seismicity model.
+- Second column "building_id": `building_id` as per the input exposure model.
+- Remaining columns "r1", "r2", ..., "rP", with P = number of points in the exceedance curves.
+Each of these labels corresponds to a rate of exceedance that is mapped in the output
+`exceed_curves_rates_mapping\rates_exceedance_mapping_OELF_forecast_name_X.csv`. The rates of
+exceedance are "rates of exceedance in the duration of the seismicity forecast".
+- Values in the cells: the number of buildings, or number of human casualties, or economic
+losses.
+
+Each row of the files is the exceedance curve for a particular `building_id` and `model_id`. The
+curves arise from gathering all stochastic event sets for each seismicity model.
+
+### Portfolio Exceedance Curves per Seismicity Model
+
+Conceptually the same as the exceedance curves per seismicity model and `building_id`, but
+grouping all building IDs together, thus resulting in the whole building portfolio.
+
+For each `forecast_name_X`, the following files are created under the subfolder
+`exceed_curves_by_model_portfolio`:
+- `exceed_curves_by_model_portfolio_DSY_OELF_forecast_name_X.csv`: number of buildings in
+damage state DSY.
+- `exceed_curves_by_model_portfolio_injuries_J_OELF_forecast_name_X.csv`: number of human
+casualties of severity level J.
+- `exceed_curves_by_model_portfolio_loss_OELF_forecast_name_X.csv`: economic losses.
+
+All these files contain exceedance curves with the following structure:
+- First column "model_id": The ID of the seismicity model.
+- Remaining columns "r1", "r2", ..., "rP", with P = number of points in the exceedance curves.
+Each of these labels corresponds to a rate of exceedance that is mapped in the output
+`exceed_curves_rates_mapping\rates_exceedance_mapping_OELF_forecast_name_X.csv`. The rates of
+exceedance are "rates of exceedance in the duration of the seismicity forecast".
+- Values in the cells: the number of buildings, or number of human casualties, or economic
+losses.
+
+Each row of the files is the portfolio exceedance curve for a particular `model_id`.  The curves
+arise from gathering all stochastic event sets for each seismicity model.
+
+### Mean/Median Portfolio Exceedance Curves
+
+The weighted mean/median of the portfolio exceedance curves per seismicity model. The model
+weights are as defined by the user in the `config.yml` (`seismicity_models_weights` parameter)
+and `static/seismicity_models_weights.csv`, when provided.
+
+For each `forecast_name_X`, the following files are created under the subfolder
+`mean_median_portfolio_exceed_curves`:
+- `mean_median_portfolio_exceed_curves_DSY_OELF_forecast_name_X.csv`: number of buildings in
+damage state DSY.
+- `mean_median_portfolio_exceed_curves_injuries_J_OELF_forecast_name_X.csv`: number of human
+casualties of severity level J.
+- `mean_median_portfolio_exceed_curves_loss_OELF_forecast_name_X.csv`: economic losses.
+
+All these files contain exceedance curves with the following structure:
+- First column: trivial index.
+- Second column "value": the number of buildings, or number of human casualties, or economic
+losses.
+- Third/fourth columns "mean" and "median": weighted mean/median rates of exceedance of the
+values listed in the second column ("value").
+
+The mean/median curves are calculated only in the range (min_val, max_val) where all individual
+curves (per seismicity model) are defined, with:
+- `min_val`: the maximum across all models of the minimum output value
+- `max_val`: the minimum across all models of the maximum output value
+
+The number of points in the mean/median curves is the number of stochastic event sets per model,
+but always at least a minimum of 10.
+
+### Statistics per Seismicity Model and `building_id`
+
+Mean, median, 5th and 95th percentiles of per-`building_id` results for all stochastic event
+sets of each seismicity model.
+
+For each `forecast_name_X`, the following files are created under the subfolder
+`stats_by_model_and_bdg_id`:
+- `stats_by_model_and_bdg_id_DSY_OELF_forecast_name_X.csv`: number of buildings in
+damage state DSY.
+- `stats_by_model_and_bdg_id_injuries_J_OELF_forecast_name_X.csv`: number of human
+casualties of severity level J.
+- `stats_by_model_and_bdg_id_loss_OELF_forecast_name_X.csv`: economic losses.
+
+All these files have the following structure:
+- First column "model_id": the ID of the seismicity model.
+- Second column "building_id": `building_id` as per the input exposure model.
+- Columns "mean", "median", "p05" and "p95": statistics for each `model_id` and `building_id`.
+- Values in the cells: the number of buildings, or number of human casualties, or economic
+losses corresponding to those statistics.
+
+### Portfolio Statistics per Seismicity Model
+
+Mean, median, 5th and 95th percentiles of portfolio results (all building IDs) for all
+stochastic event sets of each seismicity model.
+
+For each `forecast_name_X`, the following files are created under the subfolder
+`stats_by_model_portfolio`:
+- `stats_by_model_portfolio_DSY_OELF_forecast_name_X.csv`: number of buildings in damage state
+DSY.
+- `stats_by_model_portfolio_injuries_J_OELF_forecast_name_X.csv`: number of human casualties of
+severity level J.
+- `stats_by_model_portfolio_loss_OELF_forecast_name_X.csv`: economic losses.
+
+All these files have the following structure:
+- First column "model_id": the ID of the seismicity model.
+- Columns "mean", "median", "p05" and "p95": statistics for each `model_id`.
+- Values in the cells: the number of buildings, or number of human casualties, or economic
+losses corresponding to those statistics.
+
+### Statistics per `building_id`
+
+Weighted mean, median, 5th and 95th percentiles of per-`building_id` results for all stochastic
+event sets and all seismicity models. The model weights are as defined by the user in the
+`config.yml` (`seismicity_models_weights` parameter) and `static/seismicity_models_weights.csv`,
+when provided.
+
+For each `forecast_name_X`, the following files are created under the subfolder
+`stats_by_bdg_id`:
+- `stats_by_bdg_id_DSY_OELF_forecast_name_X.csv`: number of buildings in damage state DSY.
+- `stats_by_bdg_id_injuries_J_OELF_forecast_name_X.csv`: number of human casualties of severity
+level J.
+- `stats_by_bdg_id_loss_OELF_forecast_name_X.csv`: economic losses.
+
+All these files have the following structure:
+- First column "building_id": `building_id` as per the input exposure model.
+- Columns "mean", "median", "p05" and "p95": statistics for each `building_id`.
+- Values in the cells: the number of buildings, or number of human casualties, or economic
+losses corresponding to those statistics.
 
 ## Log for quick checks
 

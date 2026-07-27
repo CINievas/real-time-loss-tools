@@ -377,14 +377,35 @@ def test_run_oelf_01():
         )
     )
 
+    # OELF seismicity model weights
+    forecast_model_weights = pd.DataFrame(
+        {
+            "model_id": [1],
+            "model_name": ["1"],
+            "weight": [1.0]
+        }
+    )
+    forecast_model_weights.set_index(forecast_model_weights["model_id"], inplace=True)
+    forecast_model_weights.drop(columns=["model_id"], inplace=True)
+
     # Run OperationalEarthquakeLossForecasting.run_oelf()
-    returned_damage_states, returned_losses_economic, returned_losses_human = (
+    (
+        rates_exceed_mapping,
+        curves_by_model_and_bdg_id,
+        stats_by_model_and_bdg_id,
+        curves_by_model_portfolio,
+        stats_by_model_portfolio,
+        stats_by_bdg_id,
+        mean_median_portfolio_curves,
+        returned_damage_states, returned_losses_economic, returned_losses_human
+    ) = (
         OperationalEarthquakeLossForecasting.run_oelf(
             forecast_cat,
             forecast_name,
             there_can_be_occupants,
             config.oelf["continuous_ses_numbering"],
             config.oelf["ses_range"],
+            forecast_model_weights,
             config.state_dependent_fragilities,
             config.description_general,
             config.main_path,
@@ -419,9 +440,9 @@ def test_run_oelf_01():
     # Check that damage and losses have been output for all SES, including SES 2, even though it
     # does not exist in the input catalogue
     out_filenames = [
-        "damage_states_after_OELF_test_oelf_01_realisation_%s.csv",
-        "losses_economic_after_OELF_test_oelf_01_realisation_%s.csv",
-        "losses_human_after_OELF_test_oelf_01_realisation_%s.csv",
+        "damage_states_after_OELF_test_oelf_01_model_1_realisation_%s.csv",
+        "losses_economic_after_OELF_test_oelf_01_model_1_realisation_%s.csv",
+        "losses_human_after_OELF_test_oelf_01_model_1_realisation_%s.csv",
     ]
     for ses in [1, 2, 3, 4]:
         for out_filename in out_filenames:
@@ -437,7 +458,7 @@ def test_run_oelf_01():
             config.main_path,
             "output",
             "test_oelf_01",
-            "damage_states_after_OELF_test_oelf_01_realisation_2.csv"
+            "damage_states_after_OELF_test_oelf_01_model_1_realisation_2.csv"
         )
     )
     assert ses_damage.shape[0] == 1
@@ -450,7 +471,7 @@ def test_run_oelf_01():
             config.main_path,
             "output",
             "test_oelf_01",
-            "losses_economic_after_OELF_test_oelf_01_realisation_2.csv"
+            "losses_economic_after_OELF_test_oelf_01_model_1_realisation_2.csv"
         )
     )
     assert ses_econ_losses.shape[0] == 1
@@ -462,7 +483,7 @@ def test_run_oelf_01():
             config.main_path,
             "output",
             "test_oelf_01",
-            "losses_human_after_OELF_test_oelf_01_realisation_2.csv"
+            "losses_human_after_OELF_test_oelf_01_model_1_realisation_2.csv"
         )
     )
     assert ses_human_losses.shape[0] == 1
@@ -784,14 +805,35 @@ def test_run_oelf_02():
         )
     )
 
+    # OELF seismicity model weights
+    forecast_model_weights = pd.DataFrame(
+        {
+            "model_id": [1],
+            "model_name": ["1"],
+            "weight": [1.0]
+        }
+    )
+    forecast_model_weights.set_index(forecast_model_weights["model_id"], inplace=True)
+    forecast_model_weights.drop(columns=["model_id"], inplace=True)
+
     # Run OperationalEarthquakeLossForecasting.run_oelf()
-    returned_damage_states, returned_losses_economic, returned_losses_human = (
+    (
+        rates_exceed_mapping,
+        curves_by_model_and_bdg_id,
+        stats_by_model_and_bdg_id,
+        curves_by_model_portfolio,
+        stats_by_model_portfolio,
+        stats_by_bdg_id,
+        mean_median_portfolio_curves,
+        returned_damage_states, returned_losses_economic, returned_losses_human
+    ) = (
         OperationalEarthquakeLossForecasting.run_oelf(
             forecast_cat,
             forecast_name,
             there_can_be_occupants,
             config.oelf["continuous_ses_numbering"],
             config.oelf["ses_range"],
+            forecast_model_weights,
             config.state_dependent_fragilities,
             config.description_general,
             config.main_path,
@@ -1060,14 +1102,35 @@ def test_run_oelf_03():
         )
     )
 
+    # OELF seismicity model weights
+    forecast_model_weights = pd.DataFrame(
+        {
+            "model_id": [1],
+            "model_name": ["1"],
+            "weight": [1.0]
+        }
+    )
+    forecast_model_weights.set_index(forecast_model_weights["model_id"], inplace=True)
+    forecast_model_weights.drop(columns=["model_id"], inplace=True)
+
     # Run OperationalEarthquakeLossForecasting.run_oelf()
-    returned_damage_states, returned_losses_economic, returned_losses_human = (
+    (
+        rates_exceed_mapping,
+        curves_by_model_and_bdg_id,
+        stats_by_model_and_bdg_id,
+        curves_by_model_portfolio,
+        stats_by_model_portfolio,
+        stats_by_bdg_id,
+        mean_median_portfolio_curves,
+        returned_damage_states, returned_losses_economic, returned_losses_human
+    ) = (
         OperationalEarthquakeLossForecasting.run_oelf(
             forecast_cat,
             forecast_name,
             there_can_be_occupants,
             config.oelf["continuous_ses_numbering"],
             config.oelf["ses_range"],
+            forecast_model_weights,
             config.state_dependent_fragilities,
             config.description_general,
             config.main_path,
@@ -1151,3 +1214,290 @@ def test_run_oelf_03():
             )  # injuries are all zero
 
     shutil.rmtree(temp_path)
+
+
+def test_get_exceedance_curves_and_stats():
+    ### Test 1: Economic losses
+    loss_df = pd.read_csv(
+        os.path.join(os.path.dirname(__file__), "data", "losses_economic_oelf_all_ses.csv"),
+        index_col=0
+    )
+
+    model_weights = pd.DataFrame(
+        {
+            "model_id": [1, 2, 3],
+            "model_name": ["Model_1", "Model_2", "Model_3"],
+            "weight": [0.5, 0.3, 0.2]
+        }
+    )
+    model_weights.set_index(model_weights["model_id"], inplace=True)
+    model_weights.drop(columns=["model_id"], inplace=True)
+
+    (
+        returned_rates_exceed_mapping,
+        returned_curves_by_model_and_bdg_id,
+        returned_stats_by_model_and_bdg_id,
+        returned_curves_by_model_portfolio,
+        returned_stats_by_model_portfolio,
+        returned_stats_by_bdg_id,
+        returned_mean_median_portfolio_curves
+    ) = OperationalEarthquakeLossForecasting.get_exceedance_curves_and_stats(
+        loss_df,
+        ["loss"],
+        model_weights.index,  # seismicity model IDs
+        [1, 2, 3, 4],  # SES IDs
+        model_weights
+    )
+
+    returned_curves_by_model_and_bdg_id = returned_curves_by_model_and_bdg_id["loss"]
+    returned_stats_by_model_and_bdg_id = returned_stats_by_model_and_bdg_id["loss"]
+    returned_curves_by_model_portfolio = returned_curves_by_model_portfolio["loss"]
+    returned_stats_by_model_portfolio = returned_stats_by_model_portfolio["loss"]
+    returned_stats_by_bdg_id = returned_stats_by_bdg_id["loss"]
+    returned_mean_median_portfolio_curves = returned_mean_median_portfolio_curves["loss"]
+
+    building_ids = ["b1", "b2"]
+
+    # Test 1, rates_exceed_mapping
+    expected_rates_exceed_mapping= pd.read_csv(
+        os.path.join(
+            os.path.dirname(__file__), "data", "losses_economic_oelf_all_ses_rates_mapping.csv"
+        ),
+        index_col=0
+    )
+
+    assert returned_rates_exceed_mapping.shape == expected_rates_exceed_mapping.shape
+
+    for rate_exceedance_name in expected_rates_exceed_mapping.index:
+        assert (
+            round(returned_rates_exceed_mapping.loc[rate_exceedance_name, "rate_val"], 8) ==
+            round(expected_rates_exceed_mapping.loc[rate_exceedance_name, "rate_val"], 8)
+        )
+
+    # Test 1, curves_by_model_and_bdg_id
+    expected_curves_by_model_and_bdg_id = pd.read_csv(
+        os.path.join(
+            os.path.dirname(__file__), "data",
+            "losses_economic_oelf_all_ses_expected_curves_per_model_bdg.csv"
+        ),
+        index_col=[0,1]
+    )
+
+    assert (
+        returned_curves_by_model_and_bdg_id.shape == expected_curves_by_model_and_bdg_id.shape
+    )
+
+    for model_id in model_weights.index:
+        for bdg_id in building_ids:
+            for rate_exceedance_name in expected_rates_exceed_mapping.index:
+                assert (
+                    round(
+                        returned_curves_by_model_and_bdg_id.loc[
+                            (model_id, bdg_id), rate_exceedance_name
+                        ], 5
+                    ) ==
+                    round(
+                        expected_curves_by_model_and_bdg_id.loc[
+                            (model_id, bdg_id), rate_exceedance_name
+                        ], 5
+                    )
+                )
+
+    # Test 1, stats_by_model_and_bdg_id
+    expected_stats_by_model_and_bdg_id = pd.read_csv(
+        os.path.join(
+            os.path.dirname(__file__), "data",
+            "losses_economic_oelf_all_ses_expected_stats_per_model_bdg.csv"
+        ),
+        index_col=[0,1]
+    )
+
+    assert returned_stats_by_model_and_bdg_id.shape == expected_stats_by_model_and_bdg_id.shape
+
+    for model_id in model_weights.index:
+        for bdg_id in building_ids:
+            for stat in expected_stats_by_model_and_bdg_id.columns:
+                assert (
+                    round(
+                        returned_stats_by_model_and_bdg_id.loc[(model_id, bdg_id), stat], 5
+                    ) ==
+                    round(
+                        expected_stats_by_model_and_bdg_id.loc[(model_id, bdg_id), stat], 5
+                    )
+                )
+
+    # Test 1, curves_by_model_portfolio
+    expected_curves_by_model_portfolio = pd.read_csv(
+        os.path.join(
+            os.path.dirname(__file__), "data",
+            "losses_economic_oelf_all_ses_expected_portf_curves_per_model.csv"
+        ),
+        index_col=0
+    )
+
+    assert returned_curves_by_model_portfolio.shape == expected_curves_by_model_portfolio.shape
+
+    for model_id in model_weights.index:
+        for rate_exceedance_name in expected_rates_exceed_mapping.index:
+            assert (
+                round(
+                    returned_curves_by_model_portfolio.loc[model_id, rate_exceedance_name], 5
+                ) ==
+                round(
+                    expected_curves_by_model_portfolio.loc[model_id, rate_exceedance_name], 5
+                )
+            )
+
+    # Test 1, stats_by_model_portfolio
+    expected_stats_by_model_portfolio = pd.read_csv(
+        os.path.join(
+            os.path.dirname(__file__), "data",
+            "losses_economic_oelf_all_ses_expected_portf_stats_per_model.csv"
+        ),
+        index_col=0
+    )
+
+    assert returned_stats_by_model_portfolio.shape == expected_stats_by_model_portfolio.shape
+
+    for model_id in model_weights.index:
+        for stat in expected_stats_by_model_portfolio.columns:
+            assert (
+                round(
+                    returned_stats_by_model_portfolio.loc[model_id, stat], 5
+                ) ==
+                round(
+                    expected_stats_by_model_portfolio.loc[model_id, stat], 5
+                )
+            )
+
+    # Test 1, mean_median_portfolio_curves
+    expected_mean_portfolio_curves = pd.read_csv(
+        os.path.join(
+            os.path.dirname(__file__), "data",
+            "losses_economic_oelf_all_ses_expected_portf_mean_curve.csv"
+        )
+    )
+
+    assert (
+        returned_mean_median_portfolio_curves.shape[0] ==
+        expected_mean_portfolio_curves.shape[0]
+    )
+    assert (
+        returned_mean_median_portfolio_curves.shape[1] ==
+        1 + expected_mean_portfolio_curves.shape[1]
+    )
+
+    for row in expected_mean_portfolio_curves.index:
+        assert (
+            round(
+                returned_mean_median_portfolio_curves.loc[row, "value"], 5
+            ) ==
+            round(
+                expected_mean_portfolio_curves.loc[row, "value"], 5
+            )
+        )
+        assert (
+            round(
+                returned_mean_median_portfolio_curves.loc[row, "mean"], 5
+            ) ==
+            round(
+                expected_mean_portfolio_curves.loc[row, "mean"], 5
+            )
+        )
+
+    # Test 1, stats_by_bdg_id (only checking weighted mean)
+    expected_stats_by_bdg_id = pd.read_csv(
+        os.path.join(
+            os.path.dirname(__file__), "data",
+            "losses_economic_oelf_all_ses_expected_mean_stats_per_bdg.csv"
+        ),
+        index_col=0
+    )
+
+    assert returned_stats_by_bdg_id.shape == expected_stats_by_bdg_id.shape
+
+    for bdg_id in building_ids:
+        assert (
+            round(
+                returned_stats_by_bdg_id.loc[bdg_id, "mean"], 5
+            ) ==
+            round(
+                expected_stats_by_bdg_id.loc[bdg_id, "mean"], 5
+            )
+        )
+
+    ### Test 2: Damage states
+    # This test only checks that one key is created in the output dictionaries for each of the
+    # damage states, and that 'get_exceedance_curves_and_stats' can handle the reshaped damage inputs.
+    dmg_states_reshaped = pd.read_csv(
+        os.path.join(os.path.dirname(__file__), "data", "damage_states_all_ses_reshaped.csv"),
+        index_col=0
+    )
+
+    model_weights = pd.DataFrame(
+        {
+            "model_id": [1, 2],
+            "model_name": ["Model_1", "Model_2"],
+            "weight": [0.75, 0.25]
+        }
+    )
+    model_weights.set_index(model_weights["model_id"], inplace=True)
+    model_weights.drop(columns=["model_id"], inplace=True)
+
+    (
+        returned_rates_exceed_mapping,
+        returned_curves_by_model_and_bdg_id,
+        returned_stats_by_model_and_bdg_id,
+        returned_curves_by_model_portfolio,
+        returned_stats_by_model_portfolio,
+        returned_stats_by_bdg_id,
+        returned_mean_median_portfolio_curves
+    ) = OperationalEarthquakeLossForecasting.get_exceedance_curves_and_stats(
+        dmg_states_reshaped,
+        ["DS0", "DS1", "DS2"],
+        model_weights.index,  # model IDs
+        [1, 2],  # SES IDs
+        model_weights
+    )
+
+    dict_outputs = [
+        returned_curves_by_model_and_bdg_id,
+        returned_stats_by_model_and_bdg_id,
+        returned_curves_by_model_portfolio,
+        returned_stats_by_model_portfolio,
+        returned_mean_median_portfolio_curves
+    ]
+
+    # Check one key has been created for each damage state
+    for dict_output in dict_outputs:
+        for dmg_state in ["DS0", "DS1", "DS2"]:
+            assert dmg_state in dict_output.keys()
+
+
+def test_reshape_damage_states_per_building_id():
+
+    dmg_df = pd.read_csv(
+        os.path.join(os.path.dirname(__file__), "data", "damage_states_all_ses.csv"),
+        index_col=[0,1]
+    )
+    expected_reshaped = pd.read_csv(
+        os.path.join(os.path.dirname(__file__), "data", "damage_states_all_ses_reshaped.csv"),
+    )
+    # Creating a multi-index version to make the comparison easier
+    expected_reshaped = expected_reshaped.groupby(["building_id", "ses_id", "model_id"]).agg("first")
+
+    returned_reshaped = (
+        OperationalEarthquakeLossForecasting.reshape_damage_states_per_building_id(dmg_df)
+    )
+    # Creating a multi-index version to make the comparison easier
+    returned_reshaped.reset_index(inplace=True)
+    returned_reshaped = returned_reshaped.groupby(["building_id", "ses_id", "model_id"]).agg("first")
+
+    assert returned_reshaped.shape == expected_reshaped.shape
+
+    for index_val in expected_reshaped.index:
+        for col in expected_reshaped.columns:
+            assert (
+                round(returned_reshaped.loc[index_val, col], 5) ==
+                round(expected_reshaped.loc[index_val, col], 5)
+            )

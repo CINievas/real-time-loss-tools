@@ -50,6 +50,7 @@ class OperationalEarthquakeLossForecasting():
         there_can_be_occupants,
         forecast_continuous_ses_numbering,
         forecast_ses_range,
+        forecast_model_weights,
         state_dependent,
         description_general,
         main_path,
@@ -72,16 +73,20 @@ class OperationalEarthquakeLossForecasting():
         an input 'forecast_catalogue' with name 'forecast_name'. The input 'forecast_catalogue'
         may consist of one or more seismicity forecasts, which we call "stochastic event sets"
         (SES) following OpenQuake and whose ID is indicated under the field 'ses_id' of
-        'forecast_catalogue'. Each stochastic event set is run independently, always starting
+        'forecast_catalogue'. Different SES may have been generated with different seismicity
+        models, whose names, IDs and weights are specified in 'forecast_model_weights'. Each
+        stochastic event set from each seismicity model is run independently, always starting
         with the exposure model stored under main_path/current/exposure_model_current.csv, which
-        is copied for each SES under main_path/exposure_models/oelf/forecast_name/
-        exposure_model_current_oelf_XX.csv, where "XX" is the 'ses_id'. These
-        "exposure_model_current_oelf_XX.csv" files are updated after running each earthquake of
-        'ses_id', to reflect the damage states of the buildings, but main_path/current/
-        exposure_model_current.csv is not updated. The 'original_exposure_model' is used to keep
-        track of the original asset_id (i.e. ID used by OpenQuake, one ID per row of the
-        exposure CSV file). Results from all stochastic event sets (i.e. all realisations of
-        forecast seismicity) are finally averaged and returned.
+        is copied for each SES of each seismicity model under
+        main_path/exposure_models/oelf/forecast_name/exposure_model_current_oelf_MM_XX.csv,
+        where "MM" is the 'model_id' and "XX" is the 'ses_id'. These
+        "exposure_model_current_oelf_MM_XX.csv" files are updated after running each earthquake
+        of 'model_id' and 'ses_id', to reflect the damage states of the buildings, but
+        main_path/current/exposure_model_current.csv is not updated. The
+        'original_exposure_model' is used to keep track of the original asset_id (i.e. ID used
+        by OpenQuake, one ID per row of the exposure CSV file). Results from all stochastic
+        event sets from all seismicity models (i.e. all realisations of forecast seismicity) are
+        finally brought together and relevant statistics are calculated and returned.
 
         The method contemplates the possibility that not all desired stochastic event sets are
         contained in 'forecast_catalogue'. This may be the case, for example, if the seismicity
@@ -90,7 +95,10 @@ class OperationalEarthquakeLossForecasting():
         'forecast_continuous_ses_numbering' needs to be set to True and the two integer values
         contained in 'forecast_ses_range' will be used to define the range of IDs of the SES. If
         the ID of a SES defined in this way is not found in 'forecast_catalogue', the effect is
-        to consider that the SES does not produce any damage or losses.
+        to consider that the SES does not produce any damage or losses. Either when the range of
+        all SES is calculated this way ('forecast_continuous_ses_numbering'=True) or when it is
+        automatically retrieved from 'forecast_catalogue' ('forecast_continuous_ses_numbering'=
+        False), this method assumes that the same SES IDs apply to all seismicity forecasts.
 
         Args:
             forecast_catalogue (Pandas DataFrame):
@@ -131,6 +139,11 @@ class OperationalEarthquakeLossForecasting():
                 to define the IDs of the stochastic event sets only if
                 'forecast_continuous_ses_numbering' is True. Both start and end numbers are
                 included.
+            forecast_model_weights (Pandas DataFrame):
+                Weights of the different seismicity models used to generate the
+                'forecast_catalogue'. The index is the "model_id". Its columns are:
+                    model_name (str): Name of the model.
+                    weight (float): Weight of the model.
             state_dependent (bool):
                 True if state-dependent fragility models are being used to run OpenQuake, False
                 if state-independent fragility models are being used instead.
@@ -271,10 +284,64 @@ class OperationalEarthquakeLossForecasting():
                 strategy.
 
         Returns:
-            damage_states_all_ses (Pandas DataFrame):
+            All output dictionaries below have primary keys "damage", "losses_economic" and
+            "losses_human" (if calculate_casualties' is True). Within "damage", there is one
+            sub-key per damage state. Within "losses_economic", just one sub-key "loss". Within
+            "losses_human", there is one sub-key per injury level.
+
+            rates_exceed_mapping (Pandas DataFrame):
+                Pandas DataFrame mapping the names of the columns in 'curves_by_model_portfolio'
+                and 'curves_by_model_and_bdg_id' with the rates of exceedance they represent.
+                    Index: names of the columns.
+                    Column "rate_val": value of the rate of exceedance.
+            curves_by_model_and_bdg_id (dict of dict of Pandas DataFrame):
+                Dictionary with key structure as described above containing one DataFrame with
+                the individual exceedance curves per model and building ID.
+                    MultiIndex: (model_id, building_id)
+                    Columns: Index of 'rates_exceed_mapping' (coded rates of exceedances of the
+                    values contained in the DataFrame).
+                (Each row is the exceedance curve for a particular building_id and model_id).
+            stats_by_model_and_bdg_id (dict of dict of Pandas DataFrame):
+                Dictionary with key structure as described above containing one DataFrame with
+                the statistics per model and building_id.
+                    MultiIndex: (model_id, building_id)
+                    Columns: mean, median, p05 (5th percentile), p95 (95th percentile)
+                (Each row contains the set of stats from all SES of a model, for a building_id).
+            curves_by_model_portfolio (dict of dict of Pandas DataFrame):
+                Dictionary with key structure as described above containing one DataFrame with
+                the portfolio (i.e. all building IDs) exceedance curves per model.
+                    Index: model_id
+                    Columns: Index of 'rates_exceed_mapping' (coded rates of exceedances of the
+                    values contained in the DataFrame).
+                (Each row is the portfolio exceedance curve for a particular model_id).
+            stats_by_model_portfolio (dict of dict of Pandas DataFrame):
+                Dictionary with key structure as described above containing one DataFrame with
+                the portfolio statistics per model.
+                    Index: model_id
+                    Columns: mean, median, p05 (5th percentile), p95 (95th percentile)
+                (Each row contains the set of portfolio stats from all SES of a model).
+            stats_by_bdg_id (dict of dict of Pandas DataFrame):
+                Dictionary with key structure as described above containing one DataFrame with
+                the per-building-id statistics.
+                    Index: building_id
+                    Columns: mean, median, p05 (5th percentile), p95 (95th percentile)
+                (Each row contains the set of stats from all SES of all (weighted) models for a
+                building).
+            mean_median_portfolio_curves (dict of dict of Pandas DataFrame):
+                Dictionary with key structure as described above containing one DataFrame with
+                the weighted mean and median portfolio exceedance curves from all models
+                (weights as per 'forecast_model_weights').
+                    No index.
+                    Columns:
+                        "value": values of the type of 'value_names' (i.e., output type) for
+                            which the mean/median curves have been calculated (only in the range
+                            where all individual models' curves are defined).
+                        "mean": weighted mean of all models.
+                        "median": weighted median of all models.
+            mean_damage_states (Pandas DataFrame):
                 Pandas DataFrame with the damage states resulting from the average of all OELF
-                realisations, i.e. all stochastic event sets of 'forecast_catalogue', reported
-                per building_id. It has the following structure:
+                realisations from all seismicity models, i.e. all stochastic event sets of
+                'forecast_catalogue', reported per building_id. It has the following structure:
                     Index is multiple:
                         building_id (str):
                             ID of the building.
@@ -285,10 +352,10 @@ class OperationalEarthquakeLossForecasting():
                             Probability of 'damage_state' for 'building_id', if building_id is
                             one individual building, or number of buildings of 'building_id'
                             under 'damage_state', if building_id is a group of buildings.
-            losses_economic_all_ses (Pandas DataFrame):
+            mean_losses_economic (Pandas DataFrame):
                 Pandas DataFrame with the economic losses resulting from the average of all OELF
-                realisations, i.e. all stochastic event sets of 'forecast_catalogue', reported
-                per building_id. It has the following structure:
+                realisations from all seismicity models, i.e. all stochastic event sets of
+                'forecast_catalogue', reported per building_id. It has the following structure:
                     Index:
                         building_id (str):
                             ID of the building.
@@ -297,10 +364,10 @@ class OperationalEarthquakeLossForecasting():
                             Expected loss for 'building_id' considering all its associated
                             building classes and damage states, with their respective
                             probabilities, as well as all stochastic event sets of seismicity.
-            losses_human_all_ses (Pandas DataFrame):
+            mean_losses_human (Pandas DataFrame):
                 Pandas DataFrame with the human losses resulting from the average of all OELF
-                realisations, i.e. all stochastic event sets of 'forecast_catalogue', reported
-                per building_id. It has the following structure:
+                realisations from all seismicity models, i.e. all stochastic event sets of
+                'forecast_catalogue', reported per building_id. It has the following structure:
                     Index:
                         building_id (str):
                             ID of the building.
@@ -314,6 +381,7 @@ class OperationalEarthquakeLossForecasting():
                             its associated building classes and damage states, with their
                             respective probabilities, as well as all stochastic event sets of
                             seismicity.
+
         """
 
         # Create sub-directory to store OpenQuake outputs
@@ -357,6 +425,21 @@ class OperationalEarthquakeLossForecasting():
             logger.critical(error_message)
             raise OSError(error_message)
 
+        # Create output sub-folders if they don't yet exist
+        export_folders_to_create = [
+            "exceed_curves_rates_mapping",
+            "exceed_curves_by_model_and_bdg_id",
+            "stats_by_model_and_bdg_id",
+            "exceed_curves_by_model_portfolio",
+            "stats_by_model_portfolio",
+            "stats_by_bdg_id",
+            "mean_median_portfolio_exceed_curves"
+        ]
+        for folder_name in export_folders_to_create:
+            path_to_exceed_outputs = os.path.join(main_path, "output", folder_name)
+            if not os.path.exists(path_to_exceed_outputs):
+                os.mkdir(path_to_exceed_outputs)
+
         # IDs of individual realisations of seismicity (stochastic event sets, SES)
         ses_ids_in_catalogue = forecast_catalogue["ses_id"].unique()
         if forecast_continuous_ses_numbering:
@@ -369,221 +452,254 @@ class OperationalEarthquakeLossForecasting():
                     existing_IDs_missing = True
                     break
             if existing_IDs_missing:
-                logger.warning(
+                error_message = (
                     "The seismicity forecast %s contains IDs of stochastic event sets not "
-                    "contemplated by the input configuration ('forecast_ses_range' parameter)."
+                    "contemplated by the input configuration ('forecast_ses_range' parameter). "
+                    "The software cannot decide what to do."
                     % (forecast_name)
                 )
+                logger.critical(error_message)
+                raise OSError(error_message)
         else:
             # Identify IDs in the input 'forecast_catalogue'
             oef_ses_ids = deepcopy(ses_ids_in_catalogue)
 
         # Initialise 'damage_states_all_ses', 'losses_economic_all_ses', 'losses_human_all_ses'
+        # to gather results from all SES from all seismicity models
         damage_states_all_ses = None
         losses_economic_all_ses = None
         losses_human_all_ses = None
 
-        for k, oef_ses_id in enumerate(oef_ses_ids):  # Each of the stochastic event sets
+        for oef_model_id in forecast_model_weights.index:  # Each of the seismicity models
+            for k, oef_ses_id in enumerate(oef_ses_ids):  # Each of the stochastic event sets
 
-            logger.info(
-                "%s Working on stochastic event set %s of %s"
-                % (np.datetime64('now'), k+1, len(oef_ses_ids))
-            )
-
-            if calculate_casualties:
-                # Create sub-directory to store "injured_still_away" and "occupancy_factors" files
-                # (this sub-directory and all its contents will be erased at the end of this SES)
-                path_to_occupants_oelf = os.path.join(main_path, "current", "occupants", "oelf")
-                if not os.path.exists(path_to_occupants_oelf):
-                    os.mkdir(path_to_occupants_oelf)
-                else:
-                    error_message = (
-                        "The directory %s already exists and may contain results from "
-                        "a previous run. The program will stop."
-                        % (path_to_occupants_oelf)
-                    )
-                    logger.critical(error_message)
-                    raise OSError(error_message)
-
-            # Earthquakes that belong only to this realisation of seismicity (SES)
-            filter_realisation = (forecast_catalogue["ses_id"] == oef_ses_id)
-            aux = forecast_catalogue[filter_realisation]
-            # Order the earthquakes of this SES in chronological order
-            events_in_ses = aux.sort_values(by=['datetime'])  # can be empty
-
-            # Initialise exposure_model_current_XX.csv, with XX = oef_ses_id
-            in_filename = os.path.join(
-                main_path, "current", "exposure_model_current.csv"
-            )  # origin
-            current_exposure_filename = "exposure_model_current_oelf_%s.csv" % (
-                oef_ses_id
-            )
-            out_filename = os.path.join(path_to_exposure, current_exposure_filename)
-            _ = shutil.copyfile(in_filename, out_filename)
-
-            damage_states = None
-            losses_human_all_events = None
-            # Initialise exposure, in case there are no elements in 'events_in_ses'
-            exposure_updated_damage = pd.read_csv(
-                os.path.join(path_to_exposure, current_exposure_filename),
-                dtype={"id_3": str, "id_2": str, "id_1": str}
-            )
-            exposure_updated_damage.index = exposure_updated_damage["id"]
-            exposure_updated_damage.index = exposure_updated_damage.index.rename("asset_id")
-            exposure_updated_damage = exposure_updated_damage.drop(columns=["id"])
-
-            # Run earthquake by earthquake of this stochastic event set
-            for eq_id in events_in_ses.index:  # EQID is index of DataFrame
-
-                # Description
-                description = "%s, %s, event ID %s" % (
-                    description_general, forecast_name, eq_id
+                logger.info(
+                    "%s Working on stochastic event set %s of %s of seismicity model ID %s"
+                    % (np.datetime64('now'), k+1, len(oef_ses_ids), oef_model_id)
                 )
 
                 if calculate_casualties:
-                    # Determine time of the day (used for number of occupants)
-                    local_hour = Time.determine_local_time_from_utc(
-                        (events_in_ses.loc[eq_id, "datetime"]).to_pydatetime(),
-                        local_timezone
-                    )
-                    time_of_day = Time.interpret_time_of_the_day(
-                        local_hour.hour
-                    )
-
-                    if time_of_day == "error":
+                    # Create sub-directory to store "injured_still_away" and "occupancy_factors" files
+                    # (this sub-directory and all its contents will be erased at the end of this SES)
+                    path_to_occupants_oelf = os.path.join(main_path, "current", "occupants", "oelf")
+                    if not os.path.exists(path_to_occupants_oelf):
+                        os.mkdir(path_to_occupants_oelf)
+                    else:
                         error_message = (
-                            "Something went wrong when determining the time of the day for "
-                            "earthquake of %s with event ID %s. UTC time is %s. Local time is %s. "
-                            "The program cannot run."
-                            % (
-                                forecast_name,
-                                eq_id,
-                                events_in_ses.loc[eq_id, "datetime"],
-                                local_hour,
-                            )
+                            "The directory %s already exists and may contain results from "
+                            "a previous run. The program will stop."
+                            % (path_to_occupants_oelf)
                         )
                         logger.critical(error_message)
                         raise OSError(error_message)
-                else:
-                    time_of_day = None
 
-                # Load exposure CSV (the exposure model to be used to run OpenQuake with this
-                # earthquake). This exposure file contains census occupants not adjusted to
-                # reflect the damage state of the building or the health status of people
-                exposure_full_occupants = pd.read_csv(
+                # Earthquakes that belong only to this realisation of seismicity (SES)
+                # and seismicity model
+                filter_realisation = (
+                    (forecast_catalogue["ses_id"] == oef_ses_id) &
+                    (forecast_catalogue["model_id"] == oef_model_id)
+                )
+                aux = forecast_catalogue[filter_realisation]
+                # Order the earthquakes of this SES in chronological order
+                events_in_ses = aux.sort_values(by=['datetime'])  # can be empty
+
+                # Initialise exposure_model_current_XX.csv, with XX = oef_model_id_oef_ses_id
+                in_filename = os.path.join(
+                    main_path, "current", "exposure_model_current.csv"
+                )  # origin
+                current_exposure_filename = "exposure_model_current_oelf_%s_%s.csv" % (
+                    oef_model_id, oef_ses_id
+                )
+                out_filename = os.path.join(path_to_exposure, current_exposure_filename)
+                _ = shutil.copyfile(in_filename, out_filename)
+
+                damage_states = None
+                losses_human_all_events = None
+                # Initialise exposure, in case there are no elements in 'events_in_ses'
+                exposure_updated_damage = pd.read_csv(
                     os.path.join(path_to_exposure, current_exposure_filename),
                     dtype={"id_3": str, "id_2": str, "id_1": str}
                 )
-                exposure_full_occupants.index = exposure_full_occupants["id"]
-                exposure_full_occupants.index = exposure_full_occupants.index.rename("asset_id")
-                exposure_full_occupants = exposure_full_occupants.drop(columns=["id"])
+                exposure_updated_damage.index = exposure_updated_damage["id"]
+                exposure_updated_damage.index = exposure_updated_damage.index.rename("asset_id")
+                exposure_updated_damage = exposure_updated_damage.drop(columns=["id"])
 
-                if there_can_be_occupants:
-                    # Update exposure to reflect occupants for this earthquake
-                    # (reflecting injuries and deaths)
-                    exposure_run = ExposureUpdater.update_exposure_occupants(
-                        calculate_casualties,  # Nothing will change if this is False
-                        exposure_full_occupants,
-                        time_of_day_occupancy,
+                # Run earthquake by earthquake of this stochastic event set
+                for eq_id in events_in_ses.index:  # EQID is index of DataFrame
+
+                    # Description
+                    description = "%s, %s, event ID %s" % (
+                        description_general, forecast_name, eq_id
+                    )
+
+                    if calculate_casualties:
+                        # Determine time of the day (used for number of occupants)
+                        local_hour = Time.determine_local_time_from_utc(
+                            (events_in_ses.loc[eq_id, "datetime"]).to_pydatetime(),
+                            local_timezone
+                        )
+                        time_of_day = Time.interpret_time_of_the_day(
+                            local_hour.hour
+                        )
+
+                        if time_of_day == "error":
+                            error_message = (
+                                "Something went wrong when determining the time of the day for "
+                                "earthquake of %s with event ID %s. UTC time is %s. Local time is %s. "
+                                "The program cannot run."
+                                % (
+                                    forecast_name,
+                                    eq_id,
+                                    events_in_ses.loc[eq_id, "datetime"],
+                                    local_hour,
+                                )
+                            )
+                            logger.critical(error_message)
+                            raise OSError(error_message)
+                    else:
+                        time_of_day = None
+
+                    # Load exposure CSV (the exposure model to be used to run OpenQuake with this
+                    # earthquake). This exposure file contains census occupants not adjusted to
+                    # reflect the damage state of the building or the health status of people
+                    exposure_full_occupants = pd.read_csv(
+                        os.path.join(path_to_exposure, current_exposure_filename),
+                        dtype={"id_3": str, "id_2": str, "id_1": str}
+                    )
+                    exposure_full_occupants.index = exposure_full_occupants["id"]
+                    exposure_full_occupants.index = exposure_full_occupants.index.rename("asset_id")
+                    exposure_full_occupants = exposure_full_occupants.drop(columns=["id"])
+
+                    if there_can_be_occupants:
+                        # Update exposure to reflect occupants for this earthquake
+                        # (reflecting injuries and deaths)
+                        exposure_run = ExposureUpdater.update_exposure_occupants(
+                            calculate_casualties,  # Nothing will change if this is False
+                            exposure_full_occupants,
+                            time_of_day_occupancy,
+                            time_of_day,
+                            events_in_ses.loc[eq_id, "datetime"],
+                            mapping_damage_states,
+                            True,  # include OELF previous earthquakes (not just RLA)
+                            main_path,
+                            number_cores
+                        )
+                    else:  # either there cannot be occupants or 'calculate_casualties' is False
+                        # Assume all occupants are zero
+                        exposure_run = deepcopy(exposure_full_occupants)
+                        exposure_run[time_of_day] = np.zeros([exposure_run.shape[0]])
+
+                    # Update 'exposure_model_current.csv' (only update is associated with the column with
+                    # the number of occupants appropriate for this earthquake)
+                    exposure_run.to_csv(
+                        os.path.join(path_to_exposure, current_exposure_filename),
+                        index=True,
+                        index_label="id",  # the index of 'exposure_run' is "asset_id", but OQ needs "id"
+                    )
+
+                    if not events_in_ses.loc[eq_id, "to_run"]:
+                        # Magnitude too small or too far away from all exposure sites
+                        # --> skip this earthquake and go on to the next one
+                        # The 'exposure_updated_damage' is the same as the exposure so far
+                        exposure_updated_damage = deepcopy(exposure_run)
+                        exposure_updated_damage = exposure_updated_damage.drop(
+                            columns=[time_of_day]
+                        )
+                        # No need to add zeros to losses_human_all_events (i.e. no injuries)
+                        continue
+
+                    # Identify rupture XML
+                    if "model_id" in events_in_ses.columns:
+                        name_rupture_file = "RUP_%s-%s-%s.xml" % (
+                            events_in_ses.loc[eq_id, "model_id"],
+                            events_in_ses.loc[eq_id, "ses_id"],
+                            events_in_ses.loc[eq_id, "event_id"]
+                        )
+                    else:
+                        name_rupture_file = "RUP_%s-%s.xml" % (
+                            events_in_ses.loc[eq_id, "ses_id"],
+                            events_in_ses.loc[eq_id, "event_id"]
+                        )
+
+                    # Update exposure XML
+                    Writer.update_exposure_xml(
+                        os.path.join(main_path, "current", "exposure_model.xml"),
                         time_of_day,
-                        events_in_ses.loc[eq_id, "datetime"],
-                        mapping_damage_states,
-                        True,  # include OELF previous earthquakes (not just RLA)
-                        main_path,
-                        number_cores
-                    )
-                else:  # either there cannot be occupants or 'calculate_casualties' is False
-                    # Assume all occupants are zero
-                    exposure_run = deepcopy(exposure_full_occupants)
-                    exposure_run[time_of_day] = np.zeros([exposure_run.shape[0]])
-
-                # Update 'exposure_model_current.csv' (only update is associated with the column with
-                # the number of occupants appropriate for this earthquake)
-                exposure_run.to_csv(
-                    os.path.join(path_to_exposure, current_exposure_filename),
-                    index=True,
-                    index_label="id",  # the index of 'exposure_run' is "asset_id", but OQ needs "id"
-                )
-
-                if not events_in_ses.loc[eq_id, "to_run"]:
-                    # Magnitude too small or too far away from all exposure sites
-                    # --> skip this earthquake and go on to the next one
-                    # The 'exposure_updated_damage' is the same as the exposure so far
-                    exposure_updated_damage = deepcopy(exposure_run)
-                    exposure_updated_damage = exposure_updated_damage.drop(
-                        columns=[time_of_day]
-                    )
-                    # No need to add zeros to losses_human_all_events (i.e. no injuries)
-                    continue
-
-                # Identify rupture XML
-                if "model_id" in events_in_ses.columns:
-                    name_rupture_file = "RUP_%s-%s-%s.xml" % (
-                        events_in_ses.loc[eq_id, "model_id"],
-                        events_in_ses.loc[eq_id, "ses_id"],
-                        events_in_ses.loc[eq_id, "event_id"]
-                    )
-                else:
-                    name_rupture_file = "RUP_%s-%s.xml" % (
-                        events_in_ses.loc[eq_id, "ses_id"],
-                        events_in_ses.loc[eq_id, "event_id"]
+                        "../exposure_models/oelf/%s/%s" % (
+                            forecast_name, current_exposure_filename
+                        ),
                     )
 
-                # Update exposure XML
-                Writer.update_exposure_xml(
-                    os.path.join(main_path, "current", "exposure_model.xml"),
-                    time_of_day,
-                    "../exposure_models/oelf/%s/%s" % (
-                        forecast_name, current_exposure_filename
-                    ),
-                )
+                    # Update job.ini with the description, time of the day and name_rupture_file
+                    Writer.update_job_ini(
+                        os.path.join(main_path, "current", "job.ini"),
+                        description,
+                        time_of_day,
+                        "../ruptures/oelf/%s/%s" % (forecast_name, name_rupture_file),
+                    )
 
-                # Update job.ini with the description, time of the day and name_rupture_file
-                Writer.update_job_ini(
-                    os.path.join(main_path, "current", "job.ini"),
-                    description,
-                    time_of_day,
-                    "../ruptures/oelf/%s/%s" % (forecast_name, name_rupture_file),
-                )
-
-                # Run OpenQuake
-                path_to_job_ini = os.path.join(main_path, "current", "job.ini")
-
-                try:
-                    calc_id = main(path_to_job_ini)
-
-                    # Retrieve damage states from OpenQuake output
-                    dstore = read(calc_id)
+                    # Run OpenQuake
+                    path_to_job_ini = os.path.join(main_path, "current", "job.ini")
 
                     try:
-                        damage_results_OQ_raw325 = dstore.read_df("damages-rlzs")
+                        calc_id = main(path_to_job_ini)
 
-                        oq_asset_id_mapping = OpenQuakeDataStoreHandler.retrieve_exposure_asset_id_mapping(
-                            extract(dstore, "assetcol").array
-                        )
+                        # Retrieve damage states from OpenQuake output
+                        dstore = read(calc_id)
 
-                        damage_results_OQ = OpenQuakeDataStoreHandler.backward_compatibility_damage(
-                            damage_results_OQ_raw325, oq_asset_id_mapping
-                        )
+                        try:
+                            damage_results_OQ_raw325 = dstore.read_df("damages-rlzs")
 
-                        # Check if different realisations exist
-                        # (i.e., from different GMPE logic tree branches)
-                        if len(damage_results_OQ["rlz"].unique()) != 1:
-                            rlz_weights_raw = extract(dstore, "full_lt").get_realizations()
-                            rlz_weights = {}
-                            for i, rlz in enumerate(rlz_weights_raw):
-                                rlz_weights[i] = rlz.weight["weight"]
-
-                            # Incorporate logic tree weights to damage results
-                            damage_results_OQ = (
-                                ExposureUpdater.update_OQ_damage_w_logic_tree_weights(
-                                    damage_results_OQ, rlz_weights
+                            oq_asset_id_mapping = (
+                                OpenQuakeDataStoreHandler.retrieve_exposure_asset_id_mapping(
+                                    extract(dstore, "assetcol").array
                                 )
                             )
 
-                    except KeyError as ke:
-                        if (len(ke.args) == 1) and ("damages-rlzs" in ke.args):
-                            # OpenQuake's "There is no damage, perhaps the hazard is too small?"
+                            damage_results_OQ = (
+                                OpenQuakeDataStoreHandler.backward_compatibility_damage(
+                                    damage_results_OQ_raw325, oq_asset_id_mapping
+                                )
+                            )
+
+                            # Check if different realisations exist
+                            # (i.e., from different GMPE logic tree branches)
+                            if len(damage_results_OQ["rlz"].unique()) != 1:
+                                rlz_weights_raw = extract(dstore, "full_lt").get_realizations()
+                                rlz_weights = {}
+                                for i, rlz in enumerate(rlz_weights_raw):
+                                    rlz_weights[i] = rlz.weight["weight"]
+
+                                # Incorporate logic tree weights to damage results
+                                damage_results_OQ = (
+                                    ExposureUpdater.update_OQ_damage_w_logic_tree_weights(
+                                        damage_results_OQ, rlz_weights
+                                    )
+                                )
+
+                        except KeyError as ke:
+                            if (len(ke.args) == 1) and ("damages-rlzs" in ke.args):
+                                # OpenQuake's "There is no damage, perhaps the hazard is too small?"
+                                damage_results_OQ = ExposureUpdater.create_OQ_existing_damage(
+                                        exposure_run,
+                                        mapping_damage_states,
+                                        loss_type="structural"
+                                )
+                            else:
+                                error_message = (
+                                    "OpenQuake has not found 'damages-rlzs' for %s "
+                                    "and Real-Time Loss Tools has not been able to solve it"
+                                    % (description)
+                                )
+                                logger.critical(error_message)
+                                raise OSError(error_message)
+
+                        dstore.close()
+
+                    except RuntimeError as run_e:
+                        if (len(run_e.args) == 1) and ("No GMFs were generated" in run_e.args[0]):
+                            # OpenQuake's "No GMFs were generated, perhaps they were all below
+                            # the minimum_intensity threshold"
                             damage_results_OQ = ExposureUpdater.create_OQ_existing_damage(
                                     exposure_run,
                                     mapping_damage_states,
@@ -591,269 +707,739 @@ class OperationalEarthquakeLossForecasting():
                             )
                         else:
                             error_message = (
-                                "OpenQuake has not found 'damages-rlzs' for %s "
+                                "OpenQuake has crashed for %s "
                                 "and Real-Time Loss Tools has not been able to solve it"
                                 % (description)
                             )
                             logger.critical(error_message)
                             raise OSError(error_message)
 
-                    dstore.close()
+                    except AssertionError as ae:
+                            error_message = (
+                                "OpenQuake has crashed with an AssertionError "
+                                "and Real-Time Loss Tools has not been able to solve it"
+                                % (description)
+                            )
+                            logger.critical(error_message)
+                            raise OSError(error_message)
 
-                except RuntimeError as run_e:
-                    if (len(run_e.args) == 1) and ("No GMFs were generated" in run_e.args[0]):
-                        # OpenQuake's "No GMFs were generated, perhaps they were all below
-                        # the minimum_intensity threshold"
-                        damage_results_OQ = ExposureUpdater.create_OQ_existing_damage(
-                                exposure_run,
-                                mapping_damage_states,
-                                loss_type="structural"
+                    if (
+                        "asset_id" in damage_results_OQ.columns
+                        and "dmg_state" in damage_results_OQ.columns
+                    ):
+                        # If damage_results_OQ has been adjusted as per GMPE logic tree weights,
+                        # this step is not necessary
+                        new_index = pd.MultiIndex.from_arrays(
+                            [damage_results_OQ["asset_id"], damage_results_OQ["dmg_state"]]
                         )
-                    else:
-                        error_message = (
-                            "OpenQuake has crashed for %s "
-                            "and Real-Time Loss Tools has not been able to solve it"
-                            % (description)
+                        damage_results_OQ.index = new_index
+                        damage_results_OQ = damage_results_OQ.drop(columns=["asset_id", "dmg_state"])
+
+                    if not store_openquake:
+                        # Erase the job just run from OpenQuake's database (and HDF5)
+                        Writer.delete_OpenQuake_last_job()
+
+                    # Store damage states from OpenQuake output to CSV
+                    # (incl. potential negative values)
+                    if store_intermediate:
+                        damage_results_OQ.to_csv(
+                            os.path.join(path_to_oq_outputs, "%s_damages_OQ_raw.csv" % (eq_id))
                         )
-                        logger.critical(error_message)
-                        raise OSError(error_message)
 
-                except AssertionError as ae:
-                        error_message = (
-                            "OpenQuake has crashed with an AssertionError "
-                            "and Real-Time Loss Tools has not been able to solve it"
-                            % (description)
-                        )
-                        logger.critical(error_message)
-                        raise OSError(error_message)
-
-                if (
-                    "asset_id" in damage_results_OQ.columns
-                    and "dmg_state" in damage_results_OQ.columns
-                ):
-                    # If damage_results_OQ has been adjusted as per GMPE logic tree weights,
-                    # this step is not necessary
-                    new_index = pd.MultiIndex.from_arrays(
-                        [damage_results_OQ["asset_id"], damage_results_OQ["dmg_state"]]
-                    )
-                    damage_results_OQ.index = new_index
-                    damage_results_OQ = damage_results_OQ.drop(columns=["asset_id", "dmg_state"])
-
-                if not store_openquake:
-                    # Erase the job just run from OpenQuake's database (and HDF5)
-                    Writer.delete_OpenQuake_last_job()
-
-                # Store damage states from OpenQuake output to CSV
-                # (incl. potential negative values)
-                if store_intermediate:
-                    damage_results_OQ.to_csv(
-                        os.path.join(path_to_oq_outputs, "%s_damages_OQ_raw.csv" % (eq_id))
+                    # Ensure no negative number of buildings in 'damage_results_OQ'
+                    damage_results_OQ = ExposureUpdater.ensure_no_negative_damage_results_OQ(
+                        damage_results_OQ
                     )
 
-                # Ensure no negative number of buildings in 'damage_results_OQ'
-                damage_results_OQ = ExposureUpdater.ensure_no_negative_damage_results_OQ(
-                    damage_results_OQ
-                )
+                    # Store adjusted damage states from OpenQuake output to CSV
+                    if store_intermediate:
+                        damage_results_OQ.to_csv(
+                            os.path.join(path_to_oq_outputs, "%s_damages_OQ.csv" % (eq_id))
+                        )
 
-                # Store adjusted damage states from OpenQuake output to CSV
-                if store_intermediate:
-                    damage_results_OQ.to_csv(
-                        os.path.join(path_to_oq_outputs, "%s_damages_OQ.csv" % (eq_id))
+                    # Update exposure to reflect new damage states
+                    # (occupants not updated yet)
+                    exposure_updated_damage = ExposureUpdater.update_exposure_with_damage_states(
+                        state_dependent,
+                        exposure_run,
+                        original_exposure_model,
+                        damage_results_OQ,
+                        mapping_damage_states,
+                        time_of_day,
                     )
 
-                # Update exposure to reflect new damage states
-                # (occupants not updated yet)
-                exposure_updated_damage = ExposureUpdater.update_exposure_with_damage_states(
-                    state_dependent,
-                    exposure_run,
-                    original_exposure_model,
-                    damage_results_OQ,
-                    mapping_damage_states,
-                    time_of_day,
-                )
-
-                if calculate_casualties:
-                    # Calculate human losses per asset of 'exposure_updated_damage'
-                    losses_human_per_asset = Losses.expected_human_loss_per_original_asset_id(
-                        exposure_updated_damage, time_of_day, consequence_injuries
-                    )
-                    # Calculate human losses per building ID
-                    losses_human_per_building_id = Losses.expected_human_loss_per_building_id(
-                        losses_human_per_asset
-                    )
-
-                    # Concatenate human losses from all earthquakes in the stochastic event set
-                    if losses_human_all_events is None:
-                        # First earthquake
-                        losses_human_all_events = deepcopy(losses_human_per_building_id)
-                    else:
-                        losses_human_all_events = pd.concat(
-                            [losses_human_all_events, losses_human_per_building_id]
+                    if calculate_casualties:
+                        # Calculate human losses per asset of 'exposure_updated_damage'
+                        losses_human_per_asset = Losses.expected_human_loss_per_original_asset_id(
+                            exposure_updated_damage, time_of_day, consequence_injuries
+                        )
+                        # Calculate human losses per building ID
+                        losses_human_per_building_id = Losses.expected_human_loss_per_building_id(
+                            losses_human_per_asset
                         )
 
-                    # Calculate timeline of recovery (to define occupants for next earthquake)
-                    # (only if there could be occupants for this earthquake, otherwise skip)
-                    if there_can_be_occupants:
-                        # Calculate number of injured people still away in time
-                        injured_still_away = Losses.calculate_injuries_recovery_timeline(
-                            losses_human_per_asset,
-                            recovery_injuries,
-                            recovery_longest_time,
-                            events_in_ses.loc[eq_id, "datetime"],
-                        )
-                        # Calculate factors regarding people being allowed to go back to buildings
-                        occupancy_factors = Losses.calculate_repair_recovery_timeline(
-                            recovery_damage,
-                            recovery_longest_time,
-                            events_in_ses.loc[eq_id, "datetime"],
+                        # Concatenate human losses from all earthquakes in the stochastic event set
+                        if losses_human_all_events is None:
+                            # First earthquake
+                            losses_human_all_events = deepcopy(losses_human_per_building_id)
+                        else:
+                            losses_human_all_events = pd.concat(
+                                [losses_human_all_events, losses_human_per_building_id]
+                            )
+
+                        # Calculate timeline of recovery (to define occupants for next earthquake)
+                        # (only if there could be occupants for this earthquake, otherwise skip)
+                        if there_can_be_occupants:
+                            # Calculate number of injured people still away in time
+                            injured_still_away = Losses.calculate_injuries_recovery_timeline(
+                                losses_human_per_asset,
+                                recovery_injuries,
+                                recovery_longest_time,
+                                events_in_ses.loc[eq_id, "datetime"],
+                            )
+                            # Calculate factors regarding people being allowed to go back to buildings
+                            occupancy_factors = Losses.calculate_repair_recovery_timeline(
+                                recovery_damage,
+                                recovery_longest_time,
+                                events_in_ses.loc[eq_id, "datetime"],
+                            )
+
+                            # Store number of injured people away from the building in time, per asset ID
+                            injured_still_away.to_csv(
+                                os.path.join(
+                                    path_to_occupants_oelf,
+                                    "injured_still_away_after_OELF_%s.csv" % (eq_id)
+                                ),
+                                index=True,
+                            )
+
+                            # Store occupancy factors (0: people not allowed in, 1: people allowed in) as a
+                            # function of time and damage state
+                            occupancy_factors.to_csv(
+                                os.path.join(
+                                    path_to_occupants_oelf,
+                                    "occupancy_factors_after_OELF_%s.csv" % (eq_id)
+                                ),
+                                index=True,
+                            )
+                    else: # 'calculate_casualties' is False
+                        injured_still_away = None
+                        losses_human_all_events = None
+                        occupancy_factors = None
+
+                    # Store new exposure CSV
+                    if store_intermediate:
+                        name_exposure_csv_file_next = "exposure_model_after_%s.csv" % (eq_id)
+                        # Named after the earthquake
+                        exposure_updated_damage.to_csv(
+                            os.path.join(path_to_exposure, name_exposure_csv_file_next),
+                            index=False,
                         )
 
-                        # Store number of injured people away from the building in time, per asset ID
-                        injured_still_away.to_csv(
-                            os.path.join(
-                                path_to_occupants_oelf,
-                                "injured_still_away_after_OELF_%s.csv" % (eq_id)
-                            ),
-                            index=True,
-                        )
+                    # Get rid of time-of-the-day-specific numbers of occupants
+                    exposure_updated_damage = exposure_updated_damage.drop(columns=[time_of_day])
 
-                        # Store occupancy factors (0: people not allowed in, 1: people allowed in) as a
-                        # function of time and damage state
-                        occupancy_factors.to_csv(
-                            os.path.join(
-                                path_to_occupants_oelf,
-                                "occupancy_factors_after_OELF_%s.csv" % (eq_id)
-                            ),
-                            index=True,
-                        )
-                else: # 'calculate_casualties' is False
-                    injured_still_away = None
-                    losses_human_all_events = None
-                    occupancy_factors = None
-
-                # Store new exposure CSV
-                if store_intermediate:
-                    name_exposure_csv_file_next = "exposure_model_after_%s.csv" % (eq_id)
-                    # Named after the earthquake
+                    # Replace current exposure for this stochastic event set
                     exposure_updated_damage.to_csv(
-                        os.path.join(path_to_exposure, name_exposure_csv_file_next),
+                        os.path.join(path_to_exposure, current_exposure_filename),
                         index=False,
                     )
 
-                # Get rid of time-of-the-day-specific numbers of occupants
-                exposure_updated_damage = exposure_updated_damage.drop(columns=[time_of_day])
-
-                # Replace current exposure for this stochastic event set
-                exposure_updated_damage.to_csv(
-                    os.path.join(path_to_exposure, current_exposure_filename),
-                    index=False,
+                # Get damage states per building ID for this stochastic event set (OELF
+                # realisation) of this seismicity model
+                damage_states = ExposureUpdater.summarise_damage_states_per_building_id(
+                    exposure_updated_damage
                 )
-
-            # Get damage states per building ID for this stochastic event set (OELF realisation)
-            damage_states = ExposureUpdater.summarise_damage_states_per_building_id(
-                exposure_updated_damage
-            )
-            # Get economic losses per building ID for this stochastic event set (realisation)
-            losses_economic = Losses.expected_economic_loss(
-                exposure_updated_damage, consequence_economic
-            )
-
-            if calculate_casualties:
-                # Add human losses due to all events
-                # (i.e. get total human losses from this stochastic event set)
-                if losses_human_all_events is None:
-                    # None of the earthquakes of this stochastic event set were run
-                    # (too small or far away) --> assign zero injuries to all building IDs
-                    losses_human_all_events = Losses.assign_zero_human_losses(
-                        original_exposure_model, list(consequence_injuries.keys())
-                    )
-                else:
-                    losses_human_all_events = losses_human_all_events.groupby(["building_id"]).sum(
-                        numeric_only=True
-                    )
-
-            # Store damage states, economic losses and human losses per building ID
-            if store_intermediate:
-                damage_states.to_csv(
-                    os.path.join(
-                        path_to_outputs,
-                        "damage_states_after_OELF_%s_realisation_%s.csv" % (
-                            forecast_name, oef_ses_id
-                        )
-                    ),
-                    index=True,
-                )
-
-                losses_economic.to_csv(
-                    os.path.join(
-                        path_to_outputs,
-                        "losses_economic_after_OELF_%s_realisation_%s.csv" % (
-                            forecast_name, oef_ses_id
-                        )
-                    ),
-                    index=True,
+                # Get economic losses per building ID for this stochastic event set (realisation)
+                losses_economic = Losses.expected_economic_loss(
+                    exposure_updated_damage, consequence_economic
                 )
 
                 if calculate_casualties:
-                    losses_human_all_events.to_csv(
+                    # Add human losses due to all events
+                    # (i.e. get total human losses from this stochastic event set)
+                    if losses_human_all_events is None:
+                        # None of the earthquakes of this stochastic event set were run
+                        # (too small or far away) --> assign zero injuries to all building IDs
+                        losses_human_all_events = Losses.assign_zero_human_losses(
+                            original_exposure_model, list(consequence_injuries.keys())
+                        )
+                    else:
+                        losses_human_all_events = (
+                            losses_human_all_events.groupby(["building_id"]).sum(
+                                numeric_only=True
+                            )
+                        )
+
+                # Store damage states, economic losses and human losses per building ID
+                if store_intermediate:
+                    damage_states.to_csv(
                         os.path.join(
                             path_to_outputs,
-                            "losses_human_after_OELF_%s_realisation_%s.csv" % (
-                                forecast_name, oef_ses_id
+                            "damage_states_after_OELF_%s_model_%s_realisation_%s.csv" % (
+                                forecast_name, oef_model_id, oef_ses_id
                             )
                         ),
                         index=True,
                     )
 
-            # Concatenate damage states from all stochastic event sets
-            if damage_states_all_ses is None:
-                # First realisation
-                damage_states_all_ses = deepcopy(damage_states)
-            else:
-                damage_states_all_ses = pd.concat(
-                    [damage_states_all_ses, damage_states]
-                )
-
-            # Concatenate economic losses from all stochastic event sets
-            if losses_economic_all_ses is None:
-                # First realisation
-                losses_economic_all_ses = deepcopy(losses_economic)
-            else:
-                losses_economic_all_ses = pd.concat(
-                    [losses_economic_all_ses, losses_economic]
-                )
-
-            if calculate_casualties:
-                # Concatenate human losses from all stochastic event sets
-                if losses_human_all_ses is None:
-                    # First realisation
-                    losses_human_all_ses = deepcopy(losses_human_all_events)
-                else:
-                    losses_human_all_ses = pd.concat(
-                        [losses_human_all_ses, losses_human_all_events]
+                    losses_economic.to_csv(
+                        os.path.join(
+                            path_to_outputs,
+                            "losses_economic_after_OELF_%s_model_%s_realisation_%s.csv" % (
+                                forecast_name, oef_model_id, oef_ses_id
+                            )
+                        ),
+                        index=True,
                     )
 
-                # Erase 'path_to_occupants_oelf' and all its contents
-                # (next SES needs to start clean)
-                shutil.rmtree(path_to_occupants_oelf)
+                    if calculate_casualties:
+                        losses_human_all_events.to_csv(
+                            os.path.join(
+                                path_to_outputs,
+                                "losses_human_after_OELF_%s_model_%s_realisation_%s.csv" % (
+                                    forecast_name, oef_model_id, oef_ses_id
+                                )
+                            ),
+                            index=True,
+                        )
 
-        # Average damage states per building ID for all stochastic event sets
-        damage_states_all_ses = damage_states_all_ses.groupby(
-            ["building_id", "damage_state"]
-        ).sum(numeric_only=True) / len(oef_ses_ids)
+                # Concatenate damage states from all stochastic event sets
+                damage_states["model_id"] = [
+                    oef_model_id for j in range(damage_states.shape[0])
+                ]
+                damage_states["ses_id"] = [
+                    oef_ses_id for j in range(damage_states.shape[0])
+                ]
+                if damage_states_all_ses is None:
+                    # First realisation
+                    damage_states_all_ses = deepcopy(damage_states)
+                else:
+                    damage_states_all_ses = pd.concat(
+                        [damage_states_all_ses, damage_states]
+                    )
 
-        # Average economic losses per building ID for all stochastic event sets
-        losses_economic_all_ses = losses_economic_all_ses.groupby(["building_id"]).sum(
-            numeric_only=True
-        ) / len(oef_ses_ids)
+                # Concatenate economic losses from all stochastic event sets
+                losses_economic["model_id"] = [
+                    oef_model_id for j in range(losses_economic.shape[0])
+                ]
+                losses_economic["ses_id"] = [
+                    oef_ses_id for j in range(losses_economic.shape[0])
+                ]
+                if losses_economic_all_ses is None:
+                    # First realisation
+                    losses_economic_all_ses = deepcopy(losses_economic)
+                else:
+                    losses_economic_all_ses = pd.concat(
+                        [losses_economic_all_ses, losses_economic]
+                    )
+
+                if calculate_casualties:
+                    # Concatenate human losses from all stochastic event sets
+                    losses_human_all_events["model_id"] = [
+                        oef_model_id for j in range(losses_human_all_events.shape[0])
+                    ]
+                    losses_human_all_events["ses_id"] = [
+                        oef_ses_id for j in range(losses_human_all_events.shape[0])
+                    ]
+                    if losses_human_all_ses is None:
+                        # First realisation
+                        losses_human_all_ses = deepcopy(losses_human_all_events)
+                    else:
+                        losses_human_all_ses = pd.concat(
+                            [losses_human_all_ses, losses_human_all_events]
+                        )
+
+                    # Erase 'path_to_occupants_oelf' and all its contents
+                    # (next SES needs to start clean)
+                    shutil.rmtree(path_to_occupants_oelf)
+
+        # Initialise exceedance curves and stats outputs
+        curves_by_model_and_bdg_id = {}
+        stats_by_model_and_bdg_id = {}
+        curves_by_model_portfolio = {}
+        stats_by_model_portfolio = {}
+        stats_by_bdg_id = {}
+        mean_median_portfolio_curves = {}
+
+        # Exceedance curves and stats: Damage states
+        damage_states_all_ses_reshaped = (
+            OperationalEarthquakeLossForecasting.reshape_damage_states_per_building_id(
+                damage_states_all_ses
+            )
+        )# reshape so that each damage state is a column
+        (
+            rates_exceed_mapping,
+            curves_by_model_and_bdg_id["damage"],
+            stats_by_model_and_bdg_id["damage"],
+            curves_by_model_portfolio["damage"],
+            stats_by_model_portfolio["damage"],
+            stats_by_bdg_id["damage"],
+            mean_median_portfolio_curves["damage"]
+        ) = OperationalEarthquakeLossForecasting.get_exceedance_curves_and_stats(
+            damage_states_all_ses_reshaped,
+            damage_states_all_ses.index.get_level_values("damage_state").unique(),
+            forecast_model_weights.index,  # model IDs
+            oef_ses_ids,
+            forecast_model_weights
+        )
+
+        # Exceedance curves and stats: Economic losses
+        (
+            _,  # no need to re-retrieve 'rates_exceed_mapping', it's the same
+            curves_by_model_and_bdg_id["losses_economic"],
+            stats_by_model_and_bdg_id["losses_economic"],
+            curves_by_model_portfolio["losses_economic"],
+            stats_by_model_portfolio["losses_economic"],
+            stats_by_bdg_id["losses_economic"],
+            mean_median_portfolio_curves["losses_economic"]
+        ) = OperationalEarthquakeLossForecasting.get_exceedance_curves_and_stats(
+            losses_economic_all_ses,
+            ["loss"],
+            forecast_model_weights.index,  # model IDs
+            oef_ses_ids,
+            forecast_model_weights
+        )
+
+        # Exceedance curves and stats: Human casualties:
+        if calculate_casualties:
+            (
+                _,  # no need to re-retrieve 'rates_exceed_mapping', it's the same
+                curves_by_model_and_bdg_id["losses_human"],
+                stats_by_model_and_bdg_id["losses_human"],
+                curves_by_model_portfolio["losses_human"],
+                stats_by_model_portfolio["losses_human"],
+                stats_by_bdg_id["losses_human"],
+                mean_median_portfolio_curves["losses_human"]
+            ) = OperationalEarthquakeLossForecasting.get_exceedance_curves_and_stats(
+                losses_human_all_ses,
+                ["injuries_%s" % (severity) for severity in consequence_injuries.keys()],
+                forecast_model_weights.index,  # model IDs
+                oef_ses_ids,
+                forecast_model_weights
+            )
+
+        # Weighted mean damage states per building ID for all stochastic event sets
+        mean_damage_states = (
+            OperationalEarthquakeLossForecasting.gather_mean_oelf_outputs(
+                stats_by_bdg_id,
+                "damage",
+                damage_states_all_ses.index.get_level_values("damage_state").unique()
+            )
+        )
+
+        # Weighted mean economic losses per building ID for all stochastic event sets
+        mean_losses_economic = (
+            OperationalEarthquakeLossForecasting.gather_mean_oelf_outputs(
+                stats_by_bdg_id, "losses_economic", ["loss"]
+            )
+        )
 
         if calculate_casualties:
-            # Average human losses per building ID for all stochastic event sets
-            losses_human_all_ses = losses_human_all_ses.groupby(["building_id"]).sum(
-                numeric_only=True
-            ) / len(oef_ses_ids)
+            # Weighted mean human losses per building ID for all stochastic event sets
+            mean_losses_human = (
+                OperationalEarthquakeLossForecasting.gather_mean_oelf_outputs(
+                    stats_by_bdg_id,
+                    "losses_human",
+                    ["injuries_%s" % (severity) for severity in consequence_injuries.keys()]
+                )
+            )
+        else:
+            mean_losses_human = None
 
-        return damage_states_all_ses, losses_economic_all_ses, losses_human_all_ses
+        return (
+            rates_exceed_mapping,
+            curves_by_model_and_bdg_id,
+            stats_by_model_and_bdg_id,
+            curves_by_model_portfolio,
+            stats_by_model_portfolio,
+            stats_by_bdg_id,
+            mean_median_portfolio_curves,
+            mean_damage_states,
+            mean_losses_economic,
+            mean_losses_human
+        )
+
+    @staticmethod
+    def get_exceedance_curves_and_stats(
+        all_ses_output, value_names, oef_model_ids, oef_ses_ids, model_weights
+    ):
+        """
+        This method calculates:
+        - exceedance curves by model_id and building_id (each curve is built from all stochastic
+        event sets of the model);
+        - statistics (mean, median, 5th and 95th percentile) of all stochastic event sets by
+        model_id and building_id;
+        - portfolio (i.e., all building IDs summed up) exceedance curves by model_id (each curve
+        is built from all stochastic event sets of the model);
+        - portfolio statistics (mean, median, 5th and 95th percentile) of all stochastic event
+        sets by model_id;
+        - weighted mean and weighted median portfolio exceedance curves (mean and median of all
+        models), calculated in the range (min_val, max_val), with min_val being the maximum
+        across all models of the minimum output value, and max_val being the minimum across all
+        models of the maximum output value (i.e., mean/median only calculated in the range where
+        all curves are defined); the number of points in the curve is the number of stochastic
+        event sets, i.e., len(oef_ses_ids), but always larger than 10.
+
+        Args:
+            all_ses_output (Pandas DataFrame):
+                DataFrame with the output values from all SES and all models, with the following
+                structure:
+                    Index: building_id
+                    Columns:
+                        - At least those indicated by 'value_names'
+                        - "ses_id": ID of the stochastic event set (SES)
+                        - "model_id": ID of the seismicity model
+                    Each row of this DataFrame contains an output value for a particular
+                    building_id, SES ID and seismicity model ID.
+            value_names (list of str):
+                Names of the columns of 'all_ses_output' that contain values of relevance (e.g.
+                "loss", "injuries_X").
+            oef_model_ids (list of int):
+                IDs of the seismicity models.
+            oef_ses_ids (list of int):
+                IDs of the stochastic event sets.
+            model_weights (Pandas DataFrame):
+                Weights of the different seismicity models used to generate the
+                'forecast_catalogue'. The index is the "model_id". Its columns are:
+                    model_name (str): Name of the model.
+                    weight (float): Weight of the model.
+
+        Returns:
+            rates_exceed_mapping (Pandas DataFrame):
+                Pandas DataFrame mapping the names of the columns in 'curves_by_model_portfolio'
+                and 'curves_by_model_and_bdg_id' with the rates of exceedance they represent.
+                    Index: names of the columns.
+                    Column "rate_val": value of the rate of exceedance.
+            curves_by_model_and_bdg_id (dict of Pandas DataFrame):
+                Dictionary with one key per element of 'value_names' (i.e., output type),
+                containing one DataFrame with the individual exceedance curves per model and
+                building ID.
+                    MultiIndex: (model_id, building_id)
+                    Columns: Index of 'rates_exceed_mapping' (coded rates of exceedances of the
+                    values contained in the DataFrame).
+                (Each row is the exceedance curve for a particular building_id and model_id).
+            stats_by_model_and_bdg_id (dict of Pandas DataFrame):
+                Dictionary with one key per element of 'value_names' (i.e., output type),
+                containing one DataFrame with the statistics per model and building_id.
+                    MultiIndex: (model_id, building_id)
+                    Columns: mean, median, p05 (5th percentile), p95 (95th percentile)
+                (Each row contains the set of stats from all SES of a model, for a building_id).
+            curves_by_model_portfolio (dict of Pandas DataFrame):
+                Dictionary with one key per element of 'value_names' (i.e., output type),
+                containing one DataFrame with the portfolio (i.e. all building IDs) exceedance
+                curves per model.
+                    Index: model_id
+                    Columns: Index of 'rates_exceed_mapping' (coded rates of exceedances of the
+                    values contained in the DataFrame).
+                (Each row is the portfolio exceedance curve for a particular model_id).
+            stats_by_model_portfolio (dict of Pandas DataFrame):
+                Dictionary with one key per element of 'value_names' (i.e., output type),
+                containing one DataFrame with the portfolio statistics per model.
+                    Index: model_id
+                    Columns: mean, median, p05 (5th percentile), p95 (95th percentile)
+                (Each row contains the set of portfolio stats from all SES of a model).
+            stats_by_bdg_id (dict of Pandas DataFrame):
+                Dictionary with one key per element of 'value_names' (i.e., output type),
+                containing one DataFrame with the per-building-id statistics.
+                    Index: building_id
+                    Columns: mean, median, p05 (5th percentile), p95 (95th percentile)
+                (Each row contains the set of stats from all SES of all (weighted) models for a
+                building).
+            mean_median_portfolio_curves (dict of Pandas DataFrame):
+                Dictionary with one key per element of 'value_names' (i.e., output type),
+                containing one DataFrame with the weighted mean and median portfolio exceedance
+                curves from all models (weights as per 'model_weights').
+                    No index.
+                    Columns:
+                        "value": values of the type of 'value_names' (i.e., output type) for
+                            which the mean/median curves have been calculated (only in the range
+                            where all individual models' curves are defined).
+                        "mean": weighted mean of all models.
+                        "median": weighted median of all models.
+        """
+
+        number_ses = float(len(oef_ses_ids))
+
+        rates_exceed = np.arange(number_ses, 0, -1)/number_ses
+        rates_exceed_names = ["r%s" % (i+1) for i in range(int(number_ses))]
+        rates_exceed_mapping = pd.DataFrame({"rate_val": rates_exceed}, index=rates_exceed_names)
+
+        curves_by_model_and_bdg_id = {}
+        stats_by_model_and_bdg_id = {}
+        curves_by_model_portfolio = {}
+        stats_by_model_portfolio = {}
+        stats_by_bdg_id = {}
+        mean_median_portfolio_curves = {}
+
+        for val_col in value_names:
+            # Curve per model and building ID
+            # MultiIndex("model_id", "building_id"), 1 col per rate of exceedance (from 1 to 1/N)
+            # Each row is one curve, the column names are the rates of exceedance
+            aux = all_ses_output.groupby(["model_id", "building_id"])[val_col].apply(np.sort)
+            curves_by_model_and_bdg_id[val_col] = pd.DataFrame(
+                aux.tolist(),
+                index=aux.index,
+                columns=rates_exceed_names
+            )
+            stats_by_model_and_bdg_id[val_col] = curves_by_model_and_bdg_id[val_col].apply(
+                lambda row: pd.Series({
+                    "mean": row.mean(),
+                    "median": row.median(),
+                    "p05": np.percentile(row, 5),
+                    "p95": np.percentile(row, 95),
+                }),
+                axis=1
+            )
+
+            # Curve per model
+            # Index: model_id, 1 col per rate of exceedance (from 1 to 1/N)
+            # Each row is one curve, the column names are the rates of exceedance
+            curves_by_model_portfolio_aux = curves_by_model_and_bdg_id[val_col].groupby(
+                ["model_id"]
+            ).agg(
+                "sum", numeric_only=True
+            )
+            curves_by_model_portfolio[val_col] = curves_by_model_portfolio_aux
+            stats_by_model_portfolio[val_col] = curves_by_model_portfolio_aux.apply(
+                lambda row: pd.Series({
+                    "mean": row.mean(),
+                    "median": row.median(),
+                    "p05": np.percentile(row, 5),
+                    "p95": np.percentile(row, 95),
+                }),
+                axis=1
+            )
+
+            # Mean and median curves of all models
+            min_val = curves_by_model_portfolio_aux[curves_by_model_portfolio_aux.columns[0]].max()
+            max_val = curves_by_model_portfolio_aux[curves_by_model_portfolio_aux.columns[-1]].min()
+            target_vals = np.linspace(min_val, max_val, num=max(int(number_ses), 10))
+            # Interpolate the curve of each model to the target vals along the horizontal axis
+            interp_df = curves_by_model_portfolio_aux.apply(
+                lambda row: np.interp(
+                    target_vals,
+                    row.to_numpy(),
+                    rates_exceed
+                ),
+                axis=1,
+                result_type="expand"
+            )
+            interp_df.columns = target_vals
+            # Calculate weighted means
+            weighted_means = np.average(
+                interp_df.to_numpy(),
+                axis=0,  # per column
+                weights=model_weights.loc[interp_df.index, "weight"].to_numpy()
+            )
+            # Calculate weighted medians
+            weighted_medians = np.quantile(
+                interp_df.to_numpy(),
+                0.5,
+                axis=0,  # per column
+                weights=model_weights.loc[interp_df.index, "weight"].to_numpy(),
+                method="inverted_cdf"
+            )
+            # Gather weighted means and medians in one output DataFrame
+            mean_median_portfolio_curves[val_col] = pd.DataFrame(
+                {
+                    "value": interp_df.columns.to_numpy(),
+                    "mean": weighted_means,
+                    "median": weighted_medians
+                }
+            )
+
+            # Stats by building_id (all models together, weighted)
+            ses_weight = 1.0 / number_ses
+            weight_from_models = model_weights.loc[
+                all_ses_output.loc[:, "model_id"], "weight"
+            ].to_numpy()
+            all_ses_output["weight"] = weight_from_models * ses_weight
+
+            # Create numpy arrays with one column per building_id and one row per value/weight
+            values_per_building_id_df = all_ses_output.pivot_table(
+                index=["ses_id", "model_id"],
+                columns="building_id",
+                values=val_col
+            )
+            building_ids_per_col = values_per_building_id_df.columns
+            values_per_building_id = values_per_building_id_df.values
+
+            weights_per_building_id_df = all_ses_output.pivot_table(
+                index=["ses_id", "model_id"],
+                columns="building_id",
+                values="weight"
+            )
+            building_ids_per_col_aux = weights_per_building_id_df.columns
+            weights_per_building_id = weights_per_building_id_df.values
+
+            if not building_ids_per_col.equals(building_ids_per_col_aux):
+                error_message = (
+                    "'get_exceedance_curves_and_stats': the order of 'building_id' is not the "
+                    "same when grouping to calculate by-building-id stats"
+                )
+                logger.critical(error_message)
+                raise ValueError(error_message)
+
+            if not (
+                np.all(weights_per_building_id.sum(axis=0)>0.99999) and
+                np.all(weights_per_building_id.sum(axis=0)<1.00001)
+            ):
+                error_message = (
+                    "'get_exceedance_curves_and_stats': the sum of weights per building is not 1"
+                )
+                logger.critical(error_message)
+                raise ValueError(error_message)
+
+            del building_ids_per_col_aux
+
+            weighted_means = np.average(
+                values_per_building_id,
+                axis=0,  # per column
+                weights=weights_per_building_id
+            )  # each col is a building_id as per 'building_ids_per_col'
+            weighted_percentiles = np.quantile(
+                values_per_building_id,
+                [0.05, 0.5, 0.95], # percentiles
+                axis=0,  # per column
+                weights=weights_per_building_id,
+                method="inverted_cdf"
+            )  # each row is one of the percentiles, each col a building_id
+
+            # Gather weighted stats per-building-id in one output DataFrame
+            stats_by_bdg_id[val_col] = pd.DataFrame(
+                {
+                    "building_id": building_ids_per_col,
+                    "mean": weighted_means,
+                    "median": weighted_percentiles[1, :],
+                    "p05": weighted_percentiles[0, :],
+                    "p95": weighted_percentiles[2, :],
+                }
+            )
+            stats_by_bdg_id[val_col].set_index(
+                stats_by_bdg_id[val_col]["building_id"], inplace=True
+            )
+            stats_by_bdg_id[val_col].drop(columns=["building_id"], inplace=True)
+
+        return (
+            rates_exceed_mapping,
+            curves_by_model_and_bdg_id,
+            stats_by_model_and_bdg_id,
+            curves_by_model_portfolio,
+            stats_by_model_portfolio,
+            stats_by_bdg_id,
+            mean_median_portfolio_curves
+        )
+
+    @staticmethod
+    def reshape_damage_states_per_building_id(damage_summary_with_ids):
+        """
+        This method reshapes the 'damage_summary_with_ids' so that each damage state is a
+        column. The input 'damage_summary_with_ids' is almost the same as the ouput of method
+        ExposureUpdater.summarise_damage_states_per_building_id(), plus two columns: one for the
+        ID of the stochastic event set, another one for the ID of the seismicity model.
+
+        Args:
+            damage_summary_with_ids (Pandas DataFrame):
+                Pandas DataFrame with the following structure:
+                    Index is multiple:
+                        building_id (str):
+                            ID of the building.
+                        damage_state (str):
+                            Damage states.
+                    Columns:
+                        number (float):
+                            Probability of 'damage_state' for 'building_id', if building_id is
+                            one individual building, or number of buildings of 'building_id'
+                            under 'damage_state', if building_id is a group of buildings.
+                        ses_id (int):
+                            ID of the stochastic event set (SES).
+                        model_id (int):
+                            ID of the seismicity model.
+
+        Returns:
+            damage_summary_reshaped (Pandas DataFrame):
+                Pandas DataFrame with the exact same contents as the input
+                'damage_summary_with_ids' but the following structure:
+                    Index:
+                        building_id (str):
+                            ID of the building.
+                    Columns:
+                        ses_id (int):
+                            ID of the stochastic event set (SES).
+                        model_id (int):
+                            ID of the seismicity model.
+                        One column per possible value of 'damage_state', with the contents of
+                        'number'.
+        """
+        dmg_by_cols_df = (
+            damage_summary_with_ids
+            .reset_index()
+            .pivot_table(
+                index=["building_id", "ses_id", "model_id"],
+                columns="damage_state",
+                values="number"
+            )
+            .reset_index()
+        ).fillna(0.0)
+        dmg_by_cols_df.rename_axis(columns=None, inplace=True)
+        dmg_by_cols_df.set_index(dmg_by_cols_df["building_id"], inplace=True)
+        dmg_by_cols_df.drop(columns=["building_id"], inplace=True)
+
+        return dmg_by_cols_df
+
+    @staticmethod
+    def gather_mean_oelf_outputs(stats_by_bdg_id, out_type, value_names):
+        """
+        This method gathers the mean results of type 'out_type' and sub-types as listed in
+        'value_names' into one Pandas DataFrame with the following structure:
+
+        - If 'out_type' is "losses_economic" or "losses_human", the index is "building_id" (as
+        in the input DataFrames in 'stats_by_bdg_id') and each column contains the mean values
+        of 'value_names' (i.e., one column per sub-type listed in 'value_names').
+        - If 'out_type' is "damage", the index is multiple ["building_id", "damage_state"] and
+        there is only one "number" column.
+
+        Args:
+            stats_by_bdg_id (dict of dict of Pandas DataFrame):
+                Dictionary with structure[out_type][value_name] containing one DataFrame with
+                per-building-id statistics.
+                    Index: building_id
+                    Columns: mean, median, p05 (5th percentile), p95 (95th percentile)
+                (Each row contains the set of stats from all SES of all (weighted) models for a
+                building).
+            out_type (str):
+                Type of output as first-level key of 'stats_by_bdg_id'.
+            value_names (list of str):
+                Output-subtype as second-level key of 'stats_by_bdg_id[out_type]'. For example,
+                if "out_type" is "damage", the subtypes may be the damage states
+                ["DS0", "DS1", ...].
+
+        Returns:
+            mean_oelf_outputs (Pandas DataFrame): As described above.
+        """
+        mean_oelf_outputs = None
+
+        for val_col in value_names:
+            aux_df = stats_by_bdg_id[out_type][val_col].copy()
+            aux_df.drop(columns=["median", "p05", "p95"], inplace=True)
+            aux_df.rename(columns={"mean": val_col}, inplace=True)
+
+            if mean_oelf_outputs is None:
+                mean_oelf_outputs = deepcopy(aux_df)
+            else:
+                mean_oelf_outputs = pd.concat((mean_oelf_outputs, aux_df), axis=1)
+
+        if out_type == "damage":
+            mean_oelf_outputs = (
+                mean_oelf_outputs
+                  .stack()
+                  .rename_axis(["building_id", "damage_state"])
+                  .reset_index(name="number")
+            )
+            mean_oelf_outputs.set_index(["building_id", "damage_state"], inplace=True)
+
+        return mean_oelf_outputs
 
     @staticmethod
     def format_seismicity_forecast(
@@ -1065,9 +1651,9 @@ class OperationalEarthquakeLossForecasting():
         (+ 'tolerance'), it returns True (i.e. occupants are allowed to return to buildings
         before the end of the seismicity catalogue).
 
-        If 'date_latest_rla' it is interpreted as no "real" earthquake having been run before,
-        which results in occupants being allowed in their buildings, and the method returns
-        True.
+        If 'date_latest_rla' is None it is interpreted as no "real" earthquake having been run
+        before, which results in occupants being allowed in their buildings, and the method
+        returns True.
 
         The purpose of 'tolerance' is to allow for discrepancies due to precision in the time of
         "real" earthquakes and those in the seismicity forecast.

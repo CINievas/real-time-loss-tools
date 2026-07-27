@@ -85,7 +85,8 @@ earthquake. Earthquakes in the OELF catalogues located farther away from the exp
 
 If set to `True`, the software assumes there are as many stochastic event sets as indicated by
 `ses_range` (see below), with an increment of 1. If set to `False`, the Real-Time Loss Tools
-simply read the IDs of the stochastic event sets from the OELF catalogue. This parameter is used
+simply read the IDs of the stochastic event sets from the OELF catalogue, assuming all
+seismicity models generate the same set of IDs of stochastic event sets. This parameter is used
 to take into account the fact that the input OELF CSV catalogue may not contain entries for all
 realisations of seismicity if a minimum magnitude threshold was used to write the file. For
 example, if a threshold of 4.0 was used to write the OELF CSV catalogue and there were

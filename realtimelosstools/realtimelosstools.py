@@ -194,8 +194,6 @@ def main():
             # in the configuration
             config.oelf["number_seismicity_models"] = num_models
 
-    import pdb
-    pdb.set_trace()
     # Load the "initial" exposure model
     exposure_model_undamaged = pd.read_csv(
             os.path.join(config.main_path, "exposure_models", "exposure_model_undamaged.csv")
@@ -366,7 +364,6 @@ def main():
                 forecast_cat, add_event_id=True, add_depth=False
             )  # The index of 'forecast_cat' is the unique ID "[ses_id]-[event_id]"
 
-            pdb.set_trace()
             # Filter catalogue as per minimum magnitude and maximum distance (so as to not build
             # ruptures for earthquakes that will not be used to calculate damage)
             exposure_lons, exposure_lats = ExposureUpdater.get_unique_exposure_locations(
@@ -441,30 +438,40 @@ def main():
             else:
                 there_can_be_occupants = False
 
-            damage_states, losses_economic, losses_human = (
-                OperationalEarthquakeLossForecasting.run_oelf(
-                    forecast_cat,
-                    forecast_name,
-                    there_can_be_occupants,
-                    config.oelf["continuous_ses_numbering"],
-                    config.oelf["ses_range"],
-                    config.state_dependent_fragilities,
-                    config.description_general,
-                    config.main_path,
-                    exposure_model_undamaged,
-                    consequence_economic,
-                    config.calculate_casualties,
-                    consequence_injuries,
-                    recovery_damage,
-                    recovery_injuries,
-                    config.injuries_longest_time,
-                    config.time_of_day_occupancy,
-                    config.timezone,
-                    config.mapping_damage_states,
-                    config.store_intermediate,
-                    config.store_openquake,
-                    config.number_cores,
-                )
+            (
+                rates_exceed_mapping,
+                curves_by_model_and_bdg_id,
+                stats_by_model_and_bdg_id,
+                curves_by_model_portfolio,
+                stats_by_model_portfolio,
+                stats_by_bdg_id,
+                mean_median_portfolio_curves,
+                damage_states,
+                losses_economic,
+                losses_human
+            ) = OperationalEarthquakeLossForecasting.run_oelf(
+                forecast_cat,
+                forecast_name,
+                there_can_be_occupants,
+                config.oelf["continuous_ses_numbering"],
+                config.oelf["ses_range"],
+                oelf_model_weights,
+                config.state_dependent_fragilities,
+                config.description_general,
+                config.main_path,
+                exposure_model_undamaged,
+                consequence_economic,
+                config.calculate_casualties,
+                consequence_injuries,
+                recovery_damage,
+                recovery_injuries,
+                config.injuries_longest_time,
+                config.time_of_day_occupancy,
+                config.timezone,
+                config.mapping_damage_states,
+                config.store_intermediate,
+                config.store_openquake,
+                config.number_cores
             )
 
             logger.info(
@@ -508,6 +515,49 @@ def main():
                     ),
                     index=True,
                 )
+
+            # Store exceedance curves and stats
+            dicts_to_export = {
+                "exceed_curves_by_model_and_bdg_id": curves_by_model_and_bdg_id,
+                "stats_by_model_and_bdg_id": stats_by_model_and_bdg_id,
+                "exceed_curves_by_model_portfolio": curves_by_model_portfolio,
+                "stats_by_model_portfolio": stats_by_model_portfolio,
+                "stats_by_bdg_id": stats_by_bdg_id,
+                "mean_median_portfolio_exceed_curves": mean_median_portfolio_curves
+            }
+            params_to_export = ["losses_economic", "damage"]
+
+            if config.calculate_casualties:
+                params_to_export.append("losses_human")
+
+            for subdict in dicts_to_export:
+                for param in params_to_export:
+                    for subparam in dicts_to_export[subdict][param]:
+                        # E.g. meaning of the keys below
+                        # subdict = "exceed_curves_by_model_and_bdg_id"
+                        # param = "damage"
+                        # subparam = "DS1"
+                        dicts_to_export[subdict][param][subparam].to_csv(
+                            os.path.join(
+                                config.main_path,
+                                "output",
+                                subdict,
+                                "%s_%s_OELF_%s.csv" % (subdict, subparam, forecast_name)
+                            ),
+                            index=True
+                        )
+
+            # Store rates_exceed_mapping,
+            # i.e. the rates of exceedance used by the exceedance curves
+            rates_exceed_mapping.to_csv(
+                    os.path.join(
+                        config.main_path,
+                        "output",
+                        "exceed_curves_rates_mapping",
+                        "rates_exceedance_mapping_OELF_%s.csv" % (forecast_name)
+                    ),
+                    index=True
+            )
 
     # Post-process individual outputs
     if config.post_process["collect_csv"]:

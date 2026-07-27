@@ -177,32 +177,31 @@ normal faults with parameters specified as in the Italian Accelerometric Archive
 `ruptures/rla/`[source_parameters.csv](#rupture-parameters-for-rla) for the `event_id` specified
 in the catalogue file.
 
-In the case of OELFs, the catalogue CSV files must contain the following fields:
+In the case of OELFs, the most general case is that in which each catalogue CSV file contains
+earthquakes from (i) different stochastic event sets (realisations of seismicity) generated with
+(ii) different seismicity models. The seismicity models are identified by a `model_id` field,
+while the stochastic event sets are identified by a field called `ses_id`, `catalog_id` or
+`Idx.cat`. The catalogue CSV files must contain the following fields:
 
 - `longitude` or `Lon`: longitude of the hypocentre;
 - `latitude` or `Lat`: latitude of the hypocentre;
 - `magnitude` or `Mag`: moment magnitude;
 - `datetime` or `Time`: UTC date and time of occurrence, in standard ISO 8601 format (i.e.,
 YYYY-MM-DDTHH:MM:SS);
-- `catalog_id` or `Idx.cat`: ID of the realisation of seismicity (stochastic event set) that
-this earthquake belongs to. Please note the relevance of parameters `continuous_ses_numbering`
-and `ses_range` of the [config.yml](02_Configuration.md#configuration-file) on how this field is
-interpreted.
+- `ses_id`, `catalog_id` or `Idx.cat`: ID of the realisation of seismicity (stochastic event
+set) that this earthquake belongs to. Please note the relevance of parameters
+`continuous_ses_numbering` and `ses_range` of the
+[config.yml](02_Configuration.md#configuration-file) on how this field is interpreted.
 
 Optional fields for the OELF catalogue files are:
 
-- `depth`: hypocentral depth, in km;
-- `event_id`: unique identifier of the earthquake within a stochastic event set.
+- `depth`: hypocentral depth, in km. When no `depth` is specified, the depth is sampled by the
+stochastic rupture generator when building each earthquake rupture.
+- `event_id`: unique identifier of the earthquake within a stochastic event set. When no
+`event_id` is specified, the Real-Time Loss Tools automatically generates one.
 - `model_id`: unique identifier of the seismicity model used to generate the stochastic event
-set.
-
-When no `depth` is specified, the depth is sampled by the stochastic rupture generator when
-building each earthquake rupture.
-
-When no `event_id` is specified, the Real-Time Loss Tools automatically generates one.
-
-When no `model_id` is specified, the Real-Time Loss Tools automatically assigns all earthquakes
-to `model_id=1`.
+set. If not provided, the Real-Time Loss Tools will assume all earthquakes were generated with
+one seismicity model (`model_id=1`).
 
 ## Rupture Parameters for RLA
 
