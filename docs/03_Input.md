@@ -195,13 +195,28 @@ set) that this earthquake belongs to. Please note the relevance of parameters
 
 Optional fields for the OELF catalogue files are:
 
-- `depth`: hypocentral depth, in km. When no `depth` is specified, the depth is sampled by the
-stochastic rupture generator when building each earthquake rupture.
 - `event_id`: unique identifier of the earthquake within a stochastic event set. When no
 `event_id` is specified, the Real-Time Loss Tools automatically generates one.
 - `model_id`: unique identifier of the seismicity model used to generate the stochastic event
 set. If not provided, the Real-Time Loss Tools will assume all earthquakes were generated with
 one seismicity model (`model_id=1`).
+- `depth`: hypocentral depth, in km. When no `depth` is specified and `oelf_rupture_type=planar`
+in `config.yml` (i.e., generation of stochastic planar ruptures requested by user), the depth is
+sampled by the stochastic rupture generator when building each earthquake rupture. When no
+`depth` is specified and `oelf_rupture_type=point` (i.e., generation of point sources requested
+by user), the default value specified under `oelf_point_source_default_depth` in `config.yml` is
+used for all earthquakes. WARNING: The use of random sampling and default values is discouraged.
+Earthquake depth is a parameter that should be properly modelled during the generation of the
+seismicity catalogues.
+- `strike`: strike of the rupture, in degrees from North (measured clockwise). Currently only
+used when generating point sources (`oelf_rupture_type=point` in `config.yml`). Defaults to
+0 when not provided.
+- `dip`: dip of the rupture, in degrees from the horizontal. Currently only used when generating
+point sources (`oelf_rupture_type=point` in `config.yml`). Defaults to 90 (purely vertical
+fault) when not provided.
+- `rake`: slip direction of the fault plane, in degrees, measured within the fault plane.
+Currently only used when generating point sources (`oelf_rupture_type=point` in `config.yml`).
+Defaults to 0 (left‑lateral strike‑slip) when not provided.
 
 ## Rupture Parameters for RLA
 

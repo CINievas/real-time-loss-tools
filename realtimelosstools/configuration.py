@@ -41,10 +41,6 @@ class Configuration:
         self.number_cores (int):
             Number of cores to be used for processing whenever parallelisation is possible. This
             parameter does not apply to OpenQuake, which has its own parallelisation strategy.
-        self.oelf_source_model_filename (str):
-            Name of the XML file with the earthquake source model to be used to stochastically
-            generate rupture properties for Operational Earthquake Loss Forecasting (OELF).
-            Assumed to be located under main_path/ruptures.
         self.state_dependent_fragilities (bool):
             True if state-dependent fragility models are being used to run OpenQuake, False if
             state-independent fragility models are being used instead.
@@ -92,6 +88,16 @@ class Configuration:
             seismicity_models_weights (str):
                 String used to indicate whether the weights associated with different seismicity
                 models are "uniform" or should be read "from_file".
+            oelf_rupture_type (str):
+                Type of ruptures to be generated for an OELF calculation. Options are: "planar"
+                (simple planar ruptures) or "point" (point sources).
+            oelf_source_model_filename (str):
+                Name of the XML file with the earthquake source model to be used to
+                stochastically generate rupture properties for Operational Earthquake Loss
+                Forecasting (OELF). Assumed to be located under main_path/ruptures.
+            oelf_point_source_default_depth (float):
+                Default depth (km) to use for generation of point sources if not provided in the
+                input catalogues.
             rupture_generator_seed (int):
                 Optional seed to set for the random number generator controlling the stochastic
                 rupture simulations. Must be positive non-zero to reproduce same rupture set.
@@ -144,7 +150,6 @@ class Configuration:
         "description_general",
         "main_path",
         "number_cores",
-        "oelf_source_model_filename",
         "state_dependent_fragilities",
         "calculate_casualties",
         "mapping_damage_states",
@@ -188,10 +193,6 @@ class Configuration:
             config, "number_cores"
         )
 
-        self.oelf_source_model_filename = self.assign_parameter(
-            config, "oelf_source_model_filename"
-        )
-
         self.state_dependent_fragilities = self.assign_boolean_parameter(
             config, "state_dependent_fragilities"
         )
@@ -219,7 +220,10 @@ class Configuration:
                 "continuous_ses_numbering",
                 "ses_range",
                 "number_seismicity_models",
-                "seismicity_models_weights"
+                "seismicity_models_weights",
+                "oelf_rupture_type",
+                "oelf_source_model_filename",
+                "oelf_point_source_default_depth"
             ]
         )
         self.oelf["min_magnitude"] = self.assign_float_parameter(
@@ -257,6 +261,10 @@ class Configuration:
                 )
                 logger.critical(error_message)
                 raise OSError(error_message)
+
+        self.oelf["oelf_point_source_default_depth"] = self.assign_float_parameter(
+            self.oelf, "oelf_point_source_default_depth", True, 0.0, 1000.0
+        )
 
         self.injuries_scale = self.assign_listed_parameters(config, "injuries_scale")
 

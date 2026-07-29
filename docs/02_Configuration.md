@@ -29,11 +29,6 @@ level logs only (no debug messages).
 
 Number of CPUs to be used for computational processes that are parallelised.
 
-### `oelf_source_model_filename`
-
-Name of the XML file that contains the source model needed to create the earthquake ruptures to
-run OELF calculations. This file is assumed to be located under `main_path/ruptures`.
-
 ### `state_dependent_fragilities`
 
 Set to `True` if the fragility models used to run OpenQuake are state-dependent, set to `False`
@@ -123,6 +118,26 @@ generate the input OELF catalogue. It can either be:
 - "uniform": Uniform weights (`1/number_seismicity_models`) assigned to all seismicity models.
 - "from_file": File `static/seismicity_models_weights.csv` must exist, and the software will
 retrieve weights from there.
+
+**oelf_rupture_type**
+
+Type of earthquake ruptures to be generated. Currently supported values are "planar" (simple
+planar ruptures) and "point" (point sources). A valid source XML file is necessary under
+`oelf_source_model_filename` (see below) when "planar" is selected.
+
+**oelf_source_model_filename**
+
+Name of the XML file that contains the source model needed to create the earthquake ruptures to
+run OELF calculations. This file is assumed to be located under `main_path/ruptures`. Only
+needed if `oelf_rupture_type` is "planar".
+
+**oelf_point_source_default_depth**
+
+Default depth (km) to use for the generation of point sources if not provided in the input OELF
+catalogues. Only needed if `oelf_rupture_type` is "point". If the input OELF catalogues do have
+a "depth" column, this default value will be ignored (but a value still needs to be provided).
+WARNING: A proper modelling of the seismicity's depth (and subsequent specification of it in the
+catalogues) is preferable over the use of this simplified default parameter.
 
 **rupture_generator_seed**
 

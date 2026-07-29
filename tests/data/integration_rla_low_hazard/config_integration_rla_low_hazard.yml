@@ -1,7 +1,6 @@
 description_general: RLA Integration Test
 main_path: DEFINEDWITHINTEST
 number_cores: 1
-oelf_source_model_filename: source_model_for_oelf.xml
 state_dependent_fragilities: True
 calculate_casualties: True
 mapping_damage_states:
@@ -17,6 +16,9 @@ oelf:
   ses_range: 1, 10000
   number_seismicity_models: 1
   seismicity_models_weights: uniform
+  oelf_rupture_type: planar
+  oelf_source_model_filename: source_model_for_oelf.xml
+  oelf_point_source_default_depth: 99.0
   rupture_generator_seed: 1976
   rupture_region_properties:
     Volcanic Shallow:

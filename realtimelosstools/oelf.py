@@ -1443,7 +1443,7 @@ class OperationalEarthquakeLossForecasting():
 
     @staticmethod
     def format_seismicity_forecast(
-        forecast_catalogue, add_event_id=True, add_model_id=True, add_depth=False
+        forecast_catalogue, add_event_id=True, add_model_id=True
     ):
         """This method reformats 'forecast_catalogue' so that its fields are those required by
         the Real Time Loss Tools and its earthquakes are ordered, firstly, by stochastic event
@@ -1464,7 +1464,13 @@ class OperationalEarthquakeLossForecasting():
                 Optional fields are:
                     event_id (str): Unique identifier of an earthquake within a Stochastic Event
                     Set.
-                    depth (float): Depth of the hypocentre.
+                    depth (float): Depth of the hypocentre (km).
+                    strike (float): Strike of the rupture. Only used to generate point sources
+                        (not planar ruptures).
+                    dip (float): Dip of the rupture. Only used to generate point sources (not
+                        planar ruptures).
+                    rake (float): Slip direction of the fault plane. Only used to generate point
+                        sources (not planar ruptures).
             add_event_id (bool):
                 If True, a field named "event_id" will be added to 'forecast_catalogue'. Unique IDs
                 will be assigned to each earthquake within each stochastic event set (SES), in
@@ -1473,10 +1479,6 @@ class OperationalEarthquakeLossForecasting():
                 If True, a field named "model_id" will be added to 'forecast_catalogue'. All
                 "model_id" values will be 1, as it will be assumed that all earthquakes have
                 been generated with the same seismicity model. Default: True.
-            add_depth (bool):
-                If True, and if "Depth" or "depth" are not already fields of 'forecast_catalogue',
-                a "depth" field will be added to 'forecast_catalogue' and filled in with numpy.nan.
-                Default: False.
 
         Returns:
             out_catalogue (Pandas DataFrame):
@@ -1492,7 +1494,7 @@ class OperationalEarthquakeLossForecasting():
                     event_id (str): Unique identifier of an earthquake within a Stochastic Event
                         Set (only output if 'add_event_id' is True or if 'forecast_catalogue'
                         had an 'event_id' field already).
-                    depth (float): Depth of the hypocentre (only output if 'add_depth' is True).
+                    depth (float): Depth of the hypocentre (only if present in the input).
                 If "event_id" exists or 'add_event_id' is true, "out_catalogue" is assigned an
                 index called "EQID". If "model_id" exists or 'add_model_id' is True, the format
                 of the index is "[model_id]-[ses_id]-[event_id]". If "model_id" does not exist
@@ -1517,9 +1519,6 @@ class OperationalEarthquakeLossForecasting():
             out_catalogue = out_catalogue.rename(columns={"Idx.cat": "ses_id"})
         if "catalog_id" in columns_input:
             out_catalogue = out_catalogue.rename(columns={"catalog_id": "ses_id"})
-
-        if add_depth and ("Depth" not in columns_input) and ("depth" not in columns_input):
-            out_catalogue["depth"] = np.nan * np.ones_like(out_catalogue["magnitude"])
 
         # Order 'out_catalogue' first by SES ID and then chronologically (within each SES)
         out_catalogue = out_catalogue.sort_values(by=["ses_id", "datetime"], ignore_index=True)

@@ -8,8 +8,9 @@ buildings, by taking into account the time of the day of the earthquake as well 
 people are allowed back (due to inspection and repair times) and are able to do so (due to their
 own health status). The tools recursively call the
 [OpenQuake engine](https://github.com/gem/oq-engine) (Pagani et al., 2014; Silva et al., 2014)
-and update the exposure model and other relevant input files. They have been designed to work
-with v3.15 of the OpenQuake engine.
+and update the exposure model and other relevant input files. They were originally designed to
+work with v3.15 of the OpenQuake engine but have been upgraded since (current OpenQuake version
+used by the tools can be seen [here](../README.md)).
 
 ## General workflow
 
@@ -54,20 +55,31 @@ realisation of seismicity), taking the current “real” exposure as a starting
 `current/exposure_model_current.csv` file), as they correspond to seismicity forecasts that may
 or may not occur.
 
-Both RLA and OELF calculations require rupture XML files for each earthquake.
-In the case of OELF, a seismicity forecast is input by the user with a list of realisations of
-seismicity (referred to as "stochastic event sets", SES, following the nomenclature used in
-OpenQuake), each of which contains a number of earthquakes defined, at least, by their
-epicentre, magnitude, date/time of occurrence and the SES they belong to. The Real-Time Loss
-Tools first identify all earthquakes with magnitude equal to or larger than a threshold as well
-as within a maximum epicentral distance from the input exposure model, all these defined as
-input by the user. Then the tools use a stochastic rupture generator to build ruptures
-associated with each of these earthquakes based on an input model of uniform area sources
-(provided by the user in the OpenQuake seismogenic source model XML format), starting by
-sampling the hypocentral depth (if not provided in the seismicity forecast) and then the rupture
-nodal properties. All other earthquakes in the seismicity forecast that are filtered out due to
-the minimum magnitude and/or maximum distance criteria are assumed to not cause any change in
-the damage state of the buildings.
+Both RLA and OELF calculations require rupture XML files for each earthquake. In the case of
+OELF, a seismicity forecast is input by the user as one file that may contain earthquakes
+stemming from different seismicity models, each of which may be assigned a user-defined weight.
+The use of one seismicity model with a weight of 1.0 is equally possible. For each seismicity
+model it is expected that a set of realisations of seismicity (referred to as "stochastic event
+sets", SES, following the nomenclature used in OpenQuake) is provided, each containing a number
+of earthquakes defined, at least, by their epicentre, magnitude, date/time of occurrence and the
+SES and seismicity model they belong to. When loading the seismicity forecast, the Real-Time
+Loss identify all earthquakes with magnitude equal to or larger than a threshold as well as
+within a maximum epicentral distance from the input exposure model, all these defined as input
+by the user. All earthquakes in the seismicity forecast that are filtered out due to the minimum
+magnitude and/or maximum distance criteria are assumed to not cause any change in the damage
+state of the buildings. Then the tools proceed to build rupture files for the earthquakes that
+have passed this filtering. The user can specify whether they would like full planar ruptures or
+simple point sources to be created, the latter only appropriate as approximations for
+earthquakes of very small magnitudes. When planar ruptures are selected, the tools use a
+stochastic rupture generator to build ruptures associated with each of the earthquakes based on
+an input model of uniform area sources (provided by the user in the OpenQuake seismogenic source
+model XML format), starting by sampling the hypocentral depth (if not provided in the seismicity
+forecast) and then the rupture nodal properties. When point sources are selected, the tools
+simulate a point source using OpenQuake's `PointMSR` class, which assign a trivially small
+rupture area irrespective of the earthquake magnitude. Although the tools are able to sample
+earthquake depths from the area source XML (planar ruptures) or use a user-defined default
+(point sources), such approximations are discouraged, as earthquake depth is a parameter that
+should be properly modelled during the generation of the seismicity catalogues.
 
 In the case of RLA, the user can provide either a rupture XML file in the OpenQuake format or
 a series of rupture parameters by means of a CSV file, which are used by the Real-Time Loss

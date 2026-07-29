@@ -32,39 +32,9 @@ def test_format_seismicity_forecast():
     filepath = os.path.join(os.path.dirname(__file__), "data", "oef_catalogue.csv")
     forecast = pd.read_csv(filepath)
 
-    # Test case 1: add both event_id and depth
+    # Test case 1: add only event_id
     returned_forecast = OperationalEarthquakeLossForecasting.format_seismicity_forecast(
-        forecast, add_event_id=True, add_model_id=False, add_depth=True
-    )
-    expected_forecast = pd.read_csv(
-        os.path.join(os.path.dirname(__file__), "data", "oef_catalogue_expected_add_both.csv"),
-        sep=",",
-    )
-    expected_forecast["datetime"] = pd.to_datetime(expected_forecast["datetime"])
-    expected_forecast.set_index("EQID", drop=True, inplace=True)
-
-    assert len(returned_forecast.index) == len(expected_forecast.index)
-    assert len(returned_forecast.columns) == len(expected_forecast.columns)
-
-    for eqid in expected_forecast.index:
-        for column in expected_forecast.columns:
-            if column in ["longitude", "latitude", "magnitude"]:
-                assert round(returned_forecast.loc[eqid, column], 5) == round(
-                    expected_forecast.loc[eqid, column], 5
-                )
-            elif column in ["datetime", "ses_id", "event_id"]:
-                assert returned_forecast.loc[eqid, column] == expected_forecast.loc[eqid, column]
-            elif column in ["depth"]:
-                if np.isnan(expected_forecast.loc[eqid, column]):
-                    assert np.isnan(returned_forecast.loc[eqid, column])
-                else:
-                    assert round(returned_forecast.loc[eqid, column], 5) == round(
-                        expected_forecast.loc[eqid, column], 5
-                    )
-
-    # Test case 2: add only event_id
-    returned_forecast = OperationalEarthquakeLossForecasting.format_seismicity_forecast(
-        forecast, add_event_id=True, add_model_id=False, add_depth=False
+        forecast, add_event_id=True, add_model_id=False
     )
     expected_forecast = pd.read_csv(
         os.path.join(os.path.dirname(__file__), "data", "oef_catalogue_expected_add_event_id.csv"),
@@ -93,39 +63,9 @@ def test_format_seismicity_forecast():
                         expected_forecast.loc[eqid, column], 5
                     )
 
-    # Test case 3: add only depth
+    # Test case 3: add event_id and model_id
     returned_forecast = OperationalEarthquakeLossForecasting.format_seismicity_forecast(
-        forecast, add_event_id=False, add_model_id=False, add_depth=True
-    )
-    expected_forecast = pd.read_csv(
-        os.path.join(os.path.dirname(__file__), "data", "oef_catalogue_expected_add_depth.csv"),
-        sep=",",
-    )
-    expected_forecast["datetime"] = pd.to_datetime(expected_forecast["datetime"])
-
-    assert len(returned_forecast.index) == len(expected_forecast.index)
-    assert len(returned_forecast.columns) == len(expected_forecast.columns)
-    assert "event_id" not in returned_forecast.columns
-
-    for row in expected_forecast.index:
-        for column in expected_forecast.columns:
-            if column in ["longitude", "latitude", "magnitude"]:
-                assert round(returned_forecast.loc[row, column], 5) == round(
-                    expected_forecast.loc[row, column], 5
-                )
-            elif column in ["datetime", "ses_id", "event_id"]:
-                assert returned_forecast.loc[row, column] == expected_forecast.loc[row, column]
-            elif column in ["depth"]:
-                if np.isnan(expected_forecast.loc[row, column]):
-                    assert np.isnan(returned_forecast.loc[row, column])
-                else:
-                    assert round(returned_forecast.loc[row, column], 5) == round(
-                        expected_forecast.loc[row, column], 5
-                    )
-
-    # Test case 4: add only event_id and model_id
-    returned_forecast = OperationalEarthquakeLossForecasting.format_seismicity_forecast(
-        forecast, add_event_id=True, add_model_id=True, add_depth=False
+        forecast, add_event_id=True, add_model_id=True
     )
     expected_forecast = pd.read_csv(
         os.path.join(
@@ -199,7 +139,7 @@ def test_can_there_be_occupants():
     filepath = os.path.join(os.path.dirname(__file__), "data", "oef_catalogue.csv")
     forecast_cat = pd.read_csv(filepath)
     forecast_cat = OperationalEarthquakeLossForecasting.format_seismicity_forecast(
-        forecast_cat, add_event_id=True, add_depth=False
+        forecast_cat, add_event_id=True
     )
     # Newest date of 'forecast_cat' is 2009-04-07T01:33:02
 
@@ -325,7 +265,7 @@ def test_run_oelf_01():
         os.path.join(config.main_path, "catalogues", cat_filename)
     )
     forecast_cat = OperationalEarthquakeLossForecasting.format_seismicity_forecast(
-        forecast_cat, add_event_id=True, add_depth=False
+        forecast_cat, add_event_id=True
     )  # The index of 'forecast_cat' is the unique ID "[ses_id]-[event_id]"
 
     # Filter catalogue as per minimum magnitude and maximum distance (so as to not build
@@ -354,7 +294,7 @@ def test_run_oelf_01():
 
     # Instantiate the rupture set generator from xml
     stoch_rup = StochasticRuptureSet.from_xml(
-        os.path.join(config.main_path, "ruptures", config.oelf_source_model_filename),
+        os.path.join(config.main_path, "ruptures", config.oelf["oelf_source_model_filename"]),
         mmin=3.5,  # Minimum magnitude - for calculating total rates
         region_properties=config.oelf["rupture_region_properties"],
         rupture_generator_seed=config.oelf["rupture_generator_seed"]
@@ -753,7 +693,7 @@ def test_run_oelf_02():
         os.path.join(config.main_path, "catalogues", cat_filename)
     )
     forecast_cat = OperationalEarthquakeLossForecasting.format_seismicity_forecast(
-        forecast_cat, add_event_id=True, add_depth=False
+        forecast_cat, add_event_id=True
     )  # The index of 'forecast_cat' is the unique ID "[ses_id]-[event_id]"
 
     # Filter catalogue as per minimum magnitude and maximum distance (so as to not build
@@ -782,7 +722,7 @@ def test_run_oelf_02():
 
     # Instantiate the rupture set generator from xml
     stoch_rup = StochasticRuptureSet.from_xml(
-        os.path.join(config.main_path, "ruptures", config.oelf_source_model_filename),
+        os.path.join(config.main_path, "ruptures", config.oelf["oelf_source_model_filename"]),
         mmin=3.5,  # Minimum magnitude - for calculating total rates
         region_properties=config.oelf["rupture_region_properties"],
         rupture_generator_seed=config.oelf["rupture_generator_seed"]
@@ -1050,7 +990,7 @@ def test_run_oelf_03():
         os.path.join(config.main_path, "catalogues", cat_filename)
     )
     forecast_cat = OperationalEarthquakeLossForecasting.format_seismicity_forecast(
-        forecast_cat, add_event_id=True, add_depth=False
+        forecast_cat, add_event_id=True
     )  # The index of 'forecast_cat' is the unique ID "[ses_id]-[event_id]"
 
     # Filter catalogue as per minimum magnitude and maximum distance (so as to not build
@@ -1079,7 +1019,7 @@ def test_run_oelf_03():
 
     # Instantiate the rupture set generator from xml
     stoch_rup = StochasticRuptureSet.from_xml(
-        os.path.join(config.main_path, "ruptures", config.oelf_source_model_filename),
+        os.path.join(config.main_path, "ruptures", config.oelf["oelf_source_model_filename"]),
         mmin=3.5,  # Minimum magnitude - for calculating total rates
         region_properties=config.oelf["rupture_region_properties"],
         rupture_generator_seed=config.oelf["rupture_generator_seed"]

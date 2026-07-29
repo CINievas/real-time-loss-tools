@@ -29,6 +29,7 @@ from realtimelosstools.rla import RapidLossAssessment
 from realtimelosstools.ruptures import RLA_Ruptures
 from realtimelosstools.oelf import OperationalEarthquakeLossForecasting
 from realtimelosstools.stochastic_rupture_generator import StochasticRuptureSet
+from realtimelosstools.point_source_generator import PointSourceSet
 from realtimelosstools.exposure_updater import ExposureUpdater
 from realtimelosstools.losses import Losses
 from realtimelosstools.postprocessor import PostProcessor
@@ -361,7 +362,7 @@ def main():
                 os.path.join(config.main_path, "catalogues", cat_filename_i)
             )
             forecast_cat = OperationalEarthquakeLossForecasting.format_seismicity_forecast(
-                forecast_cat, add_event_id=True, add_depth=False
+                forecast_cat, add_event_id=True
             )  # The index of 'forecast_cat' is the unique ID "[ses_id]-[event_id]"
 
             # Filter catalogue as per minimum magnitude and maximum distance (so as to not build
@@ -404,16 +405,28 @@ def main():
                 logger.critical(error_message)
                 raise OSError(error_message)
 
-            # Instantiate the rupture set generator from xml
-            stoch_rup = StochasticRuptureSet.from_xml(
-                os.path.join(config.main_path, "ruptures", config.oelf_source_model_filename),
-                mmin=4.5,  # Minimum magnitude - for calculating total rates
-                region_properties=config.oelf["rupture_region_properties"],
-                rupture_generator_seed=config.oelf["rupture_generator_seed"]
-            )
+            if config.oelf["oelf_rupture_type"] == "planar":
+                # Simple planar ruptures to be generated
+                # Instantiate the rupture set generator from xml
+                rupture_source_generator = StochasticRuptureSet.from_xml(
+                    os.path.join(config.main_path, "ruptures", config.oelf["oelf_source_model_filename"]),
+                    mmin=4.5,  # Minimum magnitude - for calculating total rates
+                    region_properties=config.oelf["rupture_region_properties"],
+                    rupture_generator_seed=config.oelf["rupture_generator_seed"]
+                )
+            elif config.oelf["oelf_rupture_type"] == "point":
+                rupture_source_generator = PointSourceSet(
+                    config.oelf["oelf_point_source_default_depth"]
+                )
+            else:
+                error_message = (
+                    "The parameter 'oelf_rupture_type' can only be 'planar' or 'point'."
+                )
+                logger.critical(error_message)
+                raise OSError(error_message)
 
-            # Generate the ruptures for all earthquakes in 'forecast'
-            ruptures = stoch_rup.generate_ruptures(
+            # Generate the ruptures/point sources for all earthquakes in 'forecast'
+            ruptures = rupture_source_generator.generate_ruptures(
                 forecast_cat_filtered,
                 path_to_ruptures,  # Ruptures will be exported to this path
                 export_type='xml', # Type of file for export
