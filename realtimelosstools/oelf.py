@@ -1446,8 +1446,9 @@ class OperationalEarthquakeLossForecasting():
         forecast_catalogue, add_event_id=True, add_model_id=True
     ):
         """This method reformats 'forecast_catalogue' so that its fields are those required by
-        the Real Time Loss Tools and its earthquakes are ordered, firstly, by stochastic event
-        set (SES), and secondly in chronological order (within each SES).
+        the Real Time Loss Tools and its earthquakes are ordered, firstly, by seismicity model
+        ID (if available), then by ID of the stochastic event set (SES) and, finally, in
+        chronological order (within each SES of each model ID).
 
         Args:
             forecast_catalogue (Pandas DataFrame):
@@ -1463,7 +1464,8 @@ class OperationalEarthquakeLossForecasting():
                     the earthquake belongs to.
                 Optional fields are:
                     event_id (str): Unique identifier of an earthquake within a Stochastic Event
-                    Set.
+                        Set.
+                    model_id (int): ID of the seismicity model used to generate the earthquake.
                     depth (float): Depth of the hypocentre (km).
                     strike (float): Strike of the rupture. Only used to generate point sources
                         (not planar ruptures).
@@ -1520,30 +1522,55 @@ class OperationalEarthquakeLossForecasting():
         if "catalog_id" in columns_input:
             out_catalogue = out_catalogue.rename(columns={"catalog_id": "ses_id"})
 
-        # Order 'out_catalogue' first by SES ID and then chronologically (within each SES)
-        out_catalogue = out_catalogue.sort_values(by=["ses_id", "datetime"], ignore_index=True)
-
-        if add_event_id and "event_id" not in columns_input:
-            event_ids = []
-
-            # Identify IDs of individual realisations of seismicity
-            ses_ids = out_catalogue["ses_id"].unique()
-
-            for ses_id in ses_ids:  # Each of the seismicity forecasts
-                # Earthquakes that belong only to this realisation of seismicity
-                filter_realisation = (out_catalogue["ses_id"] == ses_id)
-                aux = out_catalogue[filter_realisation]
-                # Order the earthquakes in chronological order
-
-                event_ids_ses = [i for i in range(1, aux.shape[0]+1)]
-                event_ids = event_ids + event_ids_ses
-
-            out_catalogue["event_id"] = event_ids
-
         if add_model_id and "model_id" not in columns_input:
             # All earthquakes assumed to stem from the same seismicity model,
             # hereafter labelled "1"
             out_catalogue["model_id"] = np.ones(out_catalogue.shape[0], dtype=int)
+
+        # Order 'out_catalogue' first by model ID (if available), then by SES ID and then
+        # chronologically (within each SES of each model ID)
+        if "model_id" in out_catalogue.columns:
+            out_catalogue = out_catalogue.sort_values(
+                by=["model_id", "ses_id", "datetime"], ignore_index=True
+            )
+        else:
+            out_catalogue = out_catalogue.sort_values(
+                by=["ses_id", "datetime"], ignore_index=True
+            )
+
+        if add_event_id and "event_id" not in columns_input:
+            event_ids = []  # to collect all event IDs from all models and SESs
+
+            # Identify IDs of individual realisations of seismicity (numbering of
+            # events occurs within each unique combi of model, if available, and SES)
+            if "model_id" in out_catalogue.columns:
+                unique_model_ses_pairs = (
+                    out_catalogue[["model_id", "ses_id"]]
+                    .drop_duplicates()
+                    .reset_index(drop=True)
+                )
+            else:
+                unique_model_ses_pairs = (
+                    out_catalogue[["ses_id"]].drop_duplicates().reset_index(drop=True)
+                )
+
+            # Create filter per unique identified pair of model-SES
+            # (to select slices of "out_catalogue")
+            cols_to_consider = list(unique_model_ses_pairs.columns)
+            filters = [
+                out_catalogue[cols_to_consider].eq(row).all(axis=1)
+                for _, row in unique_model_ses_pairs.iterrows()
+            ]  # list with one element per row of "unique_model_ses_pairs"
+
+            for unique_pair_filter in filters:
+                # Earthquakes that belong only to this realisation of seismicity & model
+                aux = out_catalogue[unique_pair_filter]
+
+                # Create event IDs for this realisation of seismicity & model
+                event_ids_ses = [i for i in range(1, aux.shape[0]+1)]
+                event_ids = event_ids + event_ids_ses  # concatenate
+
+            out_catalogue["event_id"] = event_ids
 
         if ("event_id" in out_catalogue.columns) and ("ses_id" in out_catalogue.columns):
             if "model_id" in out_catalogue.columns:

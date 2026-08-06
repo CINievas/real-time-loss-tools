@@ -63,7 +63,7 @@ def test_format_seismicity_forecast():
                         expected_forecast.loc[eqid, column], 5
                     )
 
-    # Test case 3: add event_id and model_id
+    # Test case 2: add event_id and model_id
     returned_forecast = OperationalEarthquakeLossForecasting.format_seismicity_forecast(
         forecast, add_event_id=True, add_model_id=True
     )
@@ -72,6 +72,46 @@ def test_format_seismicity_forecast():
             os.path.dirname(__file__),
             "data",
             "oef_catalogue_expected_add_event_id_and_model_id.csv"
+        ),
+        sep=",",
+    )
+    expected_forecast["datetime"] = pd.to_datetime(expected_forecast["datetime"])
+    expected_forecast.set_index("EQID", drop=True, inplace=True)
+
+    assert len(returned_forecast.index) == len(expected_forecast.index)
+    assert len(returned_forecast.columns) == len(expected_forecast.columns)
+    assert "depth" not in returned_forecast.columns
+
+    for eqid in expected_forecast.index:
+        for column in expected_forecast.columns:
+            if column in ["longitude", "latitude", "magnitude"]:
+                assert round(returned_forecast.loc[eqid, column], 5) == round(
+                    expected_forecast.loc[eqid, column], 5
+                )
+            elif column in ["datetime", "ses_id", "event_id"]:
+                assert returned_forecast.loc[eqid, column] == expected_forecast.loc[eqid, column]
+            elif column in ["depth"]:
+                if np.isnan(expected_forecast.loc[eqid, column]):
+                    assert np.isnan(returned_forecast.loc[eqid, column])
+                else:
+                    assert round(returned_forecast.loc[eqid, column], 5) == round(
+                        expected_forecast.loc[eqid, column], 5
+                    )
+
+    # Test case 3: event_id and model_id already input, check order by model, SES and datetime
+    filepath = os.path.join(
+        os.path.dirname(__file__), "data", "oef_catalogue_several_models.csv"
+    )
+    forecast = pd.read_csv(filepath)
+
+    returned_forecast = OperationalEarthquakeLossForecasting.format_seismicity_forecast(
+        forecast, add_event_id=True, add_model_id=True
+    )
+    expected_forecast = pd.read_csv(
+        os.path.join(
+            os.path.dirname(__file__),
+            "data",
+            "oef_catalogue_expected_several_models_ordered.csv"
         ),
         sep=",",
     )
