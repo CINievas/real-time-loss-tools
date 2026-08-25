@@ -312,19 +312,19 @@ class RapidLossAssessment:
 
         if calculate_casualties:
             # Determine time of the day (used for number of occupants)
-            local_hour = Time.determine_local_time_from_utc(
-                (earthquake["datetime"]).to_pydatetime(), local_timezone
-            )
-            time_of_day = Time.interpret_time_of_the_day(local_hour.hour)
+            earthquake_df = pd.DataFrame(earthquake, index=[0]) # build aux DataFrame
 
-            if time_of_day == "error":
-                error_message = (
-                    "Something went wrong when determining the time of the day for earthquake "
-                    "with event ID %s. UTC time is %s. Local time is %s. The program cannot run."
-                    % (earthquake["event_id"], earthquake["datetime"], local_hour)
-                )
-                logger.critical(error_message)
-                raise OSError(error_message)
+            earthquake_df["local_time"] = Time.determine_local_time_from_utc(
+                earthquake_df["datetime"], local_timezone
+            )
+            earthquake_df["time_of_day"] = Time.interpret_time_of_the_day(
+                earthquake_df["local_time"]
+            )
+
+            time_of_day = earthquake_df.loc[0, "time_of_day"]
+
+            del earthquake_df # delete aux DataFrame
+
         else:
             time_of_day = None
 

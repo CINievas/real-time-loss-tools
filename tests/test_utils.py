@@ -17,7 +17,6 @@
 # along with this program. If not, see http://www.gnu.org/licenses/.
 
 import os
-import pytz
 import pytest
 import numpy as np
 import pandas as pd
@@ -93,136 +92,145 @@ def test_MultilinearStepFunction():
 
 
 def test_interpret_time_of_the_day():
-    assert Time.interpret_time_of_the_day(0) == "night"
-    assert Time.interpret_time_of_the_day(1) == "night"
-    assert Time.interpret_time_of_the_day(2) == "night"
-    assert Time.interpret_time_of_the_day(3) == "night"
-    assert Time.interpret_time_of_the_day(4) == "night"
-    assert Time.interpret_time_of_the_day(5) == "night"
-    assert Time.interpret_time_of_the_day(6) == "transit"
-    assert Time.interpret_time_of_the_day(7) == "transit"
-    assert Time.interpret_time_of_the_day(8) == "transit"
-    assert Time.interpret_time_of_the_day(9) == "transit"
-    assert Time.interpret_time_of_the_day(10) == "day"
-    assert Time.interpret_time_of_the_day(11) == "day"
-    assert Time.interpret_time_of_the_day(12) == "day"
-    assert Time.interpret_time_of_the_day(13) == "day"
-    assert Time.interpret_time_of_the_day(14) == "day"
-    assert Time.interpret_time_of_the_day(15) == "day"
-    assert Time.interpret_time_of_the_day(16) == "day"
-    assert Time.interpret_time_of_the_day(17) == "day"
-    assert Time.interpret_time_of_the_day(18) == "transit"
-    assert Time.interpret_time_of_the_day(19) == "transit"
-    assert Time.interpret_time_of_the_day(20) == "transit"
-    assert Time.interpret_time_of_the_day(21) == "transit"
-    assert Time.interpret_time_of_the_day(22) == "night"
-    assert Time.interpret_time_of_the_day(23) == "night"
-    assert Time.interpret_time_of_the_day(24) == "error"
-    assert Time.interpret_time_of_the_day(28) == "error"
+    # Simulate an input catalogue DataFrame (including expected outputs)
+    cat_df = pd.DataFrame(
+        {
+            "local_time": [
+                datetime(2026, 8, 24, 0, 0, 0),
+                datetime(2026, 8, 24, 0, 17, 0),
+                datetime(2026, 8, 24, 1, 17, 0),
+                datetime(2026, 8, 24, 2, 17, 0),
+                datetime(2026, 8, 24, 3, 17, 0),
+                datetime(2026, 8, 24, 4, 17, 0),
+                datetime(2026, 8, 24, 5, 17, 0),
+                datetime(2026, 8, 24, 6, 17, 0),
+                datetime(2026, 8, 24, 7, 17, 0),
+                datetime(2026, 8, 24, 8, 17, 0),
+                datetime(2026, 8, 24, 9, 17, 0),
+                datetime(2026, 8, 24, 10, 17, 0),
+                datetime(2026, 8, 24, 11, 17, 0),
+                datetime(2026, 8, 24, 12, 17, 0),
+                datetime(2026, 8, 24, 13, 17, 0),
+                datetime(2026, 8, 24, 14, 17, 0),
+                datetime(2026, 8, 24, 15, 17, 0),
+                datetime(2026, 8, 24, 16, 17, 0),
+                datetime(2026, 8, 24, 17, 17, 0),
+                datetime(2026, 8, 24, 18, 17, 0),
+                datetime(2026, 8, 24, 19, 17, 0),
+                datetime(2026, 8, 24, 20, 17, 0),
+                datetime(2026, 8, 24, 21, 59, 59),
+                datetime(2026, 8, 24, 22, 0, 0),
+                datetime(2026, 8, 24, 23, 17, 0),
+                datetime(2026, 8, 24, 23, 59, 59)
+            ],
+            "expected": [
+                "night",
+                "night",
+                "night",
+                "night",
+                "night",
+                "night",
+                "night",
+                "transit",
+                "transit",
+                "transit",
+                "transit",
+                "day",
+                "day",
+                "day",
+                "day",
+                "day",
+                "day",
+                "day",
+                "day",
+                "transit",
+                "transit",
+                "transit",
+                "transit",
+                "night",
+                "night",
+                "night"
+            ]  # Expected outputs
+        }
+    )
+
+    cat_df["returned"] = Time.interpret_time_of_the_day(cat_df["local_time"])
+
+    assert (cat_df["returned"] == cat_df["expected"]).all()
 
 
 def test_determine_local_time_from_utc():
-    # Test Central Europe winter time
-    returned_timestamp = Time.determine_local_time_from_utc(
-        datetime(2023, 1, 3, 17, 45, 27), "Europe/Rome"
-    ).timestamp()
-
-    expected_timestamp = (
-        pytz.timezone("Europe/Rome").localize(datetime(2023, 1, 3, 18, 45, 27)).timestamp()
+    # Simulate an input catalogue DataFrame (including expected outputs)
+    cat_df = pd.DataFrame(
+        {
+            "datetime": [
+                datetime(2023, 1, 3, 17, 45, 27),
+                datetime(2023, 4, 3, 17, 45, 27),
+                datetime(2009, 4, 6, 1, 32, 0),
+                datetime(2016, 8, 24, 1, 36, 0),
+                datetime(2016, 10, 26, 19, 18, 0),
+                datetime(2016, 10, 30, 6, 40, 0)
+            ],
+            "comments": [
+                "Test Central Europe winter time",
+                "Test Central Europe summer time",
+                "L'Aquila earthquake main shock",
+                "2016 Central It, 1st large shock",
+                "2016 Central It, 2nd large shock of 2nd phase, days before end of daylight saving time",
+                "2016 Central It, 2nd large shock of 2nd phase, on day of end of daylight saving time",
+            ],
+            "expected": [
+                datetime(2023, 1, 3, 18, 45, 27),
+                datetime(2023, 4, 3, 19, 45, 27),
+                datetime(2009, 4, 6, 3, 32, 0),
+                datetime(2016, 8, 24, 3, 36, 0),
+                datetime(2016, 10, 26, 21, 18, 0),
+                datetime(2016, 10, 30, 7, 40, 0)
+            ]  # Expected outputs
+        }
     )
+    cat_df["expected"] = (
+        pd.to_datetime(cat_df["expected"])
+        .dt.tz_localize("Europe/Rome")
+    )  # Assign time zone to this originally-naive column
 
-    assert round(returned_timestamp, 10) == round(expected_timestamp, 10)
+    # Local timezone to convert to
+    local_timezone = "Europe/Rome"
 
-    # Test Central Europe summer time
-    returned_timestamp = Time.determine_local_time_from_utc(
-        datetime(2023, 4, 3, 17, 45, 27), "Europe/Rome"
-    ).timestamp()
+    returned_timestamps = Time.determine_local_time_from_utc(cat_df["datetime"], local_timezone)
 
-    expected_timestamp = (
-        pytz.timezone("Europe/Rome").localize(datetime(2023, 4, 3, 19, 45, 27)).timestamp()
-    )
-
-    assert round(returned_timestamp, 10) == round(expected_timestamp, 10)
-
-    # Test with times of relevant Italian earthquakes
-    ## Italian #1, L'Aquila main shock
-    returned_timestamp = Time.determine_local_time_from_utc(
-        datetime(2009, 4, 6, 1, 32, 0), "Europe/Rome"
-    ).timestamp()
-
-    expected_timestamp = (
-        pytz.timezone("Europe/Rome").localize(datetime(2009, 4, 6, 3, 32, 0)).timestamp()
-    )
-
-    assert round(returned_timestamp, 10) == round(expected_timestamp, 10)
-
-    ## Italian #2, first large shock of 2016 Central Italy sequence
-    returned_timestamp = Time.determine_local_time_from_utc(
-        datetime(2016, 8, 24, 1, 36, 0), "Europe/Rome"
-    ).timestamp()
-
-    expected_timestamp = (
-        pytz.timezone("Europe/Rome").localize(datetime(2016, 8, 24, 3, 36, 0)).timestamp()
-    )
-
-    assert round(returned_timestamp, 10) == round(expected_timestamp, 10)
-
-    ## Italian #3, second large shock of second phase of 2016 Central Italy sequence
-    ## (a few days before the end of the end of the 2016 daylight saving time)
-    returned_timestamp = Time.determine_local_time_from_utc(
-        datetime(2016, 10, 26, 19, 18, 0), "Europe/Rome"
-    ).timestamp()
-
-    expected_timestamp = (
-        pytz.timezone("Europe/Rome").localize(datetime(2016, 10, 26, 21, 18, 0)).timestamp()
-    )
-
-    assert round(returned_timestamp, 10) == round(expected_timestamp, 10)
-
-    ## Italian #4, third large shock of second phase of 2016 Central Italy sequence
-    ## (on the day of the end of the 2016 daylight saving time, a few hours later)
-    returned_timestamp = Time.determine_local_time_from_utc(
-        datetime(2016, 10, 30, 6, 40, 0), "Europe/Rome"
-    ).timestamp()
-
-    expected_timestamp = (
-        pytz.timezone("Europe/Rome").localize(datetime(2016, 10, 30, 7, 40, 0)).timestamp()
-    )
-
-    assert round(returned_timestamp, 10) == round(expected_timestamp, 10)
+    assert (returned_timestamps.astype("int64") == cat_df["expected"].astype("int64")).all()
 
 
 def test_integration_determine_local_time_from_utc_and_interpret_time_of_the_day():
-    # Test with times of relevant Italian earthquakes
-    ## Italian #1, L'Aquila main shock
-    returned_datetime = Time.determine_local_time_from_utc(
-        datetime(2009, 4, 6, 1, 32, 0), "Europe/Rome"
+    # Simulate an input catalogue DataFrame (including expected outputs)
+    cat_df = pd.DataFrame(
+        {
+            "datetime": [
+                datetime(2009, 4, 6, 1, 32, 0),
+                datetime(2016, 8, 24, 1, 36, 0),
+                datetime(2016, 10, 26, 19, 18, 0),
+                datetime(2016, 10, 30, 6, 40, 0)
+            ],
+            "comments": [
+                "L'Aquila earthquake main shock",
+                "2016 Central It, 1st large shock",
+                "2016 Central It, 2nd large shock of 2nd phase, days before end of daylight saving time",
+                "2016 Central It, 2nd large shock of 2nd phase, on day of end of daylight saving time",
+            ],
+            "expected": [
+                "night", "night", "transit", "transit"
+            ]  # Expected outputs
+        }
     )
 
-    assert Time.interpret_time_of_the_day(returned_datetime.hour) == "night"
+    # Local timezone to convert to
+    local_timezone = "Europe/Rome"
 
-    ## Italian #2, first large shock of 2016 Central Italy sequence
-    returned_datetime = Time.determine_local_time_from_utc(
-        datetime(2016, 8, 24, 1, 36, 0), "Europe/Rome"
-    )
+    local_timestamps = Time.determine_local_time_from_utc(cat_df["datetime"], local_timezone)
+    returned_time_of_day = Time.interpret_time_of_the_day(local_timestamps)
 
-    assert Time.interpret_time_of_the_day(returned_datetime.hour) == "night"
-
-    ## Italian #3, second large shock of second phase of 2016 Central Italy sequence
-    ## (a few days before the end of the end of the 2016 daylight saving time)
-    returned_datetime = Time.determine_local_time_from_utc(
-        datetime(2016, 10, 26, 19, 18, 0), "Europe/Rome"
-    )
-
-    assert Time.interpret_time_of_the_day(returned_datetime.hour) == "transit"
-
-    ## Italian #4, third large shock of second phase of 2016 Central Italy sequence
-    ## (on the day of the end of the 2016 daylight saving time, a few hours later)
-    returned_datetime = Time.determine_local_time_from_utc(
-        datetime(2016, 10, 30, 6, 40, 0), "Europe/Rome"
-    )
-
-    assert Time.interpret_time_of_the_day(returned_datetime.hour) == "transit"
+    assert (returned_time_of_day == cat_df["expected"]).all()
 
 
 def test_find_string_in_file():

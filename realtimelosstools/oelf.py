@@ -464,6 +464,20 @@ class OperationalEarthquakeLossForecasting():
             # Identify IDs in the input 'forecast_catalogue'
             oef_ses_ids = deepcopy(ses_ids_in_catalogue)
 
+        # Local time of day and classification into day, night, transit
+        # (used to calculate number of occupants)
+        if calculate_casualties and there_can_be_occupants:
+            forecast_catalogue["local_time"] = Time.determine_local_time_from_utc(
+                forecast_catalogue["datetime"],
+                local_timezone
+            )
+            forecast_catalogue["time_of_day"] = Time.interpret_time_of_the_day(
+                forecast_catalogue["local_time"]
+            )
+        else:
+            forecast_catalogue["local_time"] = None
+            forecast_catalogue["time_of_day"] = None
+
         # Initialise 'damage_states_all_ses', 'losses_economic_all_ses', 'losses_human_all_ses'
         # to gather results from all SES from all seismicity models
         damage_states_all_ses = None
@@ -532,32 +546,9 @@ class OperationalEarthquakeLossForecasting():
                         description_general, forecast_name, eq_id
                     )
 
-                    if calculate_casualties:
-                        # Determine time of the day (used for number of occupants)
-                        local_hour = Time.determine_local_time_from_utc(
-                            (events_in_ses.loc[eq_id, "datetime"]).to_pydatetime(),
-                            local_timezone
-                        )
-                        time_of_day = Time.interpret_time_of_the_day(
-                            local_hour.hour
-                        )
-
-                        if time_of_day == "error":
-                            error_message = (
-                                "Something went wrong when determining the time of the day for "
-                                "earthquake of %s with event ID %s. UTC time is %s. Local time is %s. "
-                                "The program cannot run."
-                                % (
-                                    forecast_name,
-                                    eq_id,
-                                    events_in_ses.loc[eq_id, "datetime"],
-                                    local_hour,
-                                )
-                            )
-                            logger.critical(error_message)
-                            raise OSError(error_message)
-                    else:
-                        time_of_day = None
+                    # Retrieve "time_of_day"
+                    time_of_day = events_in_ses.loc[eq_id, "time_of_day"]
+                    # can be None if not calculate_casualties
 
                     # Load exposure CSV (the exposure model to be used to run OpenQuake with this
                     # earthquake). This exposure file contains census occupants not adjusted to

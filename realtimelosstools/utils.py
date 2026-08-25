@@ -20,7 +20,6 @@ import os
 import logging
 import numpy as np
 import pandas as pd
-import pytz
 
 
 logger = logging.getLogger()
@@ -82,31 +81,32 @@ class Time():
     @staticmethod
     def determine_local_time_from_utc(utc_time_naive, local_timezone):
         """
-        This method converts the datetime object 'utc_time', assumed to be in UTC, into the
-        specified 'local_timezone'.
+        This method converts the datetime64 objects in the 'utc_time_naive' Pandas Series,
+        assumed to be in UTC, into the specified 'local_timezone'.
 
         Args:
-            utc_time_naive (datetime object):
-                Datetime object, assumed to be in UTC, with no timezone defined.
+            utc_time_naive (Pandas Series, dtype: naive datetime64):
+                Pandas Series of UTC times, with no timezone defined (i.e., "naive").
             local_timezone (str):
                 Local time zone in the format of the IANA Time Zone Database.
                 E.g. "Europe/Rome".
 
         Returns:
-            local_time (datetime object):
-                Datetime object equivalent to 'utc_time' in the target 'local_timezone'.
+            local_time_aware (Pandas Series, dtype: timezone-aware datetime64):
+                Pandas Series of the equivalent local times of 'utc_time_naive' in the target
+                'local_timezone'.
         """
 
-        # Assume time zone of 'utc_time' is UTC (assign it)
-        utc_time_aware = utc_time_naive.replace(tzinfo=pytz.UTC)
-
-        # Convert into local time
-        local_time_aware = utc_time_aware.astimezone(pytz.timezone(local_timezone))
+        local_time_aware = (
+            utc_time_naive
+            .dt.tz_localize("UTC") # Assume time zone of 'utc_time' is UTC (assign it)
+            .dt.tz_convert(local_timezone) # Convert into local time
+        )
 
         return local_time_aware
 
     @staticmethod
-    def interpret_time_of_the_day(local_hour):
+    def interpret_time_of_the_day(local_time):
         """This method interprets a time of the day as corresponding to the "day", "night" or
         "transit" period, in the following way:
             Day: 10 am (inclusive) to 6 pm (exclusive).
@@ -114,25 +114,32 @@ class Time():
             Transit: 6 am (inclusive) to 10 am (exclusive), and 6 pm (inclusive) to 10 pm
                 (exclusive).
 
+        If the method encounters an element in 'local_time' that makes it impossible to assign a
+        time of the day, an error is raised.
+
         Args:
-            local_hour (int):
-                Hour of the day (in local time), as an integer equal to or larger than 0 and smaller
-                than 24.
+            local_time (Pandas Series, dtype: timezone-aware datetime64):
+                Hour of the day.
 
         Returns:
-            time_of_day (str):
-                "day", "night", "transit", "error" (if local_hour is an integer smaller than 0 or
-                equal to or larger than 24).
+            time_of_day (Pandas Series):
+                Pandas Series containing "day", "night", "transit".
         """
+        hours = local_time.dt.hour
 
-        if local_hour >= 10 and local_hour < 18:
-            time_of_day = "day"
-        elif (local_hour >= 22 and local_hour < 24) or (local_hour >= 0 and local_hour < 6):
-            time_of_day = "night"
-        elif (local_hour >= 6 and local_hour < 10) or (local_hour >= 18 and local_hour < 22):
-            time_of_day = "transit"
-        else:
-            time_of_day = "error"
+        bins = [-1, 5, 9, 17, 21, 24]  # -1 because pd.cut bins are left-open, right-closed
+        labels = ["night", "transit", "day", "transit", "night"]
+
+        time_of_day = pd.cut(hours, bins=bins, labels=labels, ordered=False)
+        time_of_day = time_of_day.cat.add_categories(["error"]).fillna("error")
+
+        if "error" in time_of_day:
+            error_message = (
+                "Something went wrong when determining the time of the day of at least "
+                "one earthquake in the catalogue. The program cannot run."
+            )
+            logger.critical(error_message)
+            raise OSError(error_message)
 
         return time_of_day
 
