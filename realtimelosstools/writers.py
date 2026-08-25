@@ -161,9 +161,12 @@ class Writer:
                     print(line.replace(text_to_search, replacement_text), end='')
                 elif "<occupancyPeriods>" in line:
                     text_to_search = line
-                    replacement_text = (
-                        "    <occupancyPeriods>%s</occupancyPeriods>\n" % (time_of_day)
-                    )
+                    if time_of_day is None:
+                        replacement_text = ("    <occupancyPeriods></occupancyPeriods>\n")
+                    else:
+                        replacement_text = (
+                            "    <occupancyPeriods>%s</occupancyPeriods>\n" % (time_of_day)
+                        )
                     print(line.replace(text_to_search, replacement_text), end='')
                 else:
                     text_to_search = line
