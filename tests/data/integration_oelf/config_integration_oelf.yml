@@ -13,7 +13,7 @@ oelf:
   min_magnitude: 3.5
   max_distance: 200.0
   continuous_ses_numbering: True
-  ses_range: 1, 4
+  ses_range: 1, 5
   number_seismicity_models: 1
   seismicity_models_weights: uniform
   oelf_rupture_type: planar

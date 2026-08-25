@@ -488,6 +488,8 @@ class OperationalEarthquakeLossForecasting():
         losses_economic_all_ses = None
         losses_human_all_ses = None
 
+        precalculated_nodmg = None
+
         for oef_model_id in forecast_model_weights.index:  # Each of the seismicity models
             for k, oef_ses_id in enumerate(oef_ses_ids):  # Each of the stochastic event sets
 
@@ -519,26 +521,36 @@ class OperationalEarthquakeLossForecasting():
                     # Empty DataFrame with the same structure
                     events_in_ses = forecast_catalogue.head(0)
 
-                # Initialise exposure_model_current_XX.csv, with XX = oef_model_id_oef_ses_id
-                in_filename = os.path.join(
-                    main_path, "current", "exposure_model_current.csv"
-                )  # origin
-                current_exposure_filename = "exposure_model_current_oelf_%s_%s.csv" % (
-                    oef_model_id, oef_ses_id
-                )
-                out_filename = os.path.join(path_to_exposure, current_exposure_filename)
-                _ = shutil.copyfile(in_filename, out_filename)
-
                 damage_states = None
+                losses_economic = None
                 losses_human_all_events = None
-                # Initialise exposure, in case there are no elements in 'events_in_ses'
-                exposure_updated_damage = pd.read_csv(
-                    os.path.join(path_to_exposure, current_exposure_filename),
-                    dtype={"id_3": str, "id_2": str, "id_1": str}
-                )
-                exposure_updated_damage.index = exposure_updated_damage["id"]
-                exposure_updated_damage.index = exposure_updated_damage.index.rename("asset_id")
-                exposure_updated_damage = exposure_updated_damage.drop(columns=["id"])
+
+                if (
+                    (events_in_ses.shape[0] > 0) or
+                    (events_in_ses.shape[0] == 0 and precalculated_nodmg is None)
+                ):
+                    # Initialise exposure_model_current_XX.csv, with XX = oef_model_id_oef_ses_id
+                    in_filename = os.path.join(
+                        main_path, "current", "exposure_model_current.csv"
+                    )  # origin
+                    current_exposure_filename = "exposure_model_current_oelf_%s_%s.csv" % (
+                        oef_model_id, oef_ses_id
+                    )
+                    out_filename = os.path.join(path_to_exposure, current_exposure_filename)
+                    _ = shutil.copyfile(in_filename, out_filename)
+
+                    # Initialise exposure, in case there are no elements in 'events_in_ses'
+                    exposure_updated_damage = pd.read_csv(
+                        os.path.join(path_to_exposure, current_exposure_filename),
+                        dtype={"id_3": str, "id_2": str, "id_1": str}
+                    )
+                    exposure_updated_damage.index = exposure_updated_damage["id"]
+                    exposure_updated_damage.index = exposure_updated_damage.index.rename("asset_id")
+                    exposure_updated_damage = exposure_updated_damage.drop(columns=["id"])
+                else:
+                    # No earthquakes to run for this combination of (oef_model_id, oef_ses_id)
+                    # and the no-damage outputs have already been pre-calculated
+                    exposure_updated_damage = None # No need to initialise the exposure model
 
                 # Run earthquake by earthquake of this stochastic event set
                 for eq_id in events_in_ses.index:  # EQID is index of DataFrame
@@ -838,33 +850,63 @@ class OperationalEarthquakeLossForecasting():
                         index=False,
                     )
 
-                # Get damage states per building ID for this stochastic event set (OELF
-                # realisation) of this seismicity model
-                damage_states = ExposureUpdater.summarise_damage_states_per_building_id(
-                    exposure_updated_damage
-                )
-                # Get economic losses per building ID for this stochastic event set (realisation)
-                losses_economic = Losses.expected_economic_loss(
-                    exposure_updated_damage, consequence_economic
-                )
+                # Calculate or retrieve pre-calculated (no damage)
+                # 'damage_states', 'losses_economic', and 'losses_human_all_events'
+                # (i.e. results of this (oef_model_id, oef_ses_id))
+                if (
+                    (events_in_ses.shape[0] > 0) or
+                    ((events_in_ses.shape[0] == 0) and (precalculated_nodmg is None))
+                ):
+                    # Get damage states per building ID for this stochastic event set (OELF
+                    # realisation) of this seismicity model
+                    damage_states = ExposureUpdater.summarise_damage_states_per_building_id(
+                        exposure_updated_damage
+                    )
+                    # Get economic losses per building ID for this stochastic event set
+                    # (realisation)
+                    losses_economic = Losses.expected_economic_loss(
+                        exposure_updated_damage, consequence_economic
+                    )
 
-                if calculate_casualties:
-                    # Add human losses due to all events
-                    # (i.e. get total human losses from this stochastic event set)
-                    if losses_human_all_events is None:
-                        # None of the earthquakes of this stochastic event set were run
-                        # (too small or far away) --> assign zero injuries to all building IDs
-                        losses_human_all_events = Losses.assign_zero_human_losses(
-                            original_exposure_model, list(consequence_injuries.keys())
-                        )
-                    else:
-                        losses_human_all_events = (
-                            losses_human_all_events.groupby(["building_id"]).sum(
-                                numeric_only=True
+                    if calculate_casualties:
+                        # Add human losses due to all events
+                        # (i.e. get total human losses from this stochastic event set)
+                        if losses_human_all_events is None:
+                            # None of the earthquakes of this stochastic event set were run (too
+                            # small or far away) --> assign zero injuries to all building IDs
+                            losses_human_all_events = Losses.assign_zero_human_losses(
+                                original_exposure_model, list(consequence_injuries.keys())
                             )
+                        else:
+                            losses_human_all_events = (
+                                losses_human_all_events.groupby(["building_id"]).sum(
+                                    numeric_only=True
+                                )
+                            )
+
+                    if ((events_in_ses.shape[0] == 0) and (precalculated_nodmg is None)):
+                        # Store this no-damage results for future model-SES with no damage
+                        precalculated_nodmg = {}
+                        precalculated_nodmg["damage_states"] = deepcopy(damage_states)
+                        precalculated_nodmg["losses_economic"] = deepcopy(losses_economic)
+
+                        if calculate_casualties:
+                            precalculated_nodmg["losses_human_all_events"] = deepcopy(
+                                losses_human_all_events
+                            )
+
+                else: # events_in_ses.shape[0] == 0 and precalculated_nodmg is NOT None
+                    # Retrieve previously-calculated
+                    damage_states = deepcopy(precalculated_nodmg["damage_states"])
+                    losses_economic = deepcopy(precalculated_nodmg["losses_economic"])
+
+                    if calculate_casualties:
+                        losses_human_all_events = deepcopy(
+                            precalculated_nodmg["losses_human_all_events"]
                         )
 
                 # Store damage states, economic losses and human losses per building ID
+                # (i.e. results of this (oef_model_id, oef_ses_id))
                 if store_intermediate:
                     damage_states.to_csv(
                         os.path.join(
@@ -897,7 +939,7 @@ class OperationalEarthquakeLossForecasting():
                             index=True,
                         )
 
-                # Concatenate damage states from all stochastic event sets
+                # Concatenate damage states from all (oef_model_id, oef_ses_id) sets
                 damage_states["model_id"] = [
                     oef_model_id for j in range(damage_states.shape[0])
                 ]
@@ -912,7 +954,7 @@ class OperationalEarthquakeLossForecasting():
                         [damage_states_all_ses, damage_states]
                     )
 
-                # Concatenate economic losses from all stochastic event sets
+                # Concatenate economic losses from all (oef_model_id, oef_ses_id) sets
                 losses_economic["model_id"] = [
                     oef_model_id for j in range(losses_economic.shape[0])
                 ]
@@ -928,7 +970,7 @@ class OperationalEarthquakeLossForecasting():
                     )
 
                 if calculate_casualties:
-                    # Concatenate human losses from all stochastic event sets
+                    # Concatenate human losses from all (oef_model_id, oef_ses_id) sets
                     losses_human_all_events["model_id"] = [
                         oef_model_id for j in range(losses_human_all_events.shape[0])
                     ]

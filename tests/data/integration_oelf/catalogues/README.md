@@ -19,6 +19,10 @@ one should not due to the second one occurring shortly before.
 should be filtered out due to its magnitude being smaller than the minimum threshold specified
 in `config.yml` (and thus assumed to cause no damage). The third earthquake causes further
 damage but no casualties due to the first one occurring shortly before.
+- SES 5: It is not present in `test_oelf_01.csv`; simulating the case in which the SES only
+contains earthquakes with magnitudes smaller than the threshold used to generate the output of
+the seismicity forecast. No damage, no losses. But in this case, the no-damage outputs should
+be pre-calculated from SES 2.
 
 ## References
 
