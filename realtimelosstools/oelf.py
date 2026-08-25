@@ -478,6 +478,10 @@ class OperationalEarthquakeLossForecasting():
             forecast_catalogue["local_time"] = None
             forecast_catalogue["time_of_day"] = None
 
+        # Group 'forecast_catalogue' so that it is easier to identify each
+        # (oef_model_id, oef_ses_id) subset ('catalogue_groups' is DataFrameGroupBy object)
+        catalogue_groups = forecast_catalogue.groupby(["model_id", "ses_id"])
+
         # Initialise 'damage_states_all_ses', 'losses_economic_all_ses', 'losses_human_all_ses'
         # to gather results from all SES from all seismicity models
         damage_states_all_ses = None
@@ -509,13 +513,11 @@ class OperationalEarthquakeLossForecasting():
 
                 # Earthquakes that belong only to this realisation of seismicity (SES)
                 # and seismicity model
-                filter_realisation = (
-                    (forecast_catalogue["ses_id"] == oef_ses_id) &
-                    (forecast_catalogue["model_id"] == oef_model_id)
-                )
-                aux = forecast_catalogue[filter_realisation]
-                # Order the earthquakes of this SES in chronological order
-                events_in_ses = aux.sort_values(by=['datetime'])  # can be empty
+                if (oef_model_id, oef_ses_id) in catalogue_groups.groups:
+                    events_in_ses = catalogue_groups.get_group((oef_model_id, oef_ses_id))
+                else:  # this combination of (oef_model_id, oef_ses_id) does not exist
+                    # Empty DataFrame with the same structure
+                    events_in_ses = forecast_catalogue.head(0)
 
                 # Initialise exposure_model_current_XX.csv, with XX = oef_model_id_oef_ses_id
                 in_filename = os.path.join(
