@@ -821,13 +821,13 @@ class Losses:
                 Array of occupancy factors for each element of 'exposure_taxonomies'.
         """
 
-        damage_states = [
-            exposure_taxonomies[i].split("/")[-1] for i in range(len(exposure_taxonomies))
-        ]
+        damage_states = [s.rsplit("/", 1)[-1] for s in exposure_taxonomies]
 
-        occupancy_factors_per_asset = np.array([
-            occupancy_factors[dmg_state] for dmg_state in damage_states
-        ])
+        occupancy_factors_per_asset = np.fromiter(
+            (occupancy_factors[ds] for ds in damage_states),
+            dtype=int,
+            count=len(damage_states)
+        )
 
         return occupancy_factors_per_asset
 
