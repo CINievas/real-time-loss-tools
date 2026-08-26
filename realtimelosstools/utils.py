@@ -38,9 +38,6 @@ class MultilinearStepFunction():
     returns the first element of "values". In all other cases where the input value is an
     element in position "i" of "thresholds", it returns the element in position "i-1" of
     "values".
-
-    If "thresholds" are floats, use the method 'evaluate_as_float'. If "thresholds" are
-    numpy.datetime64 objects, use the method 'evaluate_as_datetime'.
     """
 
     def __init__(self, array_x, array_y):
@@ -48,30 +45,30 @@ class MultilinearStepFunction():
         self.thresholds = array_x[order]
         self.values = array_y[order]
 
-    def evaluate_as_float(self, x):
-        """Evaluate the MultilinearStepFunction at "x", with "thresholds" being floats."""
+    def evaluate(self, x):
+        """
+        Evaluate the MultilinearStepFunction at "x".
 
-        if x < self.thresholds[0]:
-            return 0.0
+        "x" can be a scalar or an array, made of floats or datetime64 objects.
+        """
 
-        if round(x, 12) == round(self.thresholds[0], 12):
-            return self.values[0]
+        x_arr = np.asarray(x)
 
-        which = np.searchsorted(self.thresholds, x)
-        return self.values[which-1]
+        # Indices of first threshold >= x (for all elements of x_array)
+        idx = np.searchsorted(self.thresholds, x_arr, side="left")
 
-    def evaluate_as_datetime(self, x):
-        """Evaluate the MultilinearStepFunction at "x", with "thresholds" being numpy.datetime64
-        objects."""
+        # Initialise output with zeroes (will remain zeroes for x_arr < self.thresholds[0])
+        out = np.zeros_like(x_arr, dtype=self.values.dtype)
 
-        if x < self.thresholds[0]:
-            return 0.0
+        # Evaluate for all x_arr > self.thresholds[0]
+        valid = idx > 0
+        out[valid] = self.values[idx[valid] - 1]
 
-        if x == self.thresholds[0]:
-            return self.values[0]
+        # Evaluate for x_arr == self.thresholds[0], if it exists in x_arr
+        mask_first = (x_arr == self.thresholds[0])
+        out[mask_first] = self.values[0]
 
-        which = np.searchsorted(self.thresholds, x)
-        return self.values[which-1]
+        return out if out.ndim > 0 else out.item()
 
 
 class Time():

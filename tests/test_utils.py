@@ -42,17 +42,20 @@ def test_MultilinearStepFunction():
         np.array([30.0, 20.0, 10.0, 5.0])
     )
 
-    # Test correct outputs
-    assert round(f1.evaluate_as_float(-1E-5), 10) == 0.0
-    assert round(f1.evaluate_as_float(0.0), 10) == 30.0
-    assert round(f1.evaluate_as_float(0.5), 10) == 30.0
-    assert round(f1.evaluate_as_float(1.0), 10) == 30.0
-    assert round(f1.evaluate_as_float(1.01), 10) == 20.0
-    assert round(f1.evaluate_as_float(2.0), 10) == 20.0
-    assert round(f1.evaluate_as_float(2.01), 10) == 10.0
-    assert round(f1.evaluate_as_float(3.0), 10) == 10.0
-    assert round(f1.evaluate_as_float(3.01), 10) == 5.0
-    assert round(f1.evaluate_as_float(999.9), 10) == 5.0
+    target_xvals = np.array([
+        -1E-5, 0.0, 0.5, 1.0, 1.01, 2.0, 2.01, 3.0, 3.01, 999.9
+    ])
+    expected_outputs = np.array([
+        0.0, 30.0, 30.0, 30.0, 20.0, 20.0, 10.0, 10.0, 5.0, 5.0
+    ])
+
+    # Evaluate and test all target_xvals together:
+    returned_outputs = f1.evaluate(target_xvals)
+    assert np.isclose(returned_outputs, expected_outputs).all()
+
+    # Evaluate each element of target_xvals individually
+    for i in range(len(target_xvals)):
+        assert round(f1.evaluate(target_xvals[i]), 10) == expected_outputs[i]
 
     # Test case 2: dates
     thresholds = np.array([
@@ -79,16 +82,25 @@ def test_MultilinearStepFunction():
     for i in range(len(expected_thresholds)):
         assert f2.thresholds[i] == expected_thresholds[i]
 
-    # Test correct outputs
-    assert round(f2.evaluate_as_datetime(np.datetime64("2009-04-06T01:31:59")), 10) == 0.0
-    assert round(f2.evaluate_as_datetime(np.datetime64("2009-04-06T01:32:00")), 10) == 25.0
-    assert round(f2.evaluate_as_datetime(np.datetime64("2009-04-06T02:37:00")), 10) == 25.0
-    assert round(f2.evaluate_as_datetime(np.datetime64("2009-04-06T02:37:01")), 10) == 15.0
-    assert round(f2.evaluate_as_datetime(np.datetime64("2009-04-06T23:15:00")), 10) == 15.0
-    assert round(f2.evaluate_as_datetime(np.datetime64("2009-04-06T23:15:01")), 10) == 8.0
-    assert round(f2.evaluate_as_datetime(np.datetime64("2009-04-07T09:26:00")), 10) == 8.0
-    assert round(f2.evaluate_as_datetime(np.datetime64("2009-04-07T09:26:01")), 10) == 3.0
-    assert round(f2.evaluate_as_datetime(np.datetime64("2019-12-31T09:26:01")), 10) == 3.0
+    target_xvals = np.array([
+        "2009-04-06T01:31:59", "2009-04-06T01:32:00",
+        "2009-04-06T02:37:00", "2009-04-06T02:37:01",
+        "2009-04-06T23:15:00", "2009-04-06T23:15:01",
+        "2009-04-07T09:26:00", "2009-04-07T09:26:01",
+        "2019-12-31T09:26:01"
+    ])
+    target_xvals = target_xvals.astype(np.datetime64)
+    expected_outputs = np.array([
+        0.0, 25.0, 25.0, 15.0, 15.0, 8.0, 8.0, 3.0, 3.0
+    ])
+
+    # Evaluate and test all target_xvals together:
+    returned_outputs = f2.evaluate(target_xvals)
+    assert np.isclose(returned_outputs, expected_outputs).all()
+
+    # Evaluate each element of target_xvals individually
+    for i in range(len(target_xvals)):
+        assert round(f2.evaluate(target_xvals[i]), 10) == expected_outputs[i]
 
 
 def test_interpret_time_of_the_day():

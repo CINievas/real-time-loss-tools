@@ -795,7 +795,7 @@ class Losses:
                 )
                 occupancy_factors[dmg_state] = (
                     occupancy_factors[dmg_state]
-                    * occup_function.evaluate_as_datetime(datetime_earthquake)
+                    * occup_function.evaluate(datetime_earthquake)
                 )
 
         return occupancy_factors
@@ -904,7 +904,7 @@ class Losses:
                     date_thresholds,
                     injured.loc[asset_id, date_thresholds.astype(str)].to_numpy()  # values
                 )
-                injured_still_away[i] += injuries_function.evaluate_as_datetime(
+                injured_still_away[i] += injuries_function.evaluate(
                     datetime_earthquake
                 )
 
