@@ -94,8 +94,9 @@ def test_write_rupture_xml():
     os.remove(out_filename)
     os.rmdir(output_path)
 
-    
+
 def test_update_exposure_xml():
+    # TEST 1
     # Expected contents of the XML file
     expected_lines = {}
     expected_lines[0] = '<?xml version="1.0" encoding="UTF-8"?>\n'
@@ -144,7 +145,52 @@ def test_update_exposure_xml():
     # Delete created output file and temporary output directory
     os.remove(out_filename)
     os.rmdir(output_path)
-    
+
+    # TEST 2
+    # Like TEST 1 but time_of_day is None
+    expected_lines[9] = '    <occupancyPeriods></occupancyPeriods>\n'
+
+    # Create temporary output directory
+    output_path = os.path.join(os.path.dirname(__file__), "data", "temp_test_writers")
+    os.mkdir(output_path)
+
+    # Copy existing exposure_model.xml to temporary output directory
+    in_filename = os.path.join(
+        os.path.join(os.path.dirname(__file__), "data", "exposure_model.xml")
+    )  # origin
+    out_filename = os.path.join(output_path, "exposure_model.xml")
+    _ = shutil.copyfile(in_filename, out_filename)
+
+    # Execute function
+    Writer.update_exposure_xml(out_filename, None, "newcsvfilename.csv")
+
+    # Check line by line the contents of the XML file
+    openfile = open(out_filename, "r")
+    lines = openfile.readlines()
+
+    for i, line in enumerate(lines):
+        assert line == expected_lines[i]
+
+    openfile.close()
+
+    # Now execute function again to revert from time_of_day=None to a value
+    expected_lines[9] = '    <occupancyPeriods>day</occupancyPeriods>\n'
+    Writer.update_exposure_xml(out_filename, "day", "newcsvfilename.csv")
+
+    # Check line by line the contents of the XML file
+    openfile = open(out_filename, "r")
+    lines = openfile.readlines()
+
+    for i, line in enumerate(lines):
+        assert line == expected_lines[i]
+
+    openfile.close()
+
+    # Delete created output file and temporary output directory
+    os.remove(out_filename)
+    os.rmdir(output_path)
+
+    # TEST 3
     # Test case in which the file path is not found
     # (file path is the same as above but it has been erased already)
     with pytest.raises(OSError) as excinfo:
@@ -153,6 +199,7 @@ def test_update_exposure_xml():
 
 
 def test_update_job_ini():
+    # TEST 1
     # Expected contents of the job.ini file
     expected_lines = {}
     expected_lines[0] = '[general]\n'
@@ -210,6 +257,39 @@ def test_update_job_ini():
     os.remove(out_filename)
     os.rmdir(output_path)
 
+    # TEST 2
+    # Like TEST 1, but new_time_of_day is None
+    expected_lines[7] = 'time_event = avg\n'
+    # Create temporary output directory
+    output_path = os.path.join(os.path.dirname(__file__), "data", "temp_test_writers")
+    os.mkdir(output_path)
+
+    # Copy existing job.ini to temporary output directory
+    in_filename = os.path.join(
+        os.path.join(os.path.dirname(__file__), "data", "job.ini")
+    )  # origin
+    out_filename = os.path.join(output_path, "job.ini")
+    _ = shutil.copyfile(in_filename, out_filename)
+
+    # Execute function
+    Writer.update_job_ini(
+        out_filename, "A new description", None, "new_rupture_file.xml"
+    )
+
+    # Check line by line the contents of the job.ini file
+    openfile = open(out_filename, "r")
+    lines = openfile.readlines()
+
+    for i, line in enumerate(lines):
+        assert line == expected_lines[i]
+
+    openfile.close()
+
+    # Delete created output file and temporary output directory
+    os.remove(out_filename)
+    os.rmdir(output_path)
+
+    # TEST 3
     # Test case in which the file path is not found
     # (file path is the same as above but it has been erased already)
     with pytest.raises(OSError) as excinfo:

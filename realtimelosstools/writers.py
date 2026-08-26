@@ -209,7 +209,7 @@ class Writer:
                     text_to_search = line
                     replacement_text = "description = %s\n" % (new_description)
                     print(line.replace(text_to_search, replacement_text), end='')
-                elif ("time_event =" in line) and (new_time_of_day is not None):
+                elif "time_event =" in line:
                     text_to_search = line
                     if new_time_of_day is not None:
                         replacement_text = "time_event = %s\n" % (new_time_of_day)
