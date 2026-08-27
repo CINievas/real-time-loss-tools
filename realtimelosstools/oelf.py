@@ -773,7 +773,7 @@ class OperationalEarthquakeLossForecasting():
                         time_of_day,
                     )
 
-                    if calculate_casualties:
+                    if calculate_casualties and there_can_be_occupants:
                         # Calculate human losses per asset of 'exposure_updated_damage'
                         losses_human_per_asset = Losses.expected_human_loss_per_original_asset_id(
                             exposure_updated_damage, time_of_day, consequence_injuries
@@ -793,40 +793,38 @@ class OperationalEarthquakeLossForecasting():
                             )
 
                         # Calculate timeline of recovery (to define occupants for next earthquake)
-                        # (only if there could be occupants for this earthquake, otherwise skip)
-                        if there_can_be_occupants:
-                            # Calculate number of injured people still away in time
-                            injured_still_away = Losses.calculate_injuries_recovery_timeline(
-                                losses_human_per_asset,
-                                recovery_injuries,
-                                recovery_longest_time,
-                                events_in_ses.loc[eq_id, "datetime"],
-                            )
-                            # Calculate factors regarding people being allowed to go back to buildings
-                            occupancy_factors = Losses.calculate_repair_recovery_timeline(
-                                recovery_damage,
-                                recovery_longest_time,
-                                events_in_ses.loc[eq_id, "datetime"],
-                            )
+                        # Calculate number of injured people still away in time
+                        injured_still_away = Losses.calculate_injuries_recovery_timeline(
+                            losses_human_per_asset,
+                            recovery_injuries,
+                            recovery_longest_time,
+                            events_in_ses.loc[eq_id, "datetime"],
+                        )
+                        # Calculate factors regarding people being allowed to go back to buildings
+                        occupancy_factors = Losses.calculate_repair_recovery_timeline(
+                            recovery_damage,
+                            recovery_longest_time,
+                            events_in_ses.loc[eq_id, "datetime"],
+                        )
 
-                            # Store number of injured people away from the building in time, per asset ID
-                            injured_still_away.to_csv(
-                                os.path.join(
-                                    path_to_occupants_oelf,
-                                    "injured_still_away_after_OELF_%s.csv" % (eq_id)
-                                ),
-                                index=True,
-                            )
+                        # Store number of injured people away from the building in time, per asset ID
+                        injured_still_away.to_csv(
+                            os.path.join(
+                                path_to_occupants_oelf,
+                                "injured_still_away_after_OELF_%s.csv" % (eq_id)
+                            ),
+                            index=True,
+                        )
 
-                            # Store occupancy factors (0: people not allowed in, 1: people allowed in) as a
-                            # function of time and damage state
-                            occupancy_factors.to_csv(
-                                os.path.join(
-                                    path_to_occupants_oelf,
-                                    "occupancy_factors_after_OELF_%s.csv" % (eq_id)
-                                ),
-                                index=True,
-                            )
+                        # Store occupancy factors (0: people not allowed in, 1: people allowed in) as a
+                        # function of time and damage state
+                        occupancy_factors.to_csv(
+                            os.path.join(
+                                path_to_occupants_oelf,
+                                "occupancy_factors_after_OELF_%s.csv" % (eq_id)
+                            ),
+                            index=True,
+                        )
                     else: # 'calculate_casualties' is False
                         injured_still_away = None
                         losses_human_all_events = None
