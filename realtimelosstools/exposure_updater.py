@@ -1250,10 +1250,10 @@ class ExposureUpdater:
     def update_exposure_occupants(
         calculate_casualties,
         exposure_full_occupants,
+        recovery_occupancy_factors,
         time_of_day_factors,
         earthquake_time_of_day,
         earthquake_datetime,
-        mapping_damage_states,
         include_oelf,
         main_path,
         number_cores=1
@@ -1316,6 +1316,11 @@ class ExposureUpdater:
                         id_X, name_X (str):
                             ID and name of the administrative units to which the asset belongs.
                             "X" is the administrative level.
+            recovery_occupancy_factors  (dict of int: 0 or 1):
+                Dictionary whose keys are the damage states, and whose contents are 1 or 0,
+                indicating that by the date of the current earthquake, people will be allowed
+                back in (1) or not (0) to buildings with the damage state (key). Example :
+                {"DS0": 1, "DS1": 1, "DS2": 0, "DS3": 0, "DS4": 0}.
             time_of_day_factors (dict):
                 Factors by which the census population per building can be multiplied to obtain
                 an estimate of the people in the building at a certain time of the day. It
@@ -1329,16 +1334,6 @@ class ExposureUpdater:
                 Time of the day of the earthquake, i.e. "day", "night" or "transit".
             earthquake_datetime (numpy.datetime64):
                 UTC date and time of the earthquake.
-            mapping_damage_states (Pandas DataFrame):
-                Mapping between the names of damage states as output by OpenQuake (index) and as
-                labelled in the fragility model (value). E.g.:
-                              fragility
-                    dmg_state
-                    no_damage       DS0
-                    dmg_1           DS1
-                    dmg_2           DS2
-                    dmg_3           DS3
-                    dmg_4           DS4
             include_oelf (bool):
                 If True, the method will also search for occupancy factors files under
                 'main_path'/current/occupants/oelf.
@@ -1362,22 +1357,10 @@ class ExposureUpdater:
 
         exposure_updated_occupants = deepcopy(exposure_full_occupants)
 
-        # Retrieve c factors for the date+time of the earthquake to run (one key per
-        # damage state, e.g. {"DS0": 1, "DS1": 1, "DS2": 0, "DS3": 0, "DS4": 0}; they will all
-        # be equal to 1 if no earthquake has been run before)
-        logger.debug(
-            "%s Method 'ExposureUpdater.update_exposure_occupants': "
-            "retrieving factors for the date+time of the current earthquake"
-            % (np.datetime64('now'))
-        )
-        occupancy_factors = Losses.get_occupancy_factors(
-            earthquake_datetime, mapping_damage_states, include_oelf, main_path
-        )
-
         # Evaluate if all factors in occupancy_factor are zero (to avoid reading injuries if so)
         all_factors_null = True
-        for dmg_state in occupancy_factors:
-            if occupancy_factors[dmg_state] > 0.5:
+        for dmg_state in recovery_occupancy_factors:
+            if recovery_occupancy_factors[dmg_state] > 0.5:
                 all_factors_null = False
                 break  # once one factor is not zero, there is not need to keep on checking
 
@@ -1394,7 +1377,7 @@ class ExposureUpdater:
                 % (np.datetime64('now'))
             )
             occupancy_factors_per_asset = Losses.get_occupancy_factors_per_asset(
-                exposure_updated_occupants["taxonomy"].to_numpy(), occupancy_factors
+                exposure_updated_occupants["taxonomy"].to_numpy(), recovery_occupancy_factors
             )
 
             # Retrieve injuries (only for assets for which 'occupancy_factors_per_asset'=1)

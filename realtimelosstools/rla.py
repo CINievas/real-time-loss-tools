@@ -345,17 +345,30 @@ class RapidLossAssessment:
             logger.info(
                 "%s Updating exposed occupants" % (np.datetime64('now'))
             )
-        exposure_run = ExposureUpdater.update_exposure_occupants(
-            calculate_casualties,
-            exposure_full_occupants,
-            time_of_day_occupancy,
-            time_of_day,
-            earthquake["datetime"],
-            mapping_damage_states,
-            False,  # do not search for OELF earthquakes
-            main_path,
-            number_cores
-        )
+            # Retrieve c factors for the date+time of the earthquake to run (one key per
+            # damage state, e.g. {"DS0": 1, "DS1": 1, "DS2": 0, "DS3": 0, "DS4": 0}; they will
+            # all be equal to 1 if no earthquake has been run before)
+            recovery_occupancy_factors = Losses.get_occupancy_factors(
+                earthquake["datetime"],
+                mapping_damage_states,
+                False,  # do not search for OELF earthquakes
+                main_path
+            )
+
+            exposure_run = ExposureUpdater.update_exposure_occupants(
+                calculate_casualties,
+                exposure_full_occupants,
+                recovery_occupancy_factors,
+                time_of_day_occupancy,
+                time_of_day,
+                earthquake["datetime"],
+                False,  # do not search for OELF earthquakes
+                main_path,
+                number_cores
+            )
+        else:
+            exposure_run = deepcopy(exposure_full_occupants)
+            exposure_run[time_of_day] = np.zeros([exposure_run.shape[0]])
 
         # Update 'exposure_model_current.csv' (only update is associated with the column with
         # the number of occupants appropriate for this earthquake)

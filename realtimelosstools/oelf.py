@@ -576,15 +576,25 @@ class OperationalEarthquakeLossForecasting():
                     exposure_full_occupants = exposure_full_occupants.drop(columns=["id"])
 
                     if there_can_be_occupants:
+                        # Retrieve c factors for the date+time of the earthquake to run (one key
+                        # per damage state, e.g. {"DS0": 1, "DS1": 1, "DS2": 0, "DS3": 0, "DS4": 0};
+                        # they will all be equal to 1 if no earthquake has been run before)
+                        recovery_occupancy_factors = Losses.get_occupancy_factors(
+                            events_in_ses.loc[eq_id, "datetime"],
+                            mapping_damage_states,
+                            True,  # include OELF previous earthquakes (not just RLA)
+                            main_path
+                        )
+
                         # Update exposure to reflect occupants for this earthquake
                         # (reflecting injuries and deaths)
                         exposure_run = ExposureUpdater.update_exposure_occupants(
                             calculate_casualties,  # Nothing will change if this is False
                             exposure_full_occupants,
+                            recovery_occupancy_factors,
                             time_of_day_occupancy,
                             time_of_day,
                             events_in_ses.loc[eq_id, "datetime"],
-                            mapping_damage_states,
                             True,  # include OELF previous earthquakes (not just RLA)
                             main_path,
                             number_cores
