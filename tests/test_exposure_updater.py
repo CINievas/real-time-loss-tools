@@ -22,6 +22,7 @@ import pytest
 import numpy as np
 import pandas as pd
 from realtimelosstools.exposure_updater import ExposureUpdater
+from realtimelosstools.losses import Losses
 
 
 def test_create_mapping_asset_id_building_id():
@@ -1232,14 +1233,20 @@ def test_update_exposure_occupants():
     expected_output.index = expected_output.index.rename("asset_id")
     expected_output = expected_output.drop(columns=["id"])
 
+    recovery_occupancy_factors = Losses.get_occupancy_factors_RLA(
+        earthquake_datetime,
+        mapping_damage_states,
+        os.path.join(os.path.dirname(__file__), "data", "intentionally_no_files")
+    )
+
     # Execute the method
     returned_exposure_updated_occupants = ExposureUpdater.update_exposure_occupants(
         True, # calculate_casualties
         exposure_full_occupants,
+        recovery_occupancy_factors,
         time_of_day_factors,
         earthquake_time_of_day,
         earthquake_datetime,
-        mapping_damage_states,
         False,
         os.path.join(os.path.dirname(__file__), "data", "intentionally_no_files"),
     )
@@ -1287,14 +1294,20 @@ def test_update_exposure_occupants():
     expected_output.index = expected_output.index.rename("asset_id")
     expected_output = expected_output.drop(columns=["id"])
 
+    recovery_occupancy_factors = Losses.get_occupancy_factors_RLA(
+        earthquake_datetime,
+        mapping_damage_states,
+        os.path.join(os.path.dirname(__file__), "data")
+    )
+
     # Execute the method
     returned_exposure_updated_occupants = ExposureUpdater.update_exposure_occupants(
         True, # calculate_casualties
         exposure_full_occupants,
+        recovery_occupancy_factors,
         time_of_day_factors,
         earthquake_time_of_day,
         earthquake_datetime,
-        mapping_damage_states,
         False,
         os.path.join(os.path.dirname(__file__), "data"),
     )
@@ -1343,14 +1356,20 @@ def test_update_exposure_occupants():
     expected_output = expected_output.drop(columns=["id"])
     expected_output["night"] = np.zeros([expected_output.shape[0]])
 
+    recovery_occupancy_factors = Losses.get_occupancy_factors_RLA(
+        earthquake_datetime,
+        mapping_damage_states,
+        os.path.join(os.path.dirname(__file__), "data")
+    )
+
     # Execute the method
     returned_exposure_updated_occupants = ExposureUpdater.update_exposure_occupants(
         True, # calculate_casualties
         exposure_full_occupants,
+        recovery_occupancy_factors,
         time_of_day_factors,
         earthquake_time_of_day,
         earthquake_datetime,
-        mapping_damage_states,
         False,
         os.path.join(os.path.dirname(__file__), "data"),
     )

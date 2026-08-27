@@ -348,10 +348,9 @@ class RapidLossAssessment:
             # Retrieve c factors for the date+time of the earthquake to run (one key per
             # damage state, e.g. {"DS0": 1, "DS1": 1, "DS2": 0, "DS3": 0, "DS4": 0}; they will
             # all be equal to 1 if no earthquake has been run before)
-            recovery_occupancy_factors = Losses.get_occupancy_factors(
+            recovery_occupancy_factors = Losses.get_occupancy_factors_RLA(
                 earthquake["datetime"],
                 mapping_damage_states,
-                False,  # do not search for OELF earthquakes
                 main_path
             )
 

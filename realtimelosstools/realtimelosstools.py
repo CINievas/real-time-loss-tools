@@ -320,7 +320,16 @@ def main():
                         "occupancy_factors_after_RLA_%s.csv" % (cat_name)
                     ),
                     index=True,
-                )
+                )  # For general output
+                occupancy_factors.to_csv(
+                    os.path.join(
+                        config.main_path,
+                        "current",
+                        "occupants",
+                        "occupancy_factors_after_last_RLA.csv"
+                    ),
+                    index=True,
+                )  # Repeat for easy retrieval afterwards
 
             # Store damage states per building ID
             damage_states.to_csv(

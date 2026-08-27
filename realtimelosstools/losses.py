@@ -801,6 +801,70 @@ class Losses:
         return occupancy_factors
 
     @staticmethod
+    def get_occupancy_factors_RLA(
+        datetime_earthquake, mapping_damage_states, main_path
+    ):
+        """
+        This method goes through the repair recovery timelines of all earthquakes that have
+        occurred before 'datetime_earthquake' (this is done by searching for all the occupancy
+        factors files present in 'main_path'/current/occupants, including
+        'main_path'/current/occupants/oelf if 'include_oelf' is True), and determines whether
+        people will be allowed back in (1) or not (0) to buildings with the damage states
+        indicated in 'mapping_damage_states'.
+
+        If there are no occupancy factors files in 'main_path'/current/occupants, all returned
+        factors will be equal to 1.
+
+        Args:
+            datetime_earthquake (numpy.datetime64):
+                UTC date and time of the earthquake.
+            mapping_damage_states (Pandas DataFrame):
+                Mapping between the names of damage states as output by OpenQuake (index) and as
+                labelled in the fragility model (value). E.g.:
+                              fragility
+                    dmg_state
+                    no_damage       DS0
+                    dmg_1           DS1
+                    dmg_2           DS2
+                    dmg_3           DS3
+                    dmg_4           DS4
+            main_path (str):
+                Path to the main running directory, assumed to have the needed structure.
+
+        Returns:
+            occupancy_factors (dict of int: 0 or 1):
+                Dictionary whose keys are the elements of the 'fragility' column of
+                'mapping_damage_states', i.e. each damage state, and whose contents are 1 or 0,
+                indicating that by the date of 'datetime_earthquake', people will be allowed
+                back in (1) or not (0) to buildings with the damage state (key).
+                Example output: {"DS0": 1, "DS1": 1, "DS2": 0, "DS3": 0, "DS4": 0}.
+        """
+
+        # Retrieve occupancy factors due to last RLA earthquake, if it exists
+        path_to_factors = os.path.join(main_path, "current", "occupants")
+        filepath = os.path.join(path_to_factors, "occupancy_factors_after_last_RLA.csv")
+
+        occupancy_factors = {}
+
+        if os.path.exists(filepath):
+            factors = pd.read_csv(filepath)
+            factors.set_index(factors["dmg_state"], drop=True, inplace=True)
+            factors = factors.drop(columns=["dmg_state"])
+
+            for dmg_state in factors.index:
+                occup_function = MultilinearStepFunction(
+                    factors.columns.to_numpy().astype(np.datetime64),  # thresholds
+                    factors.loc[dmg_state, :].to_numpy()  # values
+                )
+                occupancy_factors[dmg_state] = occup_function.evaluate(datetime_earthquake)
+
+        else:  # No previous RLA earthquake has been run, all factors are 1
+            for dmg_state in mapping_damage_states.index:
+                occupancy_factors[mapping_damage_states.loc[dmg_state, "fragility"]] = 1
+
+        return occupancy_factors
+
+    @staticmethod
     def get_occupancy_factors_per_asset(exposure_taxonomies, occupancy_factors):
         """
         This method retrieves from 'occupancy_factors' the factor associated with the damage
