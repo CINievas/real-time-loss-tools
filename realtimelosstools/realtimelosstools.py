@@ -445,18 +445,25 @@ def main():
                 # Determine if occupants need to be updated (or considered zero), based on the time
                 # ellapsed since the last real (RLA) earthquake and the shortest recovery span
                 # specified by the user (shortest time to allow occupants back in)
+                tolerance = (59./(3600.*24.)
                 there_can_be_occupants = (
                     OperationalEarthquakeLossForecasting.can_there_be_occupants(
-                        forecast_cat, date_latest_rla, shortest_recovery_span, (59./(3600.*24.))
+                        forecast_cat, date_latest_rla, shortest_recovery_span, tolerance
                     )
                 )
                 if there_can_be_occupants:
                     logger.info("There might be occupants in buildings during OELF calculation.")
+                    forecast_cat["there_can_be_occups"] = (
+                        OperationalEarthquakeLossForecasting.can_there_be_occupants_by_earthquake(
+                            forecast_catalogue, date_latest_rla, shortest_recovery_span, tolerance
+                        )
+                    )
                 else:
                     logger.info(
                         "Occupants are all zero during OELF calculation "
                         "(too short time since last real earthquake)"
                     )
+                    forecast_cat["there_can_be_occups"] = None
             else:
                 there_can_be_occupants = False
 

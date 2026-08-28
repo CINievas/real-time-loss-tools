@@ -1746,9 +1746,6 @@ class OperationalEarthquakeLossForecasting():
             return True
 
         # Newest earthquake in 'forecast_catalogue'
-        #newest_date_in_forecast = pd.Timestamp(
-        #    forecast_catalogue["datetime"].max()
-        #).to_pydatetime()
         newest_date_in_forecast = (forecast_catalogue["datetime"].max()).to_pydatetime()
 
         # Difference in time
@@ -1761,3 +1758,77 @@ class OperationalEarthquakeLossForecasting():
             there_can_be_occupants = True
 
         return there_can_be_occupants
+
+    @staticmethod
+    def can_there_be_occupants_by_earthquake(
+        forecast_catalogue, date_latest_rla, shortest_recovery_span, tolerance=0.0
+    ):
+        """
+        This method calculates the time difference between successive earthquakes and compares
+        it against 'shortest_recovery_span' to determine whether occupants might be able to
+        return to their buildings in between each pair of successive events.
+
+        The definition of "successive earthquakes" accounts for the following considerations:
+        - 'forecast_catalogue' is expected to contain several stochastic event sets generated
+        with different seismicity models;
+        - within each stochastic event set of each model, earthquakes are expected to be in
+        chronological order;
+        - each stochastic event set has its own "first" earthquake;
+        - for each of these "first" earthquakes, the "previous" earthquake is the last-run RLA
+        earthquake, whose date is 'date_latest_rla';
+        - for the rest of the earthquakes, the "previous" earthquake is the one right before it.
+
+        If 'date_latest_rla' is None it is interpreted as no "real" earthquake having been run
+        before, which results in occupants being allowed in their buildings.
+
+        The purpose of 'tolerance' is to allow for discrepancies due to precision in the time of
+        "real" earthquakes and those in the seismicity forecast.
+
+        Args:
+            forecast_catalogue (Pandas DataFrame):
+                DataFrame containing a seismicity forecast for a period of time of interest. It
+                must contain at least the following field:
+                    datetime (Numpy datetime64): Date and time.
+            date_latest_rla (datetime.datetime object):
+                Date and time of the last "real" (RLA) earthquake run. Use None to indicate that
+                no "real" earthquake has been run before.
+            shortest_recovery_span (int):
+                Shortest number of days before occupants are allowed back into buildings.
+            tolerance (float):
+                Tolerance for the comparison (in number of days). Default: 0.0.
+
+        Returns:
+            by_eq_there_can_be_occupants (Pandas Series of bool):
+                Series with same index as 'forecast_catalogue' with:
+                    - True, if the time difference with respect to the previous earthquake is
+                    such that occupants might return for at least some damage states,
+                    - False, if the time difference with respect to the previous earthquake is
+                    such that no occupants can be expected in any building.
+        """
+
+        catalogue_groups = forecast_catalogue.groupby(["model_id", "ses_id"])
+
+        # Difference between successive earthquakes of each ("model_id", "ses_id") set
+        dt_diff = (
+            catalogue_groups["datetime"].diff()  # difference between successive rows
+            .dt.total_seconds() / (3600. * 24.)  # convert to days
+        )  # first rows will be NaN because there is no previous earthquake
+
+        if date_latest_rla is not None:
+            # First-row replacement: datetime - date_latest_rla
+            first_row_diff = (
+                (forecast_catalogue["datetime"] - date_latest_rla)
+                .dt.total_seconds() / (3600 * 24)
+            )  # computed for all earthquakes, but we take only the first rows later
+
+        else:  # date_latest_rla is None, no previous RLA earthquake has been run
+            first_row_diff = pd.Series(99999., index=forecast_catalogue.index)
+
+        # Fill NaNs (the first rows of each set)
+        dt_diff_days_all_eqs = dt_diff.fillna(first_row_diff)  # Pandas Series
+
+        # True when the time difference is larger than the shortest recovery time
+        threshold = shortest_recovery_span + tolerance
+        by_eq_there_can_be_occupants = (dt_diff_days_all_eqs > threshold)
+
+        return by_eq_there_can_be_occupants

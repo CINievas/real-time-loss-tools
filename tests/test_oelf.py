@@ -213,6 +213,78 @@ def test_can_there_be_occupants():
     assert there_can_be_occupants is True
 
 
+def test_can_there_be_occupants_by_earthquake():
+    # Read a seismicity catalogue
+    filepath = os.path.join(
+        os.path.dirname(__file__), "data", "oef_catalogue_expected_several_models_ordered.csv"
+    )
+    forecast_cat = pd.read_csv(filepath)
+    forecast_cat = OperationalEarthquakeLossForecasting.format_seismicity_forecast(
+        forecast_cat, add_event_id=True
+    )
+
+    # TEST 1: A RLA earthquake has been run
+    shortest_recovery_span = 1  # days
+    # Date of latest "real" earthquake
+    date_latest_rla = datetime(2009, 4, 5, 1, 38)
+
+    expected = pd.read_csv(
+        os.path.join(
+            os.path.dirname(__file__), "data", "expected_can_there_be_occupants_by_earthquake_01.csv"
+        ),
+        index_col=0,
+        dtype={"can_there_be": "bool"}
+    )
+
+    returned = (
+        OperationalEarthquakeLossForecasting.can_there_be_occupants_by_earthquake(
+            forecast_cat, date_latest_rla, shortest_recovery_span
+        )
+    )
+
+    assert ((returned == expected["can_there_be"]).all())
+
+    # TEST 2: Same as TEST 1 but with slightly shorter recovery span
+    shortest_recovery_span = 0.5  # days
+
+    expected = pd.read_csv(
+        os.path.join(
+            os.path.dirname(__file__), "data", "expected_can_there_be_occupants_by_earthquake_02.csv"
+        ),
+        index_col=0,
+        dtype={"can_there_be": "bool"}
+    )
+
+    returned = (
+        OperationalEarthquakeLossForecasting.can_there_be_occupants_by_earthquake(
+            forecast_cat, date_latest_rla, shortest_recovery_span
+        )
+    )
+
+    assert ((returned == expected["can_there_be"]).all())
+
+    # TEST 3: No RLA earthquake has been run before
+    shortest_recovery_span = 1  # days
+    # Date of latest "real" earthquake
+    date_latest_rla = None
+
+    expected = pd.read_csv(
+        os.path.join(
+            os.path.dirname(__file__), "data", "expected_can_there_be_occupants_by_earthquake_01.csv"
+        ),
+        index_col=0,
+        dtype={"can_there_be": "bool"}
+    )
+
+    returned = (
+        OperationalEarthquakeLossForecasting.can_there_be_occupants_by_earthquake(
+            forecast_cat, date_latest_rla, shortest_recovery_span
+        )
+    )
+
+    assert ((returned == expected["can_there_be"]).all())
+
+
 def test_run_oelf_01():
     """Full run of a well-defined OELF calculation (expected inputs and behaviour).
     """
