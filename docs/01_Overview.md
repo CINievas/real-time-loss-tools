@@ -154,18 +154,18 @@ back into buildings (or they are still being inspected or repaired), and
 - the time elapsed from the previous earthquakes is relevant to know whether injured people are
 expected to still be in hospital.
 
-When a RLA or a damage assessment due to one earthquake within an OELF calculation is carried
-out, two timelines of future occupancy are calculated based on the mean number of days expected
-to be needed for inspection/repair of buildings and recovery of people in hospital (all these
-are user-specified parameters). The timeline of number of people “still away” due to their own
-health status is calculated per earthquake and per `original_asset_id`, and is stored as an
-individual CSV file. The timeline of permission to go back into buildings is calculated per
-earthquake and per damage state, and is also stored as an individual CSV file. Both timelines
-are stored in terms of UTC, so that the UTC date and time of the new earthquake can be directly
-compared against the previously-stored timelines.
+When a RLA  is carried out, two timelines of future occupancy are calculated based on the mean
+number of days expected to be needed for inspection/repair of buildings and recovery of people
+in hospital (all these are user-specified parameters). The timeline of number of people “still
+away” due to their own health status is calculated per earthquake and per `original_asset_id`,
+and is stored as an individual CSV file. The timeline of permission to go back into buildings is
+calculated per earthquake and per damage state, and is also stored as an individual CSV file.
+Both timelines are stored in terms of UTC, so that the UTC date and time of the new earthquake
+can be directly compared against the previously-stored timelines.
 
-When a new earthquake calculation begins, the previous timelines are sought and the number of
-current occupants for each `original_asset_id` is calculated as:
+When a new earthquake calculation begins, the previous timelines of number of people “still
+away” and the last timeline of inspection/repair are sought, and the number of current occupants
+for each `original_asset_id` is calculated as:
 
 ```math
 occupants_{current} = F_{time\:of\:day} \times F_{occupancy} \times [census_{original} - still\:away]
@@ -179,6 +179,17 @@ the current damage state of the building,
 - $`census_{original}`$: number of census occupants,
 - $`still\:away`$: number of people whose health status does not allow them to return to the
 building.
+
+The same conceptual process occurrs within an OELF calculation, but the inspection/repair
+timelines are not stored as CSV files and the calculation is optimised for speed. Firstly, the
+possibility that occupants might be present for any of the earthquakes in an OELF catalogue is
+assessed by comparing the date/time of the newest earthquake in the catalogue against that of
+the last-run RLA earthquake: if the former is too close to the latter (with respect to the
+minimum inspection+repair time input by the user), then no occupants are considered for any of
+the earthquakes in the catalogue. Secondly, if it is concluded that occupants might be present
+during some earthquakes, the time difference between each earthquake in the catalogue and its
+predecesor in time is compared against the inspection+repair times input by the user to
+determine $`F_{occupancy}`$ for each damage state.
 
 ## Cumulative damage: state-dependent vs state-independent fragility models
 

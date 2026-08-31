@@ -116,6 +116,7 @@ def test_format_seismicity_forecast():
         sep=",",
     )
     expected_forecast["datetime"] = pd.to_datetime(expected_forecast["datetime"])
+    expected_forecast.drop(columns=["to_run"], inplace=True)
     expected_forecast.set_index("EQID", drop=True, inplace=True)
 
     assert len(returned_forecast.index) == len(expected_forecast.index)
@@ -230,7 +231,8 @@ def test_can_there_be_occupants_by_earthquake():
 
     expected = pd.read_csv(
         os.path.join(
-            os.path.dirname(__file__), "data", "expected_can_there_be_occupants_by_earthquake_01.csv"
+            os.path.dirname(__file__), "data",
+            "expected_can_there_be_occupants_by_earthquake_01.csv"
         ),
         index_col=0,
         dtype={"can_there_be": "bool"}
@@ -249,7 +251,8 @@ def test_can_there_be_occupants_by_earthquake():
 
     expected = pd.read_csv(
         os.path.join(
-            os.path.dirname(__file__), "data", "expected_can_there_be_occupants_by_earthquake_02.csv"
+            os.path.dirname(__file__), "data",
+            "expected_can_there_be_occupants_by_earthquake_02.csv"
         ),
         index_col=0,
         dtype={"can_there_be": "bool"}
@@ -270,7 +273,8 @@ def test_can_there_be_occupants_by_earthquake():
 
     expected = pd.read_csv(
         os.path.join(
-            os.path.dirname(__file__), "data", "expected_can_there_be_occupants_by_earthquake_01.csv"
+            os.path.dirname(__file__), "data",
+            "expected_can_there_be_occupants_by_earthquake_01.csv"
         ),
         index_col=0,
         dtype={"can_there_be": "bool"}
@@ -280,6 +284,52 @@ def test_can_there_be_occupants_by_earthquake():
         OperationalEarthquakeLossForecasting.can_there_be_occupants_by_earthquake(
             forecast_cat, date_latest_rla, shortest_recovery_span
         )
+    )
+
+    assert ((returned == expected["can_there_be"]).all())
+
+    # TEST 4: One "first" earthquake is set as "to_run"=False and thus a "second" earthquake
+    # takes it place to be compared agains the previous RLA earthquake run.
+    # Catalogue and set-up from "test_run_oelf_01" below
+    date_latest_rla = None
+    shortest_recovery_span = 7  # days
+
+    # Read forecast earthquake catalogue
+    forecast_cat_filepath = os.path.join(
+        os.path.dirname(__file__), "data", "integration_oelf", "catalogues", "test_oelf_01.csv"
+    )
+    forecast_cat = pd.read_csv(forecast_cat_filepath)
+    forecast_cat = OperationalEarthquakeLossForecasting.format_seismicity_forecast(
+        forecast_cat, add_event_id=True
+    )  # The index of 'forecast_cat' is the unique ID "[model_id]-[ses_id]-[event_id]"
+
+    # Filter catalogue (simulate manually)
+    forecast_cat["to_run"] = pd.Series(
+        [
+            True, True, True,
+            False, True, True,
+            True, False, True
+        ],
+        index=[
+            "1-1-1", "1-1-2", "1-1-3",
+            "1-3-1", "1-3-2", "1-3-3",
+            "1-4-1", "1-4-2", "1-4-3"
+        ]
+    )
+
+    returned = (
+        OperationalEarthquakeLossForecasting.can_there_be_occupants_by_earthquake(
+            forecast_cat, date_latest_rla, shortest_recovery_span
+        )
+    )
+
+    expected = pd.read_csv(
+        os.path.join(
+            os.path.dirname(__file__), "data",
+            "expected_can_there_be_occupants_by_earthquake_03.csv"
+        ),
+        index_col=0,
+        dtype={"can_there_be": "bool"}
     )
 
     assert ((returned == expected["can_there_be"]).all())
@@ -425,6 +475,12 @@ def test_run_oelf_01():
     date_latest_rla = None
     there_can_be_occupants = (
         OperationalEarthquakeLossForecasting.can_there_be_occupants(
+            forecast_cat, date_latest_rla, shortest_recovery_span, (59./(3600.*24.))
+        )
+    )
+    # The same, but by earthquake
+    forecast_cat["there_can_be_occups"] = (
+        OperationalEarthquakeLossForecasting.can_there_be_occupants_by_earthquake(
             forecast_cat, date_latest_rla, shortest_recovery_span, (59./(3600.*24.))
         )
     )
@@ -856,6 +912,12 @@ def test_run_oelf_02():
             forecast_cat, date_latest_rla, shortest_recovery_span, (59./(3600.*24.))
         )
     )
+    # The same, but by earthquake
+    forecast_cat["there_can_be_occups"] = (
+        OperationalEarthquakeLossForecasting.can_there_be_occupants_by_earthquake(
+            forecast_cat, date_latest_rla, shortest_recovery_span, (59./(3600.*24.))
+        )
+    )
 
     # OELF seismicity model weights
     forecast_model_weights = pd.DataFrame(
@@ -1150,6 +1212,12 @@ def test_run_oelf_03():
     date_latest_rla = None
     there_can_be_occupants = (
         OperationalEarthquakeLossForecasting.can_there_be_occupants(
+            forecast_cat, date_latest_rla, shortest_recovery_span, (59./(3600.*24.))
+        )
+    )
+    # The same, but by earthquake
+    forecast_cat["there_can_be_occups"] = (
+        OperationalEarthquakeLossForecasting.can_there_be_occupants_by_earthquake(
             forecast_cat, date_latest_rla, shortest_recovery_span, (59./(3600.*24.))
         )
     )

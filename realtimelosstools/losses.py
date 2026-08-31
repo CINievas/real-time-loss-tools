@@ -719,101 +719,16 @@ class Losses:
         return occupancy_factors
 
     @staticmethod
-    def get_occupancy_factors(
-        datetime_earthquake, mapping_damage_states, include_oelf, main_path
-    ):
-        """
-        This method goes through the repair recovery timelines of all earthquakes that have
-        occurred before 'datetime_earthquake' (this is done by searching for all the occupancy
-        factors files present in 'main_path'/current/occupants, including
-        'main_path'/current/occupants/oelf if 'include_oelf' is True), and determines whether
-        people will be allowed back in (1) or not (0) to buildings with the damage states
-        indicated in 'mapping_damage_states'.
-
-        If there are no occupancy factors files in 'main_path'/current/occupants, all returned
-        factors will be equal to 1.
-
-        Args:
-            datetime_earthquake (numpy.datetime64):
-                UTC date and time of the earthquake.
-            mapping_damage_states (Pandas DataFrame):
-                Mapping between the names of damage states as output by OpenQuake (index) and as
-                labelled in the fragility model (value). E.g.:
-                              fragility
-                    dmg_state
-                    no_damage       DS0
-                    dmg_1           DS1
-                    dmg_2           DS2
-                    dmg_3           DS3
-                    dmg_4           DS4
-            include_oelf (bool):
-                If True, the method will also search for occupancy factors files under
-                'main_path'/current/occupants/oelf.
-            main_path (str):
-                Path to the main running directory, assumed to have the needed structure.
-
-        Returns:
-            occupancy_factors (dict of int: 0 or 1):
-                Dictionary whose keys are the elements of the 'fragility' column of
-                'mapping_damage_states', i.e. each damage state, and whose contents are 1 or 0,
-                indicating that by the date of 'datetime_earthquake', people will be allowed
-                back in (1) or not (0) to buildings with the damage state (key).
-                Example output: {"DS0": 1, "DS1": 1, "DS2": 0, "DS3": 0, "DS4": 0}.
-        """
-
-        # Retrieve filenames of occupancy factors due to previous earthquakes
-        path_to_factors = os.path.join(main_path, "current", "occupants")
-        filenames = glob.glob(
-            os.path.join(path_to_factors, "occupancy_factors_after_RLA_*.csv")
-        )  # each file corresponds to one past earthquake
-
-        if include_oelf:
-            # Retrieve filenames of occupancy factors due to previous OELF earthquakes
-            filenames_oelf = glob.glob(
-                os.path.join(path_to_factors, "oelf", "occupancy_factors_after_OELF_*.csv")
-            )  # each file corresponds to one past earthquake
-            filenames = filenames + filenames_oelf  # concatenate
-
-        # Read factors and collect them in a dictionary
-        occupancy_factors = {}
-        for dmg_state in mapping_damage_states.index:
-            # Initiate as 1 because the retrieved factors (0 or 1) will be multiplied
-            occupancy_factors[mapping_damage_states.loc[dmg_state, "fragility"]] = 1
-
-        for filename in filenames:
-            if "RLA" in filename:
-                factors = pd.read_csv(os.path.join(path_to_factors, filename))
-            elif "OELF" in filename:
-                factors = pd.read_csv(os.path.join(path_to_factors, "oelf", filename))
-            factors.set_index(factors["dmg_state"], drop=True, inplace=True)
-            factors = factors.drop(columns=["dmg_state"])
-
-            for dmg_state in factors.index:
-                occup_function = MultilinearStepFunction(
-                    factors.columns.to_numpy().astype(np.datetime64),  # thresholds
-                    factors.loc[dmg_state, :].to_numpy()  # values
-                )
-                occupancy_factors[dmg_state] = (
-                    occupancy_factors[dmg_state]
-                    * occup_function.evaluate(datetime_earthquake)
-                )
-
-        return occupancy_factors
-
-    @staticmethod
     def get_occupancy_factors_RLA(
         datetime_earthquake, mapping_damage_states, main_path
     ):
         """
-        This method goes through the repair recovery timelines of all earthquakes that have
-        occurred before 'datetime_earthquake' (this is done by searching for all the occupancy
-        factors files present in 'main_path'/current/occupants, including
-        'main_path'/current/occupants/oelf if 'include_oelf' is True), and determines whether
-        people will be allowed back in (1) or not (0) to buildings with the damage states
-        indicated in 'mapping_damage_states'.
+        This method retrieves the repair recovery timeline of the last earthquake run with the
+        RLA algorithm, and determines whether people will be allowed back in (1) or not (0) to
+        buildings with the damage states indicated in 'mapping_damage_states' by
+        'datetime_earthquake'.
 
-        If there are no occupancy factors files in 'main_path'/current/occupants, all returned
-        factors will be equal to 1.
+        If no RLA earthquake has been run before, all returned factors will be equal to 1.
 
         Args:
             datetime_earthquake (numpy.datetime64):
@@ -841,20 +756,16 @@ class Losses:
         """
 
         # Retrieve occupancy factors due to last RLA earthquake, if it exists
-        path_to_factors = os.path.join(main_path, "current", "occupants")
-        filepath = os.path.join(path_to_factors, "occupancy_factors_after_last_RLA.csv")
+        factors_timelines = Losses.read_occupancy_factors_timelines_last_RLA(main_path)
 
         occupancy_factors = {}
 
-        if os.path.exists(filepath):
-            factors = pd.read_csv(filepath)
-            factors.set_index(factors["dmg_state"], drop=True, inplace=True)
-            factors = factors.drop(columns=["dmg_state"])
+        if not (factors_timelines is None):
 
-            for dmg_state in factors.index:
+            for dmg_state in factors_timelines.index:
                 occup_function = MultilinearStepFunction(
-                    factors.columns.to_numpy().astype(np.datetime64),  # thresholds
-                    factors.loc[dmg_state, :].to_numpy()  # values
+                    factors_timelines.columns.to_numpy().astype(np.datetime64),  # thresholds
+                    factors_timelines.loc[dmg_state, :].to_numpy()  # values
                 )
                 occupancy_factors[dmg_state] = occup_function.evaluate(datetime_earthquake)
 
@@ -863,6 +774,179 @@ class Losses:
                 occupancy_factors[mapping_damage_states.loc[dmg_state, "fragility"]] = 1
 
         return occupancy_factors
+
+    @staticmethod
+    def read_occupancy_factors_timelines_last_RLA(main_path):
+        """
+        This method retrieves the repair recovery timeline of the last earthquake run with the
+        RLA algorithm. It returns None if no RLA earthquake has been previously run.
+        """
+
+        # Retrieve occupancy factors due to last RLA earthquake, if it exists
+        path_to_factors = os.path.join(main_path, "current", "occupants")
+        filepath = os.path.join(path_to_factors, "occupancy_factors_after_last_RLA.csv")
+
+        if os.path.exists(filepath):
+            factors_timelines = pd.read_csv(filepath)
+            factors_timelines.set_index(factors_timelines["dmg_state"], drop=True, inplace=True)
+            factors_timelines = factors_timelines.drop(columns=["dmg_state"])
+        else:  # No previous RLA earthquake has been run\
+            factors_timelines = None
+
+        return factors_timelines
+
+    @staticmethod
+    def get_occupancy_factors_all_OELF_earthquakes(
+        forecast_catalogue, recovery_damage, main_path
+    ):
+        """
+        This method calculates the recovery occupancy factors (0-1) of all earthquakes of
+        'forecast_catalogue' for which there can be occupants (and outputs zeroes for the
+        earthquakes for which occupants cannot be expected) and forecast_catalogue["to_run"] is
+        True. The output is a dictionary whose keys are "eq_id" of 'forecast_catalogue', and
+        each of whose elements is a dicctionary of the kind {"DS0": 1, "DS1": 1, "DS2": 0,
+        "DS3": 0, "DS4": 0}.
+
+        For the calculation of the factors, the method splits 'forecast_catalogue' in two groups:
+        - the "first" earthquakes of each (oef_model_id, oef_ses_id) subset, for which the
+        "previous" earthquake is the last-run RLA earthquake (whose timeline is retrieved from
+        the stored CSV file);
+        - all the rest of the earthquakes for which the "previous" earthquake is the precedent
+        row of 'forecast_catalogue' within its own (oef_model_id, oef_ses_id) subset.
+
+        Args:
+            forecast_catalogue (Pandas DataFrame):
+                DataFrame containing a seismicity forecast for a period of time of interest. It
+                normally consists of several realisations of seismicity, which we call
+                "stochastic event sets" (SES), each realisation being identified by a 'ses_id'.
+                One 'ses_id' can contain one or more earthquakes, each of them identified with
+                an 'event_id'. The values of 'event_id' can be repeated across different values
+                of 'ses_id'. The index is the "EQID" consisting of model_id, ses_id and
+                event_id. The DataFrame must contain the following fields:
+                    datetime (Numpy datetime64): Date and time.
+                    model_id (int): ID of the seismicity model used to generate the SES.
+                    ses_id (int): ID of the stochastic event set (SES) that the earthquake
+                        belongs to.
+                    event_id (str): Unique identifier of an earthquake within a 'ses_id'.
+                    to_run (bool): If True, the corresponding earthquake is to be
+                        used to run damage/loss calculations and thus occupancy factors are
+                        calculated; if False, it will be skipped.
+                    there_can_be_occups (bool): True if the time difference with the previously-
+                        run earthquake is such that there might be people occupying buildings
+                        during this earthquake. Only relevant if 'there_can_be_occupants' and
+                        'calculate_casualties' are True, not needed otherwise.
+            recovery_damage (Pandas DataFrame):
+                Pandas DataFrame indicating the expected number of days that it will take for
+                people to be allowed back in to a building as a function of their damage state.
+                As a minimum, its structure comprises the following:
+                    Index:
+                        dmg_state (str):
+                            Damage state.
+                    Columns:
+                        N_damage (int):
+                            Number of days (as an integer) for people to be allowed back into a
+                            buildings as a function of their damage state (independently from
+                            the health status of the people). If the damage states include
+                            irreparable damage and/or collapse, use a very large number herein.
+            main_path (str):
+                Path to the main running directory, assumed to have the needed structure. Needed
+                to check for the last-run RLA earthquake.
+
+        Returns:
+            recovery_occupancy_factors (dict):
+                Dictionary with keys = eq_id, and each element being a dictionary with the 0-1
+                occupancy factors for each earthquake of 'forecast_catalogue' (e.g., {"DS0": 1,
+                "DS1": 1, "DS2": 0, "DS3": 0, "DS4": 0}) for which "to_run" is True. For
+                earthquakes for which no exposure occupants are expected all values are 0.
+                Earthquakes for which forecast_catalogue["to_run"] is False are skipped.
+        """
+
+        # Discard earthquakes that do not cause damage (i.e. too small or too far away)
+        forecast_catalogue_to_run = forecast_catalogue[forecast_catalogue.to_run]
+
+        # Group 'forecast_catalogue' so that it is easier to identify each
+        # (oef_model_id, oef_ses_id) subset ('catalogue_groups' is DataFrameGroupBy object)
+        catalogue_groups = forecast_catalogue_to_run.groupby(["model_id", "ses_id"])
+
+        # Initialise aux_occup_factors full of 0 for all elements of forecast_catalogue_to_run
+        # (these zeroes will remain so for earthquakes for which "there_can_be_occups" is False)
+        dtypes_per_ds = {}
+        for dmg_state in recovery_damage.index:
+            dtypes_per_ds[dmg_state] = "int32"
+
+        aux_occup_factors = pd.DataFrame(
+            index=forecast_catalogue_to_run.index,
+            data=np.zeros((forecast_catalogue_to_run.shape[0], recovery_damage.shape[0]), dtype="int32"),
+            columns=recovery_damage.index
+        ).astype(dtypes_per_ds)
+
+        # FIRST SUB-SET OF EARTHQUAKES TO PROCESS
+        # First earthquakes of each (oef_model_id, oef_ses_id) subset
+        # (i.e. the ones for which the previous earthquake is the last-run RLA one)
+        first_row_mask = catalogue_groups.cumcount().eq(0)  # 1st earthquakes
+        cat_firsts = forecast_catalogue_to_run[
+            first_row_mask & forecast_catalogue_to_run["there_can_be_occups"]
+        ]  # 1st earthquakes for which there can be occupants
+
+        if cat_firsts.shape[0] > 0:
+            # Retrieve occupancy factors due to last RLA earthquake, if it exists
+            factors_timelines = Losses.read_occupancy_factors_timelines_last_RLA(main_path)
+
+            if factors_timelines is None:
+                # No RLA EQ has been run before, all occupancy factors are 1
+                aux_occup_factors.loc[cat_firsts.index, :] = 1
+
+            else:
+                threshold_dates = factors_timelines.columns.to_numpy().astype(np.datetime64)
+
+                for dmg_state in factors_timelines.index:
+                    occup_function = MultilinearStepFunction(
+                        threshold_dates,  # thresholds
+                        factors_timelines.loc[dmg_state, :].to_numpy()  # values
+                    )
+                    aux_occup_factors.loc[cat_firsts.index, dmg_state] = (
+                        occup_function.evaluate(cat_firsts["datetime"]).astype("int32")
+                    )
+
+        # SECOND SUB-SET OF EARTHQUAKES TO PROCESS
+        # All non-first earthquakes for which there can be occupants
+        nonfirst_row_mask = catalogue_groups.cumcount().gt(0)  # all earthquakes except first ones
+        cat_nonfirsts = forecast_catalogue_to_run[
+            nonfirst_row_mask & forecast_catalogue_to_run["there_can_be_occups"]
+        ]  # non-1st earthquakes for which there can be occupants
+
+        # Shift the datetime column by 1 within each group
+        # (original index, now giving datetime of the previous row within the same group)
+        prev_datetimes = catalogue_groups["datetime"].shift(1)
+        # Select only the row-1 datetimes corresponding to non-first rows
+        prev_datetimes_of_nonfirsts = prev_datetimes[
+            nonfirst_row_mask & forecast_catalogue_to_run["there_can_be_occups"]
+        ]
+
+        # Time difference between earthquakes and their previous ones (as Pandas Series)
+        diff = cat_nonfirsts["datetime"] - prev_datetimes_of_nonfirsts
+        diff_days = diff.astype("int64") / 86400_000_000_000 # in fractional days (Pandas Series)
+
+        # Compare the difference in days against the time it takes to inspect+repair
+        damage_days = recovery_damage["N_damage"]
+        comparison_df = (diff_days.values[:, None] > damage_days.values[None, :]).astype("int32")
+        comparison_df = pd.DataFrame(
+            comparison_df,
+            index=diff_days.index,
+            columns=damage_days.index,
+        )  # output is 0s and 1s
+
+        # Bring in the results of the second subset to the overall output
+        aux_occup_factors.loc[comparison_df.index, comparison_df.columns] = comparison_df.loc[
+            : , :
+        ]
+
+        # Convert DataFrame into dictionary with keys=eq_ids and vals={"DS0": 1, ...}
+        recovery_occupancy_factors = aux_occup_factors[
+            recovery_damage.index
+        ].to_dict(orient="index")
+
+        return recovery_occupancy_factors
 
     @staticmethod
     def get_occupancy_factors_per_asset(exposure_taxonomies, occupancy_factors):

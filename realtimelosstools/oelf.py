@@ -115,11 +115,17 @@ class OperationalEarthquakeLossForecasting():
                     magnitude (float): Moment magnitude.
                     datetime (Numpy datetime64): Date and time.
                     depth (float): Depth of the hypocentre.
+                    model_id (int): ID of the seismicity model used to generate the stochastic
+                        event set to which the earthquake belongs.
                     ses_id (int): ID of the stochastic event set (SES) that the earthquake
-                    belongs to.
+                        belongs to.
                     event_id (str): Unique identifier of an earthquake within a 'ses_id'.
                     to_run (bool): If True, the corresponding earthquake is to be
-                    used to run damage/loss calculations; if False, it will be skipped.
+                        used to run damage/loss calculations; if False, it will be skipped.
+                    there_can_be_occups (bool): True if the time difference with the previously-
+                        run earthquake is such that there might be people occupying buildings
+                        during this earthquake. Only relevant if 'there_can_be_occupants' and
+                        'calculate_casualties' are True, not needed otherwise.
             forecast_name (str):
                 Name of the forecast. It is used for the description of the OpenQuake job.ini
                 file and to create sub-directories to store files associated with this forecast.
@@ -478,6 +484,14 @@ class OperationalEarthquakeLossForecasting():
             forecast_catalogue["local_time"] = None
             forecast_catalogue["time_of_day"] = None
 
+        # Calculate recovery occupancy factors for all earthquakes in the catalogue
+        if calculate_casualties and there_can_be_occupants:
+            recovery_occupancy_factors = Losses.get_occupancy_factors_all_OELF_earthquakes(
+                forecast_catalogue, recovery_damage, main_path
+            )
+        else:
+            recovery_occupancy_factors = None
+
         # Group 'forecast_catalogue' so that it is easier to identify each
         # (oef_model_id, oef_ses_id) subset ('catalogue_groups' is DataFrameGroupBy object)
         catalogue_groups = forecast_catalogue.groupby(["model_id", "ses_id"])
@@ -575,23 +589,13 @@ class OperationalEarthquakeLossForecasting():
                     exposure_full_occupants.index = exposure_full_occupants.index.rename("asset_id")
                     exposure_full_occupants = exposure_full_occupants.drop(columns=["id"])
 
-                    if there_can_be_occupants:
-                        # Retrieve c factors for the date+time of the earthquake to run (one key
-                        # per damage state, e.g. {"DS0": 1, "DS1": 1, "DS2": 0, "DS3": 0, "DS4": 0};
-                        # they will all be equal to 1 if no earthquake has been run before)
-                        recovery_occupancy_factors = Losses.get_occupancy_factors(
-                            events_in_ses.loc[eq_id, "datetime"],
-                            mapping_damage_states,
-                            True,  # include OELF previous earthquakes (not just RLA)
-                            main_path
-                        )
-
+                    if there_can_be_occupants and events_in_ses.loc[eq_id, "to_run"]:
                         # Update exposure to reflect occupants for this earthquake
                         # (reflecting injuries and deaths)
                         exposure_run = ExposureUpdater.update_exposure_occupants(
                             calculate_casualties,  # Nothing will change if this is False
                             exposure_full_occupants,
-                            recovery_occupancy_factors,
+                            recovery_occupancy_factors[eq_id], #e.g. {"DS0": 1, ... "DS4": 0}
                             time_of_day_occupancy,
                             time_of_day,
                             events_in_ses.loc[eq_id, "datetime"],
@@ -810,12 +814,6 @@ class OperationalEarthquakeLossForecasting():
                             recovery_longest_time,
                             events_in_ses.loc[eq_id, "datetime"],
                         )
-                        # Calculate factors regarding people being allowed to go back to buildings
-                        occupancy_factors = Losses.calculate_repair_recovery_timeline(
-                            recovery_damage,
-                            recovery_longest_time,
-                            events_in_ses.loc[eq_id, "datetime"],
-                        )
 
                         # Store number of injured people away from the building in time, per asset ID
                         injured_still_away.to_csv(
@@ -826,19 +824,9 @@ class OperationalEarthquakeLossForecasting():
                             index=True,
                         )
 
-                        # Store occupancy factors (0: people not allowed in, 1: people allowed in) as a
-                        # function of time and damage state
-                        occupancy_factors.to_csv(
-                            os.path.join(
-                                path_to_occupants_oelf,
-                                "occupancy_factors_after_OELF_%s.csv" % (eq_id)
-                            ),
-                            index=True,
-                        )
                     else: # 'calculate_casualties' is False
                         injured_still_away = None
                         losses_human_all_events = None
-                        occupancy_factors = None
 
                     # Store new exposure CSV
                     if store_intermediate:
@@ -1776,7 +1764,13 @@ class OperationalEarthquakeLossForecasting():
         - each stochastic event set has its own "first" earthquake;
         - for each of these "first" earthquakes, the "previous" earthquake is the last-run RLA
         earthquake, whose date is 'date_latest_rla';
-        - for the rest of the earthquakes, the "previous" earthquake is the one right before it.
+        - for the rest of the earthquakes, the "previous" earthquake is the one right before it;
+        - only earthquakes for which forecast_catalogue["to_run"]==True are considered, but the
+        output contains all earthquake IDs;
+        - the "first" earthquake of a stochastic event set may be a "second" earthquake at first
+        sight, if the "first" earthquake has forecast_catalogue["to_run"]==False (because if an
+        earthquake is not run it is assumed that it does not cause further damage and thus the
+        inspection/repair timeline is not triggered by it).
 
         If 'date_latest_rla' is None it is interpreted as no "real" earthquake having been run
         before, which results in occupants being allowed in their buildings.
@@ -1789,6 +1783,7 @@ class OperationalEarthquakeLossForecasting():
                 DataFrame containing a seismicity forecast for a period of time of interest. It
                 must contain at least the following field:
                     datetime (Numpy datetime64): Date and time.
+                    to_run (bool)
             date_latest_rla (datetime.datetime object):
                 Date and time of the last "real" (RLA) earthquake run. Use None to indicate that
                 no "real" earthquake has been run before.
@@ -1806,7 +1801,10 @@ class OperationalEarthquakeLossForecasting():
                     such that no occupants can be expected in any building.
         """
 
-        catalogue_groups = forecast_catalogue.groupby(["model_id", "ses_id"])
+        # Discard earthquakes that do not cause damage (i.e. too small or too far away)
+        forecast_catalogue_to_run = forecast_catalogue[forecast_catalogue.to_run]
+
+        catalogue_groups = forecast_catalogue_to_run.groupby(["model_id", "ses_id"])
 
         # Difference between successive earthquakes of each ("model_id", "ses_id") set
         dt_diff = (
@@ -1817,18 +1815,28 @@ class OperationalEarthquakeLossForecasting():
         if date_latest_rla is not None:
             # First-row replacement: datetime - date_latest_rla
             first_row_diff = (
-                (forecast_catalogue["datetime"] - date_latest_rla)
+                (forecast_catalogue_to_run["datetime"] - date_latest_rla)
                 .dt.total_seconds() / (3600 * 24)
             )  # computed for all earthquakes, but we take only the first rows later
 
         else:  # date_latest_rla is None, no previous RLA earthquake has been run
-            first_row_diff = pd.Series(99999., index=forecast_catalogue.index)
+            first_row_diff = pd.Series(99999., index=forecast_catalogue_to_run.index)
 
         # Fill NaNs (the first rows of each set)
         dt_diff_days_all_eqs = dt_diff.fillna(first_row_diff)  # Pandas Series
 
         # True when the time difference is larger than the shortest recovery time
         threshold = shortest_recovery_span + tolerance
-        by_eq_there_can_be_occupants = (dt_diff_days_all_eqs > threshold)
+        aux_by_eq_there_can_be_occupants = (dt_diff_days_all_eqs > threshold)
+
+        # Initialise output (earthquakes for which "to_run" is False were excluded
+        # up to here but need to exist in the final output)
+        by_eq_there_can_be_occupants = pd.Series(
+            [False for i in range(forecast_catalogue.shape[0])],
+            index=forecast_catalogue.index
+        )
+        by_eq_there_can_be_occupants[
+            aux_by_eq_there_can_be_occupants.index
+        ] = aux_by_eq_there_can_be_occupants
 
         return by_eq_there_can_be_occupants

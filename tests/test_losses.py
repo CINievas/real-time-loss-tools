@@ -353,56 +353,44 @@ def test_calculate_repair_recovery_timeline():
             )
 
 
-def test_get_occupancy_factors():
-    # Test 1: previous earthquakes run, without OELF
-    datetime_earthquake = np.datetime64("2010-04-10T00:00:00")
+def test_get_occupancy_factors_all_OELF_earthquakes():
+    # Read a seismicity catalogue
+    filepath = os.path.join(
+        os.path.dirname(__file__), "data",
+        "oef_catalogue_several_models_ordered_for_occup_factors.csv"
+    )
+    forecast_cat = pd.read_csv(
+        filepath,
+        index_col=7
+    )
+    forecast_cat["datetime"] = pd.to_datetime(forecast_cat["datetime"])
 
-    aux = {
-        "dmg_state": ["no_damage", "dmg_1", "dmg_2", "dmg_3", "dmg_4"],
-        "fragility": ["DS0", "DS1", "DS2", "DS3", "DS4"]
-    }
-    mapping_damage_states = pd.DataFrame(aux)
-    mapping_damage_states.set_index(mapping_damage_states["dmg_state"], drop=True, inplace=True)
-    mapping_damage_states = mapping_damage_states.drop(columns=["dmg_state"])
+    output_df = forecast_cat[forecast_cat.to_run][["DS0", "DS1", "DS2", "DS3", "DS4"]]
+    forecast_cat.drop(
+        columns=["DS0", "DS1", "DS2", "DS3", "DS4"], inplace=True
+    )
+    expected_factors = output_df.to_dict(orient="index")
 
-    include_oelf = False
+    # The "there_can_be_occups" colummn of "forecast_cat" has been calculated with the following
+    # Date of latest "real" earthquake = datetime(2009, 4, 5, 1, 38)
+    # Shortest recovery span = 1  # days
 
-    main_path = os.path.join(os.path.dirname(__file__), "data")
-
-    expected_occupancy_factors = {"DS0": 1, "DS1": 1, "DS2": 1, "DS3": 0, "DS4": 0}
-
-    returned_occupancy_factors = Losses.get_occupancy_factors(
-        datetime_earthquake, mapping_damage_states, include_oelf, main_path
+    recovery_damage = pd.DataFrame(
+        {"N_damage": [1, 1, 14, 1095, 1095]},
+        index=["DS0", "DS1", "DS2", "DS3", "DS4"]
     )
 
-    for dmg_state in expected_occupancy_factors:
-        assert returned_occupancy_factors[dmg_state] == expected_occupancy_factors[dmg_state]
-
-    # Test 2: previous earthquakes run, include OELF
-    include_oelf = True
-
-    expected_occupancy_factors = {"DS0": 1, "DS1": 1, "DS2": 0, "DS3": 0, "DS4": 0}
-
-    returned_occupancy_factors = Losses.get_occupancy_factors(
-        datetime_earthquake, mapping_damage_states, include_oelf, main_path
+    returned_factors = Losses.get_occupancy_factors_all_OELF_earthquakes(
+        forecast_cat,
+        recovery_damage,
+        os.path.join(
+            os.path.dirname(__file__), "data", "for_get_occupancy_factors_all_OELF_earthquakes"
+        )
     )
 
-    for dmg_state in expected_occupancy_factors:
-        assert returned_occupancy_factors[dmg_state] == expected_occupancy_factors[dmg_state]
-
-    # Test 3: no previous earthquakes run
-    include_oelf = False
-
-    main_path = os.path.join(os.path.dirname(__file__), "data", "intentionally_no_files")
-
-    expected_occupancy_factors = {"DS0": 1, "DS1": 1, "DS2": 1, "DS3": 1, "DS4": 1}
-
-    returned_occupancy_factors = Losses.get_occupancy_factors(
-        datetime_earthquake, mapping_damage_states, include_oelf, main_path
-    )
-
-    for dmg_state in expected_occupancy_factors:
-        assert returned_occupancy_factors[dmg_state] == expected_occupancy_factors[dmg_state]
+    for eq_id in expected_factors:
+        for dmg_state in output_df.columns:
+            assert returned_factors[eq_id][dmg_state] == expected_factors[eq_id][dmg_state]
 
 
 def test_get_occupancy_factors_per_asset():
