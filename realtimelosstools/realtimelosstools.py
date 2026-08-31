@@ -455,7 +455,7 @@ def main():
                     logger.info("There might be occupants in buildings during OELF calculation.")
                     forecast_cat["there_can_be_occups"] = (
                         OperationalEarthquakeLossForecasting.can_there_be_occupants_by_earthquake(
-                            forecast_catalogue, date_latest_rla, shortest_recovery_span, tolerance
+                            forecast_cat, date_latest_rla, shortest_recovery_span, tolerance
                         )
                     )
                 else:
