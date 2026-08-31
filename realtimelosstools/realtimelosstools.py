@@ -445,7 +445,7 @@ def main():
                 # Determine if occupants need to be updated (or considered zero), based on the time
                 # ellapsed since the last real (RLA) earthquake and the shortest recovery span
                 # specified by the user (shortest time to allow occupants back in)
-                tolerance = (59./(3600.*24.)
+                tolerance = 59./(3600.*24.)
                 there_can_be_occupants = (
                     OperationalEarthquakeLossForecasting.can_there_be_occupants(
                         forecast_cat, date_latest_rla, shortest_recovery_span, tolerance
