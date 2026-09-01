@@ -29,8 +29,8 @@ follows.
 
 1. Create a new Python >= 3.12 virtual environment and activate it (it is strongly recommended
 to upgrade pip: `pip install --upgrade pip`).
-2. Clone OpenQuake v3.25.1 from [https://github.com/gem/oq-engine.git](https://github.com/gem/oq-engine.git)
-(e.g., `git clone --single-branch --branch v3.25.1 https://github.com/gem/oq-engine.git`).
+2. Clone OpenQuake v3.26.0 from [https://github.com/gem/oq-engine.git](https://github.com/gem/oq-engine.git)
+(e.g., `git clone --single-branch --branch v3.26.0 https://github.com/gem/oq-engine.git`).
 3. Navigate to the local OpenQuake repository and run
 `pip install -r requirements-py312-osname.txt`, where `osname` stands for the name of your OS
 (e.g., `requirements-py312-linux64.txt` for Linux).
@@ -48,7 +48,7 @@ database by doing `oq engine --upgrade-db`.
 ### Software dependencies
 
 - Python 3.12 or above
-- OpenQuake engine 3.25.1 or above
+- OpenQuake engine 3.26.0 or above
 
 ### Python libraries
 
