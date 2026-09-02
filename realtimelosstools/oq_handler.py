@@ -227,7 +227,7 @@ class OpenQuakeJob():
             "%s Ensuring no negative number of buildings in 'damage_results_OQ'"
             % (np.datetime64('now'))
         )
-        damage_results_OQ = ExposureUpdater.ensure_no_negative_damage_results_OQ(
+        damage_results_OQ = self.ensure_no_negative_damage_results_OQ(
             damage_results_OQ
         )
 
@@ -419,3 +419,116 @@ class OpenQuakeJob():
         )
 
         return damage_results_OQ_weighted
+
+    @staticmethod
+    def ensure_no_negative_damage_results_OQ(
+        damage_results_OQ, tolerance=0.0001, n_rows_simplified=100000
+    ):
+        """
+        This method ensures that there are no negative numbers of buildings in the column
+        "value" of 'damage_results_OQ', by setting them to zero and adjusting the number of
+        buildings of the other damage grades so that the total of each 'asset_id' adds up to the
+        original value. If the ratio of any of the negative values to the total number of
+        buildings associated with that 'asset_id' is larger (in absolute value) than
+        'tolerance', a ValueError is raised.
+
+        Args:
+            damage_results_OQ (Pandas DataFrame):
+                Pandas DataFrame with numbers of buildings/probabilities of buildings in each
+                damage state. This is output from running OpenQuake. It comprises the following
+                fields:
+                    Index is multiple:
+                        asset_id (str):
+                            ID of the asset (i.e. specific combination of building_id and a
+                            particular building class).
+                        dmg_state (str):
+                            Damage states.
+                    Columns:
+                        value (float):
+                            Probability of 'dmg_state' for 'asset_id'.
+                        (Columns "loss_type" and "rlz", which are part of OpenQuake's output,
+                        are not used).
+            tolerance (float):
+                Default: 0.0001 (= 0.01%).
+            n_rows_simplified (int):
+                If the number of rows of 'damage_results_OQ' is smaller than 'n_rows_simplified',
+                the adjustment of the number of buildings is carried out by 'asset_id'. If it is
+                larger, the adjustment is done in a simplified way, taking 'damage_results_OQ'
+                as a whole.
+
+        Returns:
+            damage_results_OQ_adjusted (Pandas DataFrame):
+                Same structure as 'damage_results_OQ' in the input, but adjusted so that there
+                are no negative values in the column "value".
+        """
+
+        if np.all(damage_results_OQ.loc[:, "value"] >= 0):  # Nothing to be done
+            return damage_results_OQ
+
+        damage_results_OQ_adjusted = deepcopy(damage_results_OQ)
+
+        filter_neg_vals = (damage_results_OQ_adjusted.value < 0.0)
+
+        if filter_neg_vals.sum() == 0:  # there are no negative values
+            # nothing to be done
+            return damage_results_OQ_adjusted
+
+        if damage_results_OQ_adjusted.shape[0] > n_rows_simplified:
+            # Simplified procedure (adjusting the whole DataFrame all together)
+            total_bdgs = damage_results_OQ_adjusted["value"].sum()
+            negative_bdgs = abs(damage_results_OQ_adjusted[filter_neg_vals]["value"].sum())
+
+            if negative_bdgs / total_bdgs > tolerance:
+                error_message = (
+                    "There total of negative values in the damage results from OpenQuake "
+                    "exceeds the %s tolerance. The program cannot continue running"
+                    % (tolerance)
+                )
+                logger.critical(error_message)
+                raise ValueError(error_message)
+
+            # Set negative numbers to zero
+            damage_results_OQ_adjusted.loc[filter_neg_vals, "value"] = 0
+
+            # Recalculate the other values so as to keep the total number of buildings
+            damage_results_OQ_adjusted["value"] = (
+                damage_results_OQ_adjusted["value"] / damage_results_OQ_adjusted["value"].sum()
+                * total_bdgs
+            )
+
+            return damage_results_OQ_adjusted
+
+        # If there are negative values and damage_results_OQ_adjusted.shape[0]
+        # <= n_rows_simplified, adjust the number of buildings by 'asset_id'
+        asset_ids_neg_vals = damage_results_OQ_adjusted[filter_neg_vals].index.get_level_values(
+            "asset_id"
+        ).unique()
+
+        for i, asset_id in enumerate(asset_ids_neg_vals):
+            damage_results_OQ_asset = damage_results_OQ_adjusted.loc[asset_id, "value"]
+
+            total_bdgs = damage_results_OQ_asset.sum()
+
+            if abs(damage_results_OQ_asset.min()) / total_bdgs > tolerance:
+                error_message = (
+                    "There are negative values in the damage results from OpenQuake "
+                    "that exceed the %s tolerance. The program cannot continue running"
+                    % (tolerance)
+                )
+                logger.critical(error_message)
+                raise ValueError(error_message)
+
+            # Set negative numbers to zero
+            damage_results_OQ_asset = damage_results_OQ_asset.clip(0.0, np.inf)
+
+            # Recalculate the other values so as to keep the total number of buildings
+            damage_results_OQ_asset = (
+                damage_results_OQ_asset / damage_results_OQ_asset.sum() * total_bdgs
+            )
+
+            # Transfer back to the original DataFrame (damage_results_OQ)
+            damage_results_OQ_adjusted.loc[asset_id, "value"] = (
+                damage_results_OQ_asset.to_numpy()
+            )
+
+        return damage_results_OQ_adjusted
