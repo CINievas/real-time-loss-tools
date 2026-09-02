@@ -28,7 +28,8 @@ from realtimelosstools.ruptures import Rupture
 from realtimelosstools.exposure_updater import ExposureUpdater
 from realtimelosstools.losses import Losses
 from realtimelosstools.writers import Writer
-from realtimelosstools.utils import Time, OpenQuakeDataStoreHandler
+from realtimelosstools.utils import Time
+from realtimelosstools.oq_handler import OpenQuakeDataStoreHandler
 
 
 logger = logging.getLogger()
