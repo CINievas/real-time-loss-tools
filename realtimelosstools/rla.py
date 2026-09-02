@@ -21,15 +21,12 @@ import os
 import numpy as np
 import pandas as pd
 from datetime import datetime
-from openquake.commands.run import main
-from openquake.calculators.extract import extract
-from openquake.commonlib.datastore import read
 from realtimelosstools.ruptures import Rupture
 from realtimelosstools.exposure_updater import ExposureUpdater
 from realtimelosstools.losses import Losses
 from realtimelosstools.writers import Writer
 from realtimelosstools.utils import Time
-from realtimelosstools.oq_handler import OpenQuakeDataStoreHandler
+from realtimelosstools.oq_handler import OpenQuakeJob
 
 
 logger = logging.getLogger()
@@ -394,129 +391,15 @@ class RapidLossAssessment:
         )
 
         # Run OpenQuake
-        path_to_job_ini = os.path.join(main_path, "current", "job.ini")
-
-        try:
-            calc_id = main(path_to_job_ini)
-
-            # Retrieve damage states from OpenQuake output
-            dstore = read(calc_id)
-
-            try:
-                damage_results_OQ_raw325 = dstore.read_df("damages-rlzs")
-
-                oq_asset_id_mapping = OpenQuakeDataStoreHandler.retrieve_exposure_asset_id_mapping(
-                    extract(dstore, "assetcol").array
-                )
-
-                damage_results_OQ = OpenQuakeDataStoreHandler.backward_compatibility_damage(
-                    damage_results_OQ_raw325, oq_asset_id_mapping
-                )
-
-                # Check if different realisations exist
-                # (i.e., from different GMPE logic tree branches)
-                if len(damage_results_OQ["rlz"].unique()) != 1:
-                    rlz_weights_raw = extract(dstore, "full_lt").get_realizations()
-                    rlz_weights = {}
-                    for i, rlz in enumerate(rlz_weights_raw):
-                        rlz_weights[i] = rlz.weight["weight"]
-                    # Incorporate logic tree weights to damage results
-                    damage_results_OQ = ExposureUpdater.update_OQ_damage_w_logic_tree_weights(
-                        damage_results_OQ, rlz_weights
-                    )
-
-            except KeyError as ke:
-                if (len(ke.args) == 1) and ("damages-rlzs" in ke.args):
-                    # OpenQuake's "There is no damage, perhaps the hazard is too small?"
-                    damage_results_OQ = ExposureUpdater.create_OQ_existing_damage(
-                            exposure_run,
-                            mapping_damage_states,
-                            loss_type="structural"
-                    )
-                else:
-                    error_message = (
-                        "OpenQuake has not found 'damages-rlzs' for %s "
-                        "and Real-Time Loss Tools has not been able to solve it"
-                        % (description)
-                    )
-                    logger.critical(error_message)
-                    raise OSError(error_message)
-
-            dstore.close()
-
-        except RuntimeError as run_e:
-            if (len(run_e.args) == 1) and ("No GMFs were generated" in run_e.args[0]):
-                # OpenQuake's "No GMFs were generated, perhaps they were all below
-                # the minimum_intensity threshold"
-                damage_results_OQ = ExposureUpdater.create_OQ_existing_damage(
-                        exposure_run,
-                        mapping_damage_states,
-                        loss_type="structural"
-                )
-            else:
-                error_message = (
-                    "OpenQuake has crashed for %s "
-                    "and Real-Time Loss Tools has not been able to solve it"
-                    % (description)
-                )
-                logger.critical(error_message)
-                raise OSError(error_message)
-
-        except AssertionError as ae:
-                error_message = (
-                    "OpenQuake has crashed for %s with an AssertionError "
-                    "and Real-Time Loss Tools has not been able to solve it"
-                    % (description)
-                )
-                logger.critical(error_message)
-                raise OSError(error_message)
-
-        if "asset_id" in damage_results_OQ.columns and "dmg_state" in damage_results_OQ.columns:
-            # If damage_results_OQ has been adjusted as per GMPE logic tree weights,
-            # this step is not necessary
-            new_index = pd.MultiIndex.from_arrays(
-                [damage_results_OQ["asset_id"], damage_results_OQ["dmg_state"]]
-            )
-            damage_results_OQ.index = new_index
-            damage_results_OQ = damage_results_OQ.drop(columns=["asset_id", "dmg_state"])
-
-        if not store_openquake:  # Erase the job just run from OpenQuake's database (and HDF5)
-            Writer.delete_OpenQuake_last_job()
-
-        logger.info(
-            "%s Running of OpenQuake and retrieval of results done" % (np.datetime64('now'))
+        oqjob = OpenQuakeJob(
+            description,
+            earthquake["event_id"],
+            os.path.join(main_path, "current", "job.ini"),
+            store_intermediate,
+            store_openquake,
+            os.path.join(main_path, "openquake_output")
         )
-
-        # Store damage states from OpenQuake output to CSV (incl. potential negative values)
-        if store_intermediate:
-            damage_results_OQ.to_csv(
-                os.path.join(
-                    main_path,
-                    "openquake_output",
-                    "%s_damages_OQ_raw.csv"
-                    % (earthquake["event_id"])
-                ),
-            )
-
-        # Ensure no negative number of buildings in 'damage_results_OQ'
-        logger.info(
-            "%s Ensuring no negative number of buildings in 'damage_results_OQ'"
-            % (np.datetime64('now'))
-        )
-        damage_results_OQ = ExposureUpdater.ensure_no_negative_damage_results_OQ(
-            damage_results_OQ
-        )
-
-        # Store adjusted damage states from OpenQuake output to CSV
-        if store_intermediate:
-            damage_results_OQ.to_csv(
-                os.path.join(
-                    main_path,
-                    "openquake_output",
-                    "%s_damages_OQ.csv"
-                    % (earthquake["event_id"])
-                ),
-            )
+        damage_results_OQ = oqjob.run(exposure_run, mapping_damage_states)
 
         # Update exposure to reflect new damage states
         # (occupants not updated yet)

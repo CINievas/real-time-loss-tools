@@ -18,10 +18,10 @@
 
 import numpy as np
 import pandas as pd
-from realtimelosstools.oq_handler import OpenQuakeDataStoreHandler
+from realtimelosstools.oq_handler import OpenQuakeJob
 
 
-def test_OpenQuakeDataStoreHandler_retrieve_exposure_asset_id_mapping():
+def test_OpenQuakeJob_retrieve_exposure_asset_id_mapping():
 
     # OpenQuake output
     dt = np.dtype([
@@ -35,7 +35,7 @@ def test_OpenQuakeDataStoreHandler_retrieve_exposure_asset_id_mapping():
         (b'exp_3', 2, 1.0)
     ], dtype=dt)
 
-    returned_mapping = OpenQuakeDataStoreHandler.retrieve_exposure_asset_id_mapping(oq_exposure)
+    returned_mapping = OpenQuakeJob.retrieve_exposure_asset_id_mapping(oq_exposure)
 
     expected_mapping = {0: "exp_1", 1: "exp_2", 2: "exp_3"}
 
@@ -43,7 +43,7 @@ def test_OpenQuakeDataStoreHandler_retrieve_exposure_asset_id_mapping():
         assert returned_mapping[key] == expected_mapping[key]
 
 
-def test_OpenQuakeDataStoreHandler_backward_compatibility_damage():
+def test_OpenQuakeJob_backward_compatibility_damage():
 
     # OpenQuake output
     dt = np.dtype([
@@ -66,7 +66,7 @@ def test_OpenQuakeDataStoreHandler_backward_compatibility_damage():
         }
     )
 
-    returned_damage_results_OQ = OpenQuakeDataStoreHandler.backward_compatibility_damage(
+    returned_damage_results_OQ = OpenQuakeJob.backward_compatibility_damage(
         datastore_damage_results, {0: "exp_1", 1: "exp_2", 2: "exp_3"}
     )
 
