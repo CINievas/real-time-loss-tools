@@ -47,6 +47,17 @@ class Configuration:
         self.calculate_casualties (bool):
             True to indicate the software to calculate casualties (and account for them when
             determining occupants for future earthquakes), False otherwise.
+        self.nuisance (dict):
+            Parameters used to run a nuisance calculation:
+            calculate (bool):
+                True to calculate nuisance, False otherwise.
+            xml_name (str):
+                Name of the XML file that contains the nuisance model (in OpenQuake fragility
+                format). Assumed to be located under main_path/static.
+            mapping (str):
+                Name of the CSV file mapping exposure to nuisance classes, in Openquake
+                exposure-vulnerability mapping format. Assumed to be located under
+                main_path/static.
         self.mapping_damage_states (Pandas DataFrame):
             Mapping between the names of damage states as output by OpenQuake and as labelled in
             the fragility model. In the yml configuration file it is defined by means of a
@@ -152,6 +163,7 @@ class Configuration:
         "number_cores",
         "state_dependent_fragilities",
         "calculate_casualties",
+        "nuisance",
         "mapping_damage_states",
         "oelf",
         "store_intermediate",
@@ -200,6 +212,20 @@ class Configuration:
         self.calculate_casualties = self.assign_boolean_parameter(
             config, "calculate_casualties"
         )
+
+        nuisance_aux = self.assign_hierarchical_parameters(
+            config, "nuisance"
+        )
+        to_check = ["calculate"]
+        if nuisance_aux["calculate"]:
+            to_check.append("xml_name")
+            to_check.append("mapping")
+        self.nuisance = self.assign_hierarchical_parameters(
+            config, "nuisance", requested_nested = to_check
+        )
+        if not nuisance_aux["calculate"]:
+            self.nuisance["xml_name"] = None
+            self.nuisance["mapping"] = None
 
         mapping_damage_states_aux = self.assign_hierarchical_parameters(
             config, "mapping_damage_states"

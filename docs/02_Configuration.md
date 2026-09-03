@@ -40,6 +40,27 @@ otherwise. See details on the behaviour of the software with each option
 Set to `True` to indicate the software to calculate casualties (and account for them when
 determining number of occupants for future earthquakes), set to `False` otherwise.
 
+### `nuisance`
+
+Parameters used to run (or not) a nuisance calculation:
+
+**calculate**
+
+If set to `True`, the software will attempt to run a nuisance calculation using the model
+specified in `xml_name` (see below) and the exposure-to-nuisance classes mapping specified in
+`mapping` (see below), both files assumed to exist under `main_path/static`.
+
+**xml_name**
+
+Name of the XML file that contains the nuisance model, formatted as an OpenQuake fragility XML.
+Assumed to be located under `main_path/static`. Only needed if `calculate` is `True`.
+
+**mapping**
+
+Name of the CSV file mapping exposure to nuisance classes, formatted as an Openquake
+exposure-vulnerability mapping. Assumed to be located under `main_path/static`. Only needed if
+`calculate` is `True`.
+
 ### `mapping_damage_states`
 
 These parameters link the names of damage states as they are output by OpenQuake and as they are
