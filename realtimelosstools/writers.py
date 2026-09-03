@@ -20,6 +20,7 @@ import os
 import logging
 import fileinput
 import getpass
+import configparser
 from openquake.commonlib import datastore
 from openquake.commonlib.logs import get_calc_ids
 from openquake.commands.purge import purge_one
@@ -203,26 +204,37 @@ class Writer:
             logger.critical(error_message)
             raise OSError(error_message)
 
-        with fileinput.FileInput(filepath_job_ini, inplace=True) as file:
-            for line in file:
-                if "description =" in line:
-                    text_to_search = line
-                    replacement_text = "description = %s\n" % (new_description)
-                    print(line.replace(text_to_search, replacement_text), end='')
-                elif "time_event =" in line:
-                    text_to_search = line
-                    if new_time_of_day is not None:
-                        replacement_text = "time_event = %s\n" % (new_time_of_day)
-                    else:
-                        replacement_text = "time_event = avg\n"
-                    print(line.replace(text_to_search, replacement_text), end='')
-                elif "rupture_model_file =" in line:
-                    text_to_search = line
-                    replacement_text = "rupture_model_file = %s\n" % (new_name_rupture_file)
-                    print(line.replace(text_to_search, replacement_text), end='')
-                else:
-                    text_to_search = line
-                    print(line.replace(text_to_search, text_to_search), end='')
+        # Read existing job.ini
+        jobini = configparser.ConfigParser(interpolation=None)
+        jobini.read(filepath_job_ini)
+
+        # Update values
+        replacements = [
+            {
+                "section": "general",
+                "key": "description",
+                "new_val": new_description
+            },
+            {
+                "section": "exposure",
+                "key": "time_event",
+                "new_val": new_time_of_day if new_time_of_day is not None else "avg"
+            },
+            {
+                "section": "Rupture information",
+                "key": "rupture_model_file",
+                "new_val": new_name_rupture_file
+            }
+        ]
+
+        for repl in replacements:
+            if repl["section"] in jobini and repl["key"] in jobini[repl["section"]]:
+                jobini[repl["section"]][repl["key"]] = repl["new_val"]
+
+        # Overwrite file
+        with open(filepath_job_ini, "w") as f:
+            jobini.write(f)
+
 
     @staticmethod
     def delete_OpenQuake_last_job():

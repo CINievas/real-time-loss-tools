@@ -227,6 +227,7 @@ def test_update_job_ini():
     expected_lines[22] = 'maximum_distance = 200.0\n'
     expected_lines[23] = 'number_of_ground_motion_fields = 1000\n'
     expected_lines[24] = 'minimum_intensity = {"AvgSA": 1E-5}\n'
+    expected_lines[25] = '\n'
 
     # Create temporary output directory
     output_path = os.path.join(os.path.dirname(__file__), "data", "temp_test_writers")
