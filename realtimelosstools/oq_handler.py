@@ -43,6 +43,7 @@ class OpenQuakeJob():
         path_to_job_ini,
         store_intermediate,
         store_openquake,
+        oq_previous_hazard_id=None,
         path_to_oq_outputs=None
     ):
         """
@@ -62,9 +63,12 @@ class OpenQuakeJob():
                 If True, OpenQuake HDF5 files will be stored and jobs will be kept in
                 OpenQuake's database. If false, OpenQuake's database will be purged of this
                 job after running.
+            oq_previous_hazard_id (int):
+                ID of an OpenQuake calculation previously run from which hazards results will
+                be retrieved for the new calculation.
             path_to_oq_outputs (str):
                 Full path where OpenQuake's results are to be stored as CSV files, if
-                'store_intermediate' is True
+                'store_intermediate' is True.
             calc_id (int):
                 Calculation ID assigned by OpenQuake when the job is run.
         """
@@ -74,6 +78,7 @@ class OpenQuakeJob():
         self.path_to_job_ini  = path_to_job_ini
         self.store_intermediate = store_intermediate
         self.store_openquake = store_openquake
+        self.oq_previous_hazard_id = oq_previous_hazard_id
         self.path_to_oq_outputs = path_to_oq_outputs
         self.calc_id = None
 
@@ -124,7 +129,7 @@ class OpenQuakeJob():
         """
         try:
             # Run OpenQuake
-            self.calc_id = main(self.path_to_job_ini)
+            self.calc_id = main(self.path_to_job_ini, hc=self.oq_previous_hazard_id)
 
             # Retrieve damage states from OpenQuake output
             dstore = read(self.calc_id)

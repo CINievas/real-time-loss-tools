@@ -390,16 +390,32 @@ class RapidLossAssessment:
             "../ruptures/rla/%s" % (rupture_xml_filename),
         )
 
-        # Run OpenQuake
-        oqjob = OpenQuakeJob(
+        # Run OpenQuake to calculate damage
+        oqjob_dmg = OpenQuakeJob(
+            description,
+            earthquake["event_id"],
+            os.path.join(main_path, "current", "job.ini"),
+            store_intermediate,
+            True, #store_openquake,
+            None,
+            os.path.join(main_path, "openquake_output")
+        )
+        damage_results_OQ = oqjob_dmg.run(exposure_run, mapping_damage_states)
+
+        import pdb
+        pdb.set_trace()
+        # Run OpenQuake to calculate nuisance
+        oqjob_nuis = OpenQuakeJob(
             description,
             earthquake["event_id"],
             os.path.join(main_path, "current", "job.ini"),
             store_intermediate,
             store_openquake,
+            -1, #oqjob_dmg.calc_id,
             os.path.join(main_path, "openquake_output")
         )
-        damage_results_OQ = oqjob.run(exposure_run, mapping_damage_states)
+        nuisance_results_OQ = oqjob_nuis.run(exposure_run, mapping_damage_states)
+        pdb.set_trace()
 
         # Update exposure to reflect new damage states
         # (occupants not updated yet)
