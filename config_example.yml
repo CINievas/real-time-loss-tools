@@ -8,6 +8,13 @@ nuisance:
   calculate: True  # True to calculate nuisance, False otherwise.
   xml_name: nuisance_fragility.xml  # Name of the XML file that contains the nuisance model (in OpenQuake fragility format). Only needed if calculate is True.
   mapping: exposure_nuisance_mapping.csv  # Name of the CSV file mapping exposure to nuisance classes, in Openquake exposure-vulnerability mapping format. Only needed if calculate is True.
+  mapping_nuisance_states:  # From least extreme to most extreme. Keys are as output by OpenQuake, values are as labelled in the fragility.
+    no_damage: nonfelt  # least extreme
+    dmg_1: CDI2
+    dmg_2: CDI3
+    dmg_3: CDI4
+    dmg_4: CDI5
+    dmg_4: CDI6  # most extreme
 mapping_damage_states:  # From least severe to most severe. Keys are as output by OpenQuake, values are as labelled in the fragility/exposure.
   no_damage: DS0  # least severe
   dmg_1: DS1

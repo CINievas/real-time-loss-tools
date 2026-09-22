@@ -58,6 +58,22 @@ class Configuration:
                 Name of the CSV file mapping exposure to nuisance classes, in Openquake
                 exposure-vulnerability mapping format. Assumed to be located under
                 main_path/static.
+            mapping_nuisance_states (Pandas DataFrame):
+                Mapping between the names of the nuisance "damage states" as output by OpenQuake
+                and as labelled in the nuisance fragility model, if nuisance is to be calculated.
+                In the yml configuration file it is defined by means of a dictionary that is
+                converted into a Pandas DataFrame when read. In the dictionary, the keys are the
+                names of damage states as output by OpenQuake and the values are the names of
+                the nuisance levels as labelled in the fragility model. E.g.: {"no_damage":
+                "nonfelt", "dmg_1": "CDI2", ...}. In the DataFrame:
+                    Index:
+                        dmg_state (str): Names of nuisance "damage states" as output by
+                        OpenQuake.
+                    Columns:
+                        fragility (str): Names of nuisance levels as labelled in the fragility
+                        model.
+                It is assumed that the nuisance levels are input in order of severity, from least
+                severe to most severe.
         self.mapping_damage_states (Pandas DataFrame):
             Mapping between the names of damage states as output by OpenQuake and as labelled in
             the fragility model. In the yml configuration file it is defined by means of a
@@ -220,12 +236,22 @@ class Configuration:
         if nuisance_aux["calculate"]:
             to_check.append("xml_name")
             to_check.append("mapping")
+            to_check.append("mapping_nuisance_states")
         self.nuisance = self.assign_hierarchical_parameters(
             config, "nuisance", requested_nested = to_check
         )
+        if nuisance_aux["calculate"]:
+            self.nuisance["mapping_nuisance_states"] = pd.DataFrame.from_dict(
+                self.nuisance["mapping_nuisance_states"], orient='index', columns=["fragility"]
+            )
+            self.nuisance["mapping_nuisance_states"].index = (
+                self.nuisance["mapping_nuisance_states"].index.rename("dmg_state")
+            )
+
         if not nuisance_aux["calculate"]:
             self.nuisance["xml_name"] = None
             self.nuisance["mapping"] = None
+            self.nuisance["mapping_nuisance_states"] = None
 
         mapping_damage_states_aux = self.assign_hierarchical_parameters(
             config, "mapping_damage_states"

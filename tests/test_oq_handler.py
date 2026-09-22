@@ -21,7 +21,7 @@ import pytest
 import numpy as np
 import pandas as pd
 from copy import deepcopy
-from realtimelosstools.oq_handler import OpenQuakeJob
+from realtimelosstools.oq_handler import OpenQuakeJob, OpenQuakeFragility, OpenQuakeUtils
 
 
 def test_OpenQuakeJob_retrieve_exposure_asset_id_mapping():
@@ -232,3 +232,306 @@ def test_ensure_no_negative_damage_results_OQ():
             damage_results_OQ, tolerance=0.00001
         )
     assert "ValueError" in str(excinfo.type)
+
+def test_OpenQuakeFragility():
+    # From XML path
+    frag = OpenQuakeFragility()
+    frag.from_xml(
+        os.path.join(os.path.dirname(__file__), "data", "fragility_model_diff_IMs.xml")
+    )
+
+    expected_ims = ["AvgSA", "SA(0.3)", "SA(0.6)", "AvgSA(0.2)"]
+
+    assert len(expected_ims) == len(frag.ims)
+
+    for imt in expected_ims:
+        assert imt in frag.ims
+
+    assert frag.path == os.path.join(
+        os.path.dirname(__file__), "data", "fragility_model_diff_IMs.xml"
+    )
+
+    # From job.ini
+    frag = OpenQuakeFragility()
+    frag.from_ini(
+        os.path.join(os.path.dirname(__file__), "data", "integration_rla"),
+        os.path.join(os.path.dirname(__file__), "data", "integration_rla", "current", "job.ini")
+    )
+
+    expected_ims = ["AvgSA"]
+
+    assert len(expected_ims) == len(frag.ims)
+
+    for imt in expected_ims:
+        assert imt in frag.ims
+
+    assert frag.path == os.path.join(
+        os.path.dirname(__file__), "data", "integration_rla", "static", "fragility_model.xml"
+    )
+
+def test_OpenQuakeUtils():
+    # TEST 1: Nuisance IMs included in damage IMs, previous calculation has run
+    expected_previous_hazard_id = -1
+
+    filepath_nuisance_xml = os.path.join(
+        os.path.dirname(__file__), "data", "integration_rla", "static", "fragility_model.xml"
+    )
+    filepath_damage_job_ini = os.path.join(
+        os.path.dirname(__file__), "data", "integration_rla", "current", "job.ini"
+    )
+    main_path = os.path.join(os.path.dirname(__file__), "data", "integration_rla")
+    previous_calc_ran = True
+
+    returned_previous_hazard_id = OpenQuakeUtils.can_previous_hazard_be_reused(
+        filepath_nuisance_xml, filepath_damage_job_ini, main_path, previous_calc_ran
+    )
+
+    assert returned_previous_hazard_id == expected_previous_hazard_id
+
+    # TEST 2: Nuisance IMs included in damage IMs, previous calculation has not run
+    expected_previous_hazard_id = None
+
+    filepath_nuisance_xml = os.path.join(
+        os.path.dirname(__file__), "data", "integration_rla", "static", "fragility_model.xml"
+    )
+    filepath_damage_job_ini = os.path.join(
+        os.path.dirname(__file__), "data", "integration_rla", "current", "job.ini"
+    )
+    main_path = os.path.join(os.path.dirname(__file__), "data", "integration_rla")
+    previous_calc_ran = False
+
+    returned_previous_hazard_id = OpenQuakeUtils.can_previous_hazard_be_reused(
+        filepath_nuisance_xml, filepath_damage_job_ini, main_path, previous_calc_ran
+    )
+
+    assert returned_previous_hazard_id == expected_previous_hazard_id
+
+    # TEST 3: Nuisance IMs not included in damage IMs, previous calculation has run
+    expected_previous_hazard_id = None
+
+    filepath_nuisance_xml = os.path.join(
+        os.path.join(os.path.dirname(__file__), "data", "fragility_model_diff_IMs.xml")
+    )
+    filepath_damage_job_ini = os.path.join(
+        os.path.dirname(__file__), "data", "integration_rla", "current", "job.ini"
+    )
+    main_path = os.path.join(os.path.dirname(__file__), "data", "integration_rla")
+    previous_calc_ran = True
+
+    returned_previous_hazard_id = OpenQuakeUtils.can_previous_hazard_be_reused(
+        filepath_nuisance_xml, filepath_damage_job_ini, main_path, previous_calc_ran
+    )
+
+    assert returned_previous_hazard_id == expected_previous_hazard_id
+
+    # TEST 4: Nuisance IMs not included in damage IMs, previous calculation has not run
+    expected_previous_hazard_id = None
+
+    filepath_nuisance_xml = os.path.join(
+        os.path.join(os.path.dirname(__file__), "data", "fragility_model_diff_IMs.xml")
+    )
+    filepath_damage_job_ini = os.path.join(
+        os.path.dirname(__file__), "data", "integration_rla", "current", "job.ini"
+    )
+    main_path = os.path.join(os.path.dirname(__file__), "data", "integration_rla")
+    previous_calc_ran = False
+
+    returned_previous_hazard_id = OpenQuakeUtils.can_previous_hazard_be_reused(
+        filepath_nuisance_xml, filepath_damage_job_ini, main_path, previous_calc_ran
+    )
+
+    assert returned_previous_hazard_id == expected_previous_hazard_id
+
+
+def test_create_OQ_existing_damage():
+    # Test 1, with initially undamaged exposure model
+    filepath = os.path.join(os.path.dirname(__file__), "data", "exposure_model.csv")
+    exposure = pd.read_csv(filepath)
+    exposure.index = exposure["id"]
+    exposure.index = exposure.index.rename("asset_id")
+    exposure = exposure.drop(columns=["id"])
+
+    mapping_damage_states = pd.DataFrame(
+        {
+            "fragility": ["DS0", "DS1", "DS2", "DS3", "DS4"]
+        },
+        index=["no_damage", "dmg_1", "dmg_2", "dmg_3", "dmg_4"]
+    )
+
+    returned_oq_no_damage = OpenQuakeUtils.create_OQ_existing_damage(
+            exposure,
+            mapping_damage_states,
+            loss_type="structural"
+    )
+
+    expected_oq_no_damage = pd.DataFrame(
+            {
+                "asset_id": [
+                    "exp_1", "exp_1", "exp_1", "exp_1", "exp_1",
+                    "exp_2", "exp_2", "exp_2", "exp_2", "exp_2",
+                    "exp_3", "exp_3", "exp_3", "exp_3", "exp_3",
+                    "exp_4", "exp_4", "exp_4", "exp_4", "exp_4",
+                    "exp_5", "exp_5", "exp_5", "exp_5", "exp_5",
+                ],
+                "rlz": [
+                    0, 0, 0, 0, 0,
+                    0, 0, 0, 0, 0,
+                    0, 0, 0, 0, 0,
+                    0, 0, 0, 0, 0,
+                    0, 0, 0, 0, 0,
+                ],
+                "loss_type": [
+                    "structural", "structural", "structural", "structural", "structural",
+                    "structural", "structural", "structural", "structural", "structural",
+                    "structural", "structural", "structural", "structural", "structural",
+                    "structural", "structural", "structural", "structural", "structural",
+                    "structural", "structural", "structural", "structural", "structural",
+                ],
+                "dmg_state": [
+                    "no_damage", "dmg_1", "dmg_2", "dmg_3", "dmg_4",
+                    "no_damage", "dmg_1", "dmg_2", "dmg_3", "dmg_4",
+                    "no_damage", "dmg_1", "dmg_2", "dmg_3", "dmg_4",
+                    "no_damage", "dmg_1", "dmg_2", "dmg_3", "dmg_4",
+                    "no_damage", "dmg_1", "dmg_2", "dmg_3", "dmg_4",
+                ],
+                "value": [
+                    0.7, 0.0,  0.0,  0.0,  0.0,
+                    0.3, 0.0,  0.0,  0.0,  0.0,
+                    90., 0.0,  0.0,  0.0,  0.0,
+                    10., 0.0,  0.0,  0.0,  0.0,
+                    1., 0.0,  0.0,  0.0,  0.0,
+                ],
+            },
+        index=range(25),
+    )
+
+    for row in expected_oq_no_damage.index:
+        assert row in returned_oq_no_damage.index
+
+        for column in expected_oq_no_damage.columns:
+            assert column in returned_oq_no_damage.columns
+
+            if column in ["asset_id", "loss_type", "dmg_state"]:
+                assert (
+                    returned_oq_no_damage.loc[row, column]
+                    == expected_oq_no_damage.loc[row, column]
+                )
+            if column in ["rlz", "value"]:
+                assert (
+                    round(returned_oq_no_damage.loc[row, column], 6)
+                    == round(expected_oq_no_damage.loc[row, column], 6)
+                )
+
+    # Test 2, with previously damaged exposure model
+    exposure.loc["exp_2", "taxonomy"] = exposure.loc["exp_2", "taxonomy"].replace("DS0", "DS2")
+    exposure.loc["exp_3", "taxonomy"] = exposure.loc["exp_3", "taxonomy"].replace("DS0", "DS3")
+
+    expected_oq_no_damage["value"] = [
+        0.7, 0.0,  0.0,  0.0,  0.0,
+        0.0, 0.0,  0.3,  0.0,  0.0,
+        0.0, 0.0,  0.0,  90.,  0.0,
+        10., 0.0,  0.0,  0.0,  0.0,
+        1., 0.0,  0.0,  0.0,  0.0,
+    ]
+
+    returned_oq_no_damage = OpenQuakeUtils.create_OQ_existing_damage(
+            exposure,
+            mapping_damage_states,
+            loss_type="structural"
+    )
+
+    for row in expected_oq_no_damage.index:
+        assert row in returned_oq_no_damage.index
+
+        for column in expected_oq_no_damage.columns:
+            assert column in returned_oq_no_damage.columns
+
+            if column in ["asset_id", "loss_type", "dmg_state"]:
+                assert (
+                    returned_oq_no_damage.loc[row, column]
+                    == expected_oq_no_damage.loc[row, column]
+                )
+            if column in ["rlz", "value"]:
+                assert (
+                    round(returned_oq_no_damage.loc[row, column], 6)
+                    == round(expected_oq_no_damage.loc[row, column], 6)
+                )
+
+
+def test_create_OQ_no_nuisance():
+    filepath = os.path.join(os.path.dirname(__file__), "data", "exposure_model.csv")
+    exposure = pd.read_csv(filepath)
+    exposure.index = exposure["id"]
+    exposure.index = exposure.index.rename("asset_id")
+    exposure = exposure.drop(columns=["id"])
+
+    mapping_nuisance_states = pd.DataFrame(
+        {
+            "fragility": ["nonfelt", "CDI2", "CDI3", "CDI4", "CDI5", "CDI6"]
+        },
+        index=["no_damage", "dmg_1", "dmg_2", "dmg_3", "dmg_4", "dmg_5"]
+    )
+
+    returned_oq_no_nuisance = OpenQuakeUtils.create_OQ_no_nuisance(
+            exposure,
+            mapping_nuisance_states,
+            loss_type="structural"
+    )
+
+    expected_oq_no_nuisance = pd.DataFrame(
+            {
+                "asset_id": [
+                    "exp_1", "exp_1", "exp_1", "exp_1", "exp_1", "exp_1",
+                    "exp_2", "exp_2", "exp_2", "exp_2", "exp_2", "exp_2",
+                    "exp_3", "exp_3", "exp_3", "exp_3", "exp_3", "exp_3",
+                    "exp_4", "exp_4", "exp_4", "exp_4", "exp_4", "exp_4",
+                    "exp_5", "exp_5", "exp_5", "exp_5", "exp_5", "exp_5"
+                ],
+                "rlz": [
+                    0, 0, 0, 0, 0, 0,
+                    0, 0, 0, 0, 0, 0,
+                    0, 0, 0, 0, 0, 0,
+                    0, 0, 0, 0, 0, 0,
+                    0, 0, 0, 0, 0, 0,
+                ],
+                "loss_type": [
+                    "structural", "structural", "structural", "structural", "structural", "structural",
+                    "structural", "structural", "structural", "structural", "structural", "structural",
+                    "structural", "structural", "structural", "structural", "structural", "structural",
+                    "structural", "structural", "structural", "structural", "structural", "structural",
+                    "structural", "structural", "structural", "structural", "structural", "structural",
+                ],
+                "dmg_state": [
+                    "no_damage", "dmg_1", "dmg_2", "dmg_3", "dmg_4", "dmg_5",
+                    "no_damage", "dmg_1", "dmg_2", "dmg_3", "dmg_4", "dmg_5",
+                    "no_damage", "dmg_1", "dmg_2", "dmg_3", "dmg_4", "dmg_5",
+                    "no_damage", "dmg_1", "dmg_2", "dmg_3", "dmg_4", "dmg_5",
+                    "no_damage", "dmg_1", "dmg_2", "dmg_3", "dmg_4", "dmg_5"
+                ],
+                "value": [
+                    0.7, 0.0, 0.0, 0.0, 0.0, 0.0,
+                    0.3, 0.0, 0.0, 0.0, 0.0, 0.0,
+                    90., 0.0, 0.0, 0.0, 0.0, 0.0,
+                    10., 0.0, 0.0, 0.0, 0.0, 0.0,
+                    1.,  0.0, 0.0, 0.0, 0.0, 0.0
+                ],
+            },
+        index=range(30),
+    )
+
+    for row in expected_oq_no_nuisance.index:
+        assert row in returned_oq_no_nuisance.index
+
+        for column in expected_oq_no_nuisance.columns:
+            assert column in returned_oq_no_nuisance.columns
+
+            if column in ["asset_id", "loss_type", "dmg_state"]:
+                assert (
+                    returned_oq_no_nuisance.loc[row, column]
+                    == expected_oq_no_nuisance.loc[row, column]
+                )
+            if column in ["rlz", "value"]:
+                assert (
+                    round(returned_oq_no_nuisance.loc[row, column], 6)
+                    == round(expected_oq_no_nuisance.loc[row, column], 6)
+                )

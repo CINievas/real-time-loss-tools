@@ -3,6 +3,10 @@ main_path: DEFINEDWITHINTEST
 number_cores: 1
 state_dependent_fragilities: True
 calculate_casualties: True
+nuisance:
+  calculate: False
+  xml_name: not_used_because_calculate_is_False
+  mapping: not_used_because_calculate_is_False
 mapping_damage_states:
   no_damage: DS0
   dmg_1: DS1

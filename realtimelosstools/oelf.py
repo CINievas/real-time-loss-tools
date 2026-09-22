@@ -54,6 +54,7 @@ class OperationalEarthquakeLossForecasting():
         main_path,
         original_exposure_model,
         consequence_economic,
+        nuisance_params,
         calculate_casualties,
         consequence_injuries,
         recovery_damage,
@@ -198,6 +199,16 @@ class OperationalEarthquakeLossForecasting():
                     Columns:
                         One per damage state (float): They contain the mean loss ratios (as
                         percentages) for each building class and damage state.
+            nuisance_params (dict):
+                Dictionary with parameters to run (or not) a nuisance calculation. Contents:
+                    calculate (bool):
+                        True to calculate nuisance, False otherwise.
+                    xml_name (str):
+                        Name of the XML file that contains the nuisance model. Only necessary if
+                        'calculate' is True.
+                    mapping (str):
+                        Name of the CSV file mapping exposure to nuisance classes. Only
+                        necessary if 'calculate' is True.
             calculate_casualties (bool):
                 If True, casualties are calculated.
             consequence_injuries (dict of Pandas DataFrame):
@@ -661,10 +672,14 @@ class OperationalEarthquakeLossForecasting():
                         eq_id,
                         os.path.join(main_path, "current", "job.ini"),
                         store_intermediate,
-                        store_openquake,
-                        path_to_oq_outputs
+                        "damage",
+                        oq_previous_hazard_id=None,
+                        path_to_oq_outputs=path_to_oq_outputs
                     )
                     damage_results_OQ = oqjob.run(exposure_run, mapping_damage_states)
+
+                    if not store_openquake:
+                        oqjob.delete_OpenQuake_job()
 
                     # Update exposure to reflect new damage states
                     # (occupants not updated yet)

@@ -1031,6 +1031,51 @@ def test_summarise_damage_states_per_building_id():
         )
 
 
+def test_summarise_nuisance_states_per_building_id():
+
+    nuisance_results_OQ = pd.read_csv(
+        os.path.join(
+            os.path.dirname(__file__), "data", "nuisance_results_OQ.csv"
+        ),
+        index_col=[0,1]
+    )
+
+    exposure = pd.read_csv(
+        os.path.join(
+            os.path.dirname(__file__), "data", "nuisance_exposure_model.csv"
+        ),
+        index_col=0
+    )
+
+    mapping_nuisance_states = pd.DataFrame(
+        {
+            "dmg_state": ["no_damage", "dmg_1", "dmg_2", "dmg_3", "dmg_4", "dmg_5"],
+            "fragility": ["nonfelt", "CDI2", "CDI3", "CDI4", "CDI5", "CDI6"]
+        }
+    )
+    mapping_nuisance_states.set_index(mapping_nuisance_states["dmg_state"], inplace=True)
+    mapping_nuisance_states.drop(columns=["dmg_state"], inplace=True)
+
+    returned_nuisance_summary = ExposureUpdater.summarise_nuisance_states_per_building_id(
+        nuisance_results_OQ, exposure, mapping_nuisance_states
+    )
+
+    expected_nuisance_summary = pd.read_csv(
+        os.path.join(
+            os.path.dirname(__file__), "data", "nuisance_expected.csv"
+        ),
+        index_col=[0,1]
+    )
+
+    for bdg_id in ["tile_1", "special_bdg"]:
+        for nuis_lev in mapping_nuisance_states["fragility"]:
+            for col in ["number", "census"]:
+                assert (
+                    round(returned_nuisance_summary.loc[(bdg_id, nuis_lev), col], 5) ==
+                    round(expected_nuisance_summary.loc[(bdg_id, nuis_lev), col], 5)
+                )
+
+
 def test_get_unique_exposure_locations():
     filepath = os.path.join(os.path.dirname(__file__), "data", "exposure_model.csv")
     exposure = pd.read_csv(filepath)
@@ -1271,119 +1316,3 @@ def test_update_exposure_occupants():
             assert round(returned_exposure_updated_occupants.loc[multiindex, col], 2) == round(
                 expected_output.loc[multiindex, col], 2
             )
-
-
-def test_create_OQ_existing_damage():
-    # Test 1, with initially undamaged exposure model
-    filepath = os.path.join(os.path.dirname(__file__), "data", "exposure_model.csv")
-    exposure = pd.read_csv(filepath)
-    exposure.index = exposure["id"]
-    exposure.index = exposure.index.rename("asset_id")
-    exposure = exposure.drop(columns=["id"])
-
-    mapping_damage_states = pd.DataFrame(
-        {
-            "fragility": ["DS0", "DS1", "DS2", "DS3", "DS4"]
-        },
-        index=["no_damage", "dmg_1", "dmg_2", "dmg_3", "dmg_4"]
-    )
-    mapping_damage_states.index = mapping_damage_states.index.rename("asset_id")
-
-    returned_oq_no_damage = ExposureUpdater.create_OQ_existing_damage(
-            exposure,
-            mapping_damage_states,
-            loss_type="structural"
-    )
-
-    expected_oq_no_damage = pd.DataFrame(
-            {
-                "asset_id": [
-                    "exp_1", "exp_1", "exp_1", "exp_1", "exp_1",
-                    "exp_2", "exp_2", "exp_2", "exp_2", "exp_2",
-                    "exp_3", "exp_3", "exp_3", "exp_3", "exp_3",
-                    "exp_4", "exp_4", "exp_4", "exp_4", "exp_4",
-                    "exp_5", "exp_5", "exp_5", "exp_5", "exp_5",
-                ],
-                "rlz": [
-                    0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0,
-                ],
-                "loss_type": [
-                    "structural", "structural", "structural", "structural", "structural",
-                    "structural", "structural", "structural", "structural", "structural",
-                    "structural", "structural", "structural", "structural", "structural",
-                    "structural", "structural", "structural", "structural", "structural",
-                    "structural", "structural", "structural", "structural", "structural",
-                ],
-                "dmg_state": [
-                    "no_damage", "dmg_1", "dmg_2", "dmg_3", "dmg_4",
-                    "no_damage", "dmg_1", "dmg_2", "dmg_3", "dmg_4",
-                    "no_damage", "dmg_1", "dmg_2", "dmg_3", "dmg_4",
-                    "no_damage", "dmg_1", "dmg_2", "dmg_3", "dmg_4",
-                    "no_damage", "dmg_1", "dmg_2", "dmg_3", "dmg_4",
-                ],
-                "value": [
-                    0.7, 0.0,  0.0,  0.0,  0.0,
-                    0.3, 0.0,  0.0,  0.0,  0.0,
-                    90., 0.0,  0.0,  0.0,  0.0,
-                    10., 0.0,  0.0,  0.0,  0.0,
-                    1., 0.0,  0.0,  0.0,  0.0,
-                ],
-            },
-        index=range(25),
-    )
-
-    for row in expected_oq_no_damage.index:
-        assert row in returned_oq_no_damage.index
-
-        for column in expected_oq_no_damage.columns:
-            assert column in returned_oq_no_damage.columns
-
-            if column in ["asset_id", "loss_type", "dmg_state"]:
-                assert (
-                    returned_oq_no_damage.loc[row, column]
-                    == expected_oq_no_damage.loc[row, column]
-                )
-            if column in ["rlz", "value"]:
-                assert (
-                    round(returned_oq_no_damage.loc[row, column], 6)
-                    == round(expected_oq_no_damage.loc[row, column], 6)
-                )
-
-    # Test 2, with previously damaged exposure model
-    exposure.loc["exp_2", "taxonomy"] = exposure.loc["exp_2", "taxonomy"].replace("DS0", "DS2")
-    exposure.loc["exp_3", "taxonomy"] = exposure.loc["exp_3", "taxonomy"].replace("DS0", "DS3")
-
-    expected_oq_no_damage["value"] = [
-        0.7, 0.0,  0.0,  0.0,  0.0,
-        0.0, 0.0,  0.3,  0.0,  0.0,
-        0.0, 0.0,  0.0,  90.,  0.0,
-        10., 0.0,  0.0,  0.0,  0.0,
-        1., 0.0,  0.0,  0.0,  0.0,
-    ]
-
-    returned_oq_no_damage = ExposureUpdater.create_OQ_existing_damage(
-            exposure,
-            mapping_damage_states,
-            loss_type="structural"
-    )
-
-    for row in expected_oq_no_damage.index:
-        assert row in returned_oq_no_damage.index
-
-        for column in expected_oq_no_damage.columns:
-            assert column in returned_oq_no_damage.columns
-
-            if column in ["asset_id", "loss_type", "dmg_state"]:
-                assert (
-                    returned_oq_no_damage.loc[row, column]
-                    == expected_oq_no_damage.loc[row, column]
-                )
-            if column in ["rlz", "value"]:
-                assert (
-                    round(returned_oq_no_damage.loc[row, column], 6)
-                    == round(expected_oq_no_damage.loc[row, column], 6)
-                )

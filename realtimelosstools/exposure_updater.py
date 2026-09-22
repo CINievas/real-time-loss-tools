@@ -23,6 +23,7 @@ import pandas as pd
 from multiprocessing import Pool
 from functools import partial
 from realtimelosstools.losses import Losses
+from realtimelosstools.oq_handler import OpenQuakeUtils
 
 
 logger = logging.getLogger()
@@ -1020,7 +1021,7 @@ class ExposureUpdater:
             # Damage results (probab. of occurrence) by asset_id for previous earthquake
             # (implicitly contained in the input exposure model)
             damage_results_by_asset_id_previous = (
-                ExposureUpdater.create_OQ_existing_damage(
+                OpenQuakeUtils.create_OQ_existing_damage(
                     previous_exposure_model,
                     mapping_damage_states,
                     loss_type="structural"
@@ -1635,6 +1636,127 @@ class ExposureUpdater:
 
         return damage_summary
 
+
+    @staticmethod
+    def summarise_nuisance_states_per_building_id(
+        nuisance_results_OQ, exposure, mapping_nuisance_states
+    ):
+        """
+        This method returns the probability of a building with a certain building_id resulting
+        in a certain level of nuisance, when building_id refers to individual buildings, or the
+        number of buildings with a certain building_id resulting in a certain level of nuisance,
+        when building_id refers to a group of buildings.
+
+        Args:
+            nuisance_results_OQ (Pandas DataFrame):
+                Pandas DataFrame with numbers of buildings/probabilities of buildings in each
+                nuisance state. This is output from running OpenQuake. It comprises the
+                following fields:
+                    Index is multiple:
+                        asset_id (str):
+                            ID of the asset (i.e. specific combination of building_id and a
+                            particular building class).
+                        dmg_state (str):
+                            Damage states.
+                    Columns:
+                        value (float):
+                            Probability of 'dmg_state' for 'asset_id'.
+                        loss_type (str):
+                            "structural" (kept for format compatibility).
+                        rlz (int):
+                            0 (kept for format compatibility).
+            exposure (Pandas DataFrame):
+                Pandas DataFrame representation of the exposure CSV input for OpenQuake. It
+                comprises at least the following fields:
+                    asset_id (str):
+                        ID of the asset (i.e. specific combination of building_id and a
+                        particular building class and damage state).
+                    building_id (str):
+                        ID of the building. One building_id can be associated with different
+                        values of asset_id.
+                    original_asset_id (str):
+                        ID of the asset in the initial undamaged version of the exposure model.
+                    lon (float):
+                        Longitude of the asset in degrees.
+                    lat (float):
+                        Latitude of the asset in degrees.
+                    taxonomy (str):
+                        Building class.
+                    number (float):
+                        Number of buildings in this asset (or probability of this particular
+                        combination of building class and damage state for this building_id).
+                    occupancy (str):
+                        "Res" (residential), "Com" (commercial) or "Ind" (industrial).
+                    census (float, optional):
+                        Number of census occupants per asset.
+            mapping_nuisance_states (Pandas DataFrame):
+                Mapping between the names of nuisance states as output by OpenQuake (index) and
+                as labelled in the nuisance model (value). E.g.:
+                              fragility
+                    dmg_state
+                    no_damage       nonfelt
+                    dmg_1           CDI2
+                    dmg_2           CDI3
+                    dmg_3           CDI4
+                    dmg_4           CDI5
+                    dmg_5           CDI6
+
+        Returns:
+            nuisance_summary (Pandas DataFrame):
+                Pandas DataFrame with the following structure:
+                    Index is multiple:
+                        building_id (str):
+                            ID of the building.
+                        nuisance_level (str):
+                            Nuisance level.
+                    Columns:
+                        number (float):
+                            Probability of 'nuisance_level' for 'building_id', if building_id is
+                            one individual building, or number of buildings of 'building_id'
+                            under 'nuisance_level', if building_id is a group of buildings.
+                        census (float, only if "census" exists in input 'exposure'):
+                            Number of census people exposed to each 'nuisance_level' in each
+                            'building_id'.
+        """
+
+        # Replace dmg_state with fragility names
+        df = nuisance_results_OQ.copy()
+        df = df.reset_index()   # expose asset_id and dmg_state as columns
+
+        df["fragility"] = df["dmg_state"].map(mapping_nuisance_states["fragility"])
+        df.drop(columns=["dmg_state"], inplace=True)
+        df.rename(columns={"fragility": "nuisance_level"}, inplace=True)
+
+        # Columns to consider/aggregate
+        if "census" in exposure.columns:
+            cols_to_aggregate = {"value": "sum", "census": "sum"}
+            cols_to_merge = ["building_id", "census"]
+        else:
+            cols_to_aggregate = {"value": "sum"}
+            cols_to_merge = ["building_id"]
+
+        # Attach building_id from exposure (exposure.asset_id == asset_id)
+        df = df.merge(
+            exposure[cols_to_merge],
+            left_on="asset_id",
+            right_on="asset_id",
+            how="left"
+        )
+
+        if "census" in exposure.columns:
+            sum_per_asset_id = df.groupby("asset_id")["value"].transform("sum")
+            df["census"] = df["census"] * df["value"] / sum_per_asset_id
+
+        # Group by building_id and nuisance_level
+        nuisance_summary = (
+            df.groupby(["building_id", "nuisance_level"])
+              .agg(cols_to_aggregate)
+        )
+        nuisance_summary.rename(columns={"value": "number"}, inplace=True)
+
+        return nuisance_summary
+
+
     @staticmethod
     def get_unique_exposure_locations(exposure):
         """
@@ -1673,91 +1795,3 @@ class ExposureUpdater:
         ]).astype(float)
 
         return unique_lons, unique_lats
-
-    @staticmethod
-    def create_OQ_existing_damage(exposure, mapping_damage_states, loss_type="structural"):
-        """
-        This method simulates the output of OpenQuake's DataStore.read_df() assigning no damage
-        (apart from the pre-existing damage) to all asset IDs in 'exposure'.
-
-        OpenQuake's DataStore.read_df() raises a KeyError when asked to retrieve the damage
-        results of a calculation that has resulted in no damage (for which OpenQuake logs the
-        warning "There is no damage, perhaps the hazard is too small?").
-
-        Args:
-            exposure (Pandas DataFrame):
-                Pandas DataFrame representation of the exposure CSV input for OpenQuake whose
-                damage results are to be simulated. It must comprise at least the following
-                fields:
-                    Index (simple):
-                        asset_id (str):
-                            ID of the asset (i.e. specific combination of building_id and a
-                            particular building class).
-                    Columns:
-                        taxonomy (str):
-                            Building class.
-                        number (float):
-                            Number of buildings in this asset.
-            mapping_damage_states (Pandas DataFrame):
-                Mapping between the names of damage states as output by OpenQuake (index) and as
-                labelled in the fragility model (value). E.g.:
-                              fragility
-                    dmg_state
-                    no_damage       DS0
-                    dmg_1           DS1
-                    dmg_2           DS2
-                    dmg_3           DS3
-                    dmg_4           DS4
-            loss_type (str):
-                Type of loss to be output by OpenQuake. Default: "structural".
-
-        Returns:
-            damage_results_no_damage (DataFrame):
-                DataFrame with the following structure:
-                    Index: consecutive integers starting with 0.
-                    Columns:
-                        asset_id (str): Asset IDs from 'exposure'.
-                        rlz (int): All zeroes.
-                        loss_type (str): All as per 'loss_type'.
-                        dmg_state (str): Damage states as per 'mapping_damage_states' and
-                            'exposure'.
-                        value (float): Number of buildings of 'asset_id' in each
-                            'dmg_state', as per 'exposure'.
-        """
-
-        asset_ids = list(exposure.index)
-        buildings_per_asset_id = exposure["number"].to_numpy()
-        dmg_states_exposure = [
-            exposure.loc[exposure.index[i], "taxonomy"].split("/")[-1] for i in range(exposure.shape[0])
-        ]
-
-        dmg_states_oq = list(mapping_damage_states.index)
-
-        number_rows = len(asset_ids) * len(dmg_states_oq)
-
-        asset_ids_all = []
-        dmg_states_oq_all = []
-        values_all = []
-
-        for i, asset_id in enumerate(asset_ids):
-            for dmg_state in dmg_states_oq:
-                asset_ids_all.append(asset_id)
-                dmg_states_oq_all.append(dmg_state)
-                # Assign all buildings to the damage state of the exposure model
-                # (i.e. keep pre-existing damage)
-                if mapping_damage_states.loc[dmg_state, "fragility"] == dmg_states_exposure[i]:
-                    values_all.append(buildings_per_asset_id[i])
-                else:
-                    values_all.append(0.0)
-
-        damage_results_no_damage = pd.DataFrame(
-            {
-                "asset_id": asset_ids_all,
-                "rlz": [0 for i in range(number_rows)],
-                "loss_type": [loss_type for i in range(number_rows)],
-                "dmg_state": dmg_states_oq_all,
-                "value": values_all,
-            }
-        )
-
-        return damage_results_no_damage

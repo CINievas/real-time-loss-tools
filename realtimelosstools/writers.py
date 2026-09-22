@@ -19,11 +19,7 @@
 import os
 import logging
 import fileinput
-import getpass
 import configparser
-from openquake.commonlib import datastore
-from openquake.commonlib.logs import get_calc_ids
-from openquake.commands.purge import purge_one
 
 
 logger = logging.getLogger()
@@ -235,17 +231,84 @@ class Writer:
         with open(filepath_job_ini, "w") as f:
             jobini.write(f)
 
+        return
 
     @staticmethod
-    def delete_OpenQuake_last_job():
+    def create_job_nuisance_ini(
+        filepath_job_ini,
+        filepath_job_nuisance_ini,
+        nuisance_xml,
+        nuisance_mapping,
+        erase_hazard_params
+    ):
         """
-        This method removes the last calculation ID from OpenQuake's database and its associated
-        HDF5 file.
+        This method creates an OpenQuake job.ini file to run a nuisance calculation (and stores
+        it under 'filepath_job_nuisance_ini'), starting from an existing job.ini file used for
+        a damage calculation (read from 'filepath_job_ini'). It updates the name of the
+        fragility XML ('nuisance_xml') and the exposure-to-vulnerability mapping CSV
+        ('nuisance_mapping'). If 'erase_hazard_params' is True, it deletes sections "Rupture
+        information", "Site conditions", "Calculation parameters", if they exist.
+
+        Args:
+            filepath_job_ini (str):
+                Full path (directory and filename) to the job.ini file in OpenQuake input
+                format, which needs to exist.
+            filepath_job_nuisance_ini (str):
+                Full path (directory and filename) to the output job.ini file. If it exists, it
+                will be overwritten.
+            nuisance_xml (str):
+                Name of the XML file that contains the nuisance model (in OpenQuake fragility
+                format). Assumed to be located under main_path/static.
+            nuisance_mapping (str):
+                Name of the CSV file mapping exposure to nuisance classes, in Openquake
+                exposure-vulnerability mapping format. Assumed to be located under
+                main_path/static.
+            erase_hazard_params (bool):
+                If True, job.ini sections "Rupture information", "Site conditions", and
+                "Calculation parameters" will be deleted.
         """
 
-        datadir = datastore.get_datadir()
-        calc_id = get_calc_ids(datadir)
-        purge_one(calc_id[-1], getpass.getuser(), True)
+        if not os.path.exists(filepath_job_ini):
+            error_message = (
+                "File '%s' not found. Method 'update_job_ini' cannot run."
+                % (filepath_job_ini)
+            )
+            logger.critical(error_message)
+            raise OSError(error_message)
+
+        # Read existing job.ini
+        jobini = configparser.ConfigParser(interpolation=None)
+        jobini.read(filepath_job_ini)
+
+        # Update values
+        replacements = [
+            {
+                "section": "fragility",
+                "key": "structural_fragility_file",
+                "new_val": "../static/%s" % (nuisance_xml)
+            },
+            {
+                "section": "exposure",
+                "key": "taxonomy_mapping_csv",
+                "new_val": "../static/%s" % (nuisance_mapping)
+            },
+        ]
+
+        for repl in replacements:
+            if repl["section"] in jobini and repl["key"] in jobini[repl["section"]]:
+                jobini[repl["section"]][repl["key"]] = repl["new_val"]
+
+        to_remove = ["Rupture information", "Site conditions", "Calculation parameters"]
+
+        # Erase hazard sections
+        if erase_hazard_params:
+            for sect in to_remove:
+                if sect in jobini:
+                    jobini.remove_section(sect)
+
+        # Write new file
+        with open(filepath_job_nuisance_ini, "w") as f:
+            jobini.write(f)
 
         return
 

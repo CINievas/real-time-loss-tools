@@ -26,7 +26,7 @@ from realtimelosstools.exposure_updater import ExposureUpdater
 from realtimelosstools.losses import Losses
 from realtimelosstools.writers import Writer
 from realtimelosstools.utils import Time
-from realtimelosstools.oq_handler import OpenQuakeJob
+from realtimelosstools.oq_handler import OpenQuakeJob, OpenQuakeUtils
 
 
 logger = logging.getLogger()
@@ -44,6 +44,7 @@ class RapidLossAssessment:
         rupture_xml_filename,
         state_dependent,
         consequence_economic,
+        nuisance_params,
         calculate_casualties,
         consequence_injuries,
         recovery_damage,
@@ -95,6 +96,27 @@ class RapidLossAssessment:
                     Columns:
                         One per damage state (float): They contain the mean loss ratios (as
                         percentages) for each building class and damage state.
+            nuisance_params (dict):
+                Dictionary with parameters to run (or not) a nuisance calculation. Contents:
+                    calculate (bool):
+                        True to calculate nuisance, False otherwise.
+                    xml_name (str):
+                        Name of the XML file that contains the nuisance model. Only necessary if
+                        'calculate' is True.
+                    mapping (str):
+                        Name of the CSV file mapping exposure to nuisance classes. Only
+                        necessary if 'calculate' is True.
+                    mapping_nuisance_states (Pandas DataFrame):
+                        Mapping between the names of nuisance states as output by OpenQuake
+                        (index) and as labelled in the nuisance model (value). E.g.:
+                                      fragility
+                            dmg_state
+                            no_damage       nonfelt
+                            dmg_1           CDI2
+                            dmg_2           CDI3
+                            dmg_3           CDI4
+                            dmg_4           CDI5
+                            dmg_5           CDI6
             calculate_casualties (bool):
                 If True, casualties are calculated.
             consequence_injuries (dict of Pandas DataFrame):
@@ -190,7 +212,7 @@ class RapidLossAssessment:
                 Mapping between the names of damage states as output by OpenQuake (index) and as
                 labelled in the fragility model (value). E.g.:
                               fragility
-                    asset_id
+                    dmg_state
                     no_damage       DS0
                     dmg_1           DS1
                     dmg_2           DS2
@@ -396,26 +418,61 @@ class RapidLossAssessment:
             earthquake["event_id"],
             os.path.join(main_path, "current", "job.ini"),
             store_intermediate,
-            True, #store_openquake,
-            None,
-            os.path.join(main_path, "openquake_output")
+            "damage",
+            oq_previous_hazard_id=None,
+            path_to_oq_outputs=os.path.join(main_path, "openquake_output")
         )
         damage_results_OQ = oqjob_dmg.run(exposure_run, mapping_damage_states)
 
-        import pdb
-        pdb.set_trace()
         # Run OpenQuake to calculate nuisance
-        oqjob_nuis = OpenQuakeJob(
-            description,
-            earthquake["event_id"],
-            os.path.join(main_path, "current", "job.ini"),
-            store_intermediate,
-            store_openquake,
-            -1, #oqjob_dmg.calc_id,
-            os.path.join(main_path, "openquake_output")
-        )
-        nuisance_results_OQ = oqjob_nuis.run(exposure_run, mapping_damage_states)
-        pdb.set_trace()
+        existing_ims = None
+        nuisance_states = None
+        if nuisance_params["calculate"]:
+            # previous_hazard_id will either be -1 (re-use) or None (calculate again)
+            previous_hazard_id = OpenQuakeUtils.can_previous_hazard_be_reused(
+                os.path.join(main_path, "static", nuisance_params["xml_name"]), # path to nuisance XML
+                os.path.join(main_path, "current", "job.ini"), # path to damage job.ini
+                main_path,
+                oqjob_dmg.oq_ran, # True if previous calculation did run
+            )
+
+            # Create job_nuisance.ini to run OpenQuake calculation
+            Writer.create_job_nuisance_ini(
+                os.path.join(main_path, "current", "job.ini"),
+                os.path.join(main_path, "current", "job_nuisance.ini"),
+                nuisance_params["xml_name"],
+                nuisance_params["mapping"],
+                erase_hazard_params=True if previous_hazard_id==-1 else False
+            )
+
+            # Run OpenQuake to calculate nuisance
+            oqjob_nuis = OpenQuakeJob(
+                "%s, nuisance" % (description),
+                earthquake["event_id"],
+                os.path.join(main_path, "current", "job_nuisance.ini"),
+                store_intermediate,
+                "nuisance",
+                oq_previous_hazard_id=previous_hazard_id,
+                path_to_oq_outputs=os.path.join(main_path, "openquake_output")
+            )
+            nuisance_results_OQ = oqjob_nuis.run(
+                exposure_run, nuisance_params["mapping_nuisance_states"], out_type="nuisance"
+            )
+
+            if not store_openquake:
+                oqjob_nuis.delete_OpenQuake_job()
+
+            # Get nuisance states per building ID
+            logger.info(
+                "%s Summarising nuisance states per building ID"  % (np.datetime64('now'))
+            )
+            nuisance_states = ExposureUpdater.summarise_nuisance_states_per_building_id(
+                nuisance_results_OQ, exposure_run, nuisance_params["mapping_nuisance_states"]
+            )
+
+        if not store_openquake:
+            # Only after the potential re-use by the nuisance calculation
+            oqjob_dmg.delete_OpenQuake_job()
 
         # Update exposure to reflect new damage states
         # (occupants not updated yet)
@@ -504,6 +561,7 @@ class RapidLossAssessment:
         return (
             exposure_updated_damage,
             damage_states,
+            nuisance_states,
             losses_economic,
             losses_human,
             injured_still_away,

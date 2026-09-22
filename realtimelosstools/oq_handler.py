@@ -18,14 +18,16 @@
 
 import os
 import logging
+import getpass
+import configparser
 import numpy as np
 import pandas as pd
+import xml.etree.ElementTree as ET
 from copy import deepcopy
 from openquake.commands.run import main
+from openquake.commands.purge import purge_one
 from openquake.calculators.extract import extract
 from openquake.commonlib.datastore import read
-from realtimelosstools.exposure_updater import ExposureUpdater
-from realtimelosstools.writers import Writer
 
 
 logger = logging.getLogger()
@@ -42,7 +44,7 @@ class OpenQuakeJob():
         earthquake_id,
         path_to_job_ini,
         store_intermediate,
-        store_openquake,
+        output_type,
         oq_previous_hazard_id=None,
         path_to_oq_outputs=None
     ):
@@ -59,10 +61,9 @@ class OpenQuakeJob():
                 If True, the damage results as directly output by OpenQuake, as well as their
                 adjusted version (so that they do not include negative numbers of buildings)
                 are stored under 'path_to_oq_outputs'.
-            store_openquake (bool):
-                If True, OpenQuake HDF5 files will be stored and jobs will be kept in
-                OpenQuake's database. If false, OpenQuake's database will be purged of this
-                job after running.
+            output_type (str):
+                Type of output of the calculation. Currently supported values are "damage" and
+                "nuisance".
             oq_previous_hazard_id (int):
                 ID of an OpenQuake calculation previously run from which hazards results will
                 be retrieved for the new calculation.
@@ -71,35 +72,47 @@ class OpenQuakeJob():
                 'store_intermediate' is True.
             calc_id (int):
                 Calculation ID assigned by OpenQuake when the job is run.
+            oq_ran (bool):
+                True if the OpenQuake job ran without crashing.
         """
 
         self.description = description
         self.earthquake_id = earthquake_id
         self.path_to_job_ini  = path_to_job_ini
         self.store_intermediate = store_intermediate
-        self.store_openquake = store_openquake
+        if output_type.lower() == "damage" or output_type.lower() == "nuisance":
+            self.output_type = output_type.lower()
+        else:
+            error_message = (
+                "Error initialising OpenQuakeJob class: 'output_type' can only be 'damage' or "
+                "'nuisance'. Current value: %s." % (output_type)
+            )
+            raise ValueError(error_message)
         self.oq_previous_hazard_id = oq_previous_hazard_id
         self.path_to_oq_outputs = path_to_oq_outputs
         self.calc_id = None
+        self.oq_ran = False
 
-    def run(self, exposure_run, mapping_damage_states):
+    def run(self, exposure_run, mapping_states):
         """
         This method runs the OpenQuake job and retrieves its damage results. In detail:
         1) It runs the OpenQuake job.
         2) If the OpenQuake job runs without raising errors:
-           - It retrieves damage results, accounting for logic tree weights.
+           - It retrieves damage/nuisance results, accounting for logic tree weights.
            - It adjusts them to ensure there are no small negative values (due to float
              precision).
         3) It the OpenQuake job raises known errors, it outputs the same input damage states
-        (the earthquake does not cause additional damage).
-        4) It stores these damage results (in OpenQuake format) if 'self.store_intermediate'.
-        5) It deletes OpenQuake's HDF5 for this job if 'self.store_openquake' is False.
+        (the earthquake does not cause additional damage) and zero nuisance.
+        4) It stores these damage/nuisance results (in OpenQuake format) if
+        'self.store_intermediate' is True.
 
         Args:
-            exposure_run (Pandas DataFrame)
-            mapping_damage_states (Pandas DataFrame):
+            exposure_run (Pandas DataFrame):
+                Exposure model used to run OpenQuake.
+            mapping_states (Pandas DataFrame):
                 Mapping between the names of damage states as output by OpenQuake
-                (index) and as labelled in the fragility model (value). E.g.:
+                (index) and the damage states or nuisance levels as labelled in the fragility/
+                nuisance model (value). E.g.:
                               fragility
                     asset_id
                     no_damage       DS0
@@ -111,14 +124,14 @@ class OpenQuakeJob():
         Returns:
             damage_results_OQ (Pandas DataFrame):
                 Pandas DataFrame with numbers of buildings/probabilities of buildings in each
-                damage state. This is output from running OpenQuake. It comprises the following
-                fields:
+                damage state/nuisance level. This is output from running OpenQuake. It comprises
+                the following fields:
                     Index is multiple:
                         asset_id (str):
                             ID of the asset (i.e. specific combination of building_id and a
                             particular building class).
                         dmg_state (str):
-                            Damage states.
+                            Damage states or nuisance levels.
                     Columns:
                         value (float):
                             Probability of 'dmg_state' for 'asset_id'.
@@ -130,6 +143,7 @@ class OpenQuakeJob():
         try:
             # Run OpenQuake
             self.calc_id = main(self.path_to_job_ini, hc=self.oq_previous_hazard_id)
+            self.oq_ran = True
 
             # Retrieve damage states from OpenQuake output
             dstore = read(self.calc_id)
@@ -160,10 +174,8 @@ class OpenQuakeJob():
             except KeyError as ke:
                 if (len(ke.args) == 1) and ("damages-rlzs" in ke.args):
                     # OpenQuake's "There is no damage, perhaps the hazard is too small?"
-                    damage_results_OQ = ExposureUpdater.create_OQ_existing_damage(
-                            exposure_run,
-                            mapping_damage_states,
-                            loss_type="structural"
+                    damage_results_OQ = self._no_consequences(
+                        exposure_run, mapping_states
                     )
                 else:
                     error_message = (
@@ -180,11 +192,7 @@ class OpenQuakeJob():
             if (len(run_e.args) == 1) and ("No GMFs were generated" in run_e.args[0]):
                 # OpenQuake's "No GMFs were generated, perhaps they were all below
                 # the minimum_intensity threshold"
-                damage_results_OQ = ExposureUpdater.create_OQ_existing_damage(
-                        exposure_run,
-                        mapping_damage_states,
-                        loss_type="structural"
-                )
+                damage_results_OQ = self._no_consequences(exposure_run, mapping_states)
             else:
                 error_message = (
                     "OpenQuake has crashed for %s "
@@ -212,9 +220,6 @@ class OpenQuakeJob():
             damage_results_OQ.index = new_index
             damage_results_OQ = damage_results_OQ.drop(columns=["asset_id", "dmg_state"])
 
-        if not self.store_openquake:  # Erase the job just run from OpenQuake's database (and HDF5)
-            Writer.delete_OpenQuake_last_job()
-
         logger.info(
             "%s Running of OpenQuake and retrieval of results done" % (np.datetime64('now'))
         )
@@ -223,7 +228,8 @@ class OpenQuakeJob():
         if self.store_intermediate:
             damage_results_OQ.to_csv(
                 os.path.join(
-                    self.path_to_oq_outputs, "%s_damages_OQ_raw.csv" % (self.earthquake_id)
+                    self.path_to_oq_outputs,
+                    "%s_%s_OQ_raw.csv" % (self.earthquake_id, self.output_type)
                 ),
             )
 
@@ -240,8 +246,80 @@ class OpenQuakeJob():
         if self.store_intermediate:
             damage_results_OQ.to_csv(
                 os.path.join(
-                    self.path_to_oq_outputs, "%s_damages_OQ.csv" % (self.earthquake_id)
+                    self.path_to_oq_outputs,
+                    "%s_%s_OQ.csv" % (self.earthquake_id, self.output_type)
                 ),
+            )
+
+        return damage_results_OQ
+
+
+    def delete_OpenQuake_job(self):
+        """
+        This method removes this calculation's ID from OpenQuake's database and its associated
+        HDF5 file.
+        """
+
+        if not (self.calc_id is None):
+            purge_one(self.calc_id, getpass.getuser(), True)
+
+        return
+
+
+    def _no_consequences(self, exposure_run, mapping_states):
+        """
+        This method simulates OpenQuake's damage output assuming the earthquake does not cause
+        any nuisance or any further damage. The kind of output (damage or nuisance) depends on
+        self.output_type.
+
+        Args:
+            exposure_run (Pandas DataFrame):
+                Exposure model used to run OpenQuake.
+            mapping_states (Pandas DataFrame):
+                Mapping between the names of damage states as output by OpenQuake
+                (index) and the damage states or nuisance levels as labelled in the fragility/
+                nuisance model (value). E.g.:
+                              fragility
+                    asset_id
+                    no_damage       DS0
+                    dmg_1           DS1
+                    dmg_2           DS2
+                    dmg_3           DS3
+                    dmg_4           DS4
+
+        Returns:
+            damage_results_OQ (Pandas DataFrame):
+                Pandas DataFrame with numbers of buildings/probabilities of buildings in each
+                damage state/nuisance level. This is output from running OpenQuake. It comprises
+                the following fields:
+                    Index is multiple:
+                        asset_id (str):
+                            ID of the asset (i.e. specific combination of building_id and a
+                            particular building class).
+                        dmg_state (str):
+                            Damage states or nuisance levels.
+                    Columns:
+                        value (float):
+                            Probability of 'dmg_state' for 'asset_id'.
+                        loss_type (str):
+                            "structural" (kept for format compatibility).
+                        rlz (int):
+                            0 (kept for format compatibility).
+        """
+
+        damage_results_OQ = None
+
+        if self.output_type == "damage":
+            damage_results_OQ = OpenQuakeUtils.create_OQ_existing_damage(
+                    exposure_run,
+                    mapping_states,
+                    loss_type="structural"
+            )
+        elif self.output_type == "nuisance":
+            damage_results_OQ = OpenQuakeUtils.create_OQ_no_nuisance(
+                    exposure_run,
+                    mapping_states,
+                    loss_type="structural"
             )
 
         return damage_results_OQ
@@ -425,6 +503,7 @@ class OpenQuakeJob():
 
         return damage_results_OQ_weighted
 
+
     @staticmethod
     def ensure_no_negative_damage_results_OQ(
         damage_results_OQ, tolerance=0.0001, n_rows_simplified=100000
@@ -537,3 +616,299 @@ class OpenQuakeJob():
             )
 
         return damage_results_OQ_adjusted
+
+
+class OpenQuakeFragility():
+    """
+    This class represents a fragility model read from an XML in OpenQuake format.
+
+    Attrs:
+        path (str): Path to the input XML file of the fragility model.
+        ims (list of str): List of unique intensity measure types used by the fragility model.
+    """
+    def __init__(self):
+        self.path = None
+        self.ims = None
+
+    def from_xml(self, xml_path):
+        self.path = xml_path
+        self.ims = self.read_IMs()
+
+    def from_ini(self, main_path, job_ini_path):
+        """
+        This method retrieves the name of the fragility XML file from OpenQuake's job.ini (read
+        from 'job_ini_path') and assumes it is located under 'main_path'/static.
+        """
+        jobini = configparser.ConfigParser(interpolation=None)
+        jobini.read(job_ini_path)
+
+        frag_relative = jobini["fragility"]["structural_fragility_file"]
+
+        self.path = os.path.join(main_path, "static", frag_relative.split("/")[-1])
+        self.ims = self.read_IMs()
+
+    def read_IMs(self):
+        """
+        This method retrieves the unique intensity measure types used by the fragility model.
+        """
+
+        def local(tag):
+            # Strip namespace: "{uri}fragilityFunction" → "fragilityFunction"
+            if "}" in tag:
+                return tag.split("}", 1)[1]
+            return tag
+
+        unique_imts = set()
+
+        for event, elem in ET.iterparse(self.path, events=("start",)):
+            if local(elem.tag) == "imls":      # namespace-safe
+                imt = elem.get("imt")
+                if imt:
+                    unique_imts.add(imt)
+
+        return list(unique_imts)
+
+
+class OpenQuakeUtils():
+    """
+    Class with methods associated with running OpenQuake.
+    """
+
+    @staticmethod
+    def can_previous_hazard_be_reused(
+        filepath_nuisance_xml,
+        filepath_damage_job_ini,
+        main_path,
+        previousjobran,
+    ):
+        """
+        This method assesses whether hazard outputs from a previous OpenQuake damage calculation
+        can be re-used for an upcoming OpenQuake nuisance calculation. The output
+        ('previous_hazard_id') can be passed on directly to OpenQuake commands such as
+        openquake.commands.run.main(..., hc=previous_hazard_id): it is -1 if the calculation can
+        be re-used, and None if it cannot.
+
+        Previously-calculated hazard results can be re-used if:
+        - the intensity measures needed by the nuisance model are part of the set of intensity
+        measures needed by the previously-ran damage calculation, and
+        - the previous damage calculation has, in fact, run (i.e., OpenQuake did not crash).
+
+        Args:
+            filepath_nuisance_xml (str):
+                Complete path (dir+filename) to the XML file that contains the nuisance model.
+            filepath_damage_job_ini (str):
+                Complete path (dir+filename) to the job.ini file used to run the previous damage
+                job in OpenQuake.
+            main_path (str):
+                RTLTs' "main_path" used to  run the previous damage job in OpenQuake.
+            previousjobran (bool):
+                True if the previous damage calculation actually ran, False otherwise (e.g. if
+                OpenQuake crashed).
+
+        Returns:
+            previous_hazard_id (int)
+                - -1 if the previously-calculated hazard can be re-used,
+                - None if the previously-calculated hazard cannot be re-used.
+        """
+
+        # Which IMs does the nuisance calculation need?
+        nuisance_frag = OpenQuakeFragility()
+        nuisance_frag.from_xml(filepath_nuisance_xml)
+
+        # Retrieve IMs for which ground motion fields exist already
+        if previousjobran:
+            damage_frag = OpenQuakeFragility()
+            damage_frag.from_ini(main_path, filepath_damage_job_ini)
+            existing_ims = damage_frag.ims
+        else:
+            # The damage calculation did not run successfully
+            existing_ims = []
+
+        # Check if nuisance_frag.ims are in existing_ims
+        # to determine whether to run hazard again or re-use from damage calculation
+        if set(nuisance_frag.ims).issubset(existing_ims):
+            previous_hazard_id = -1
+        else:
+            previous_hazard_id = None
+
+        return previous_hazard_id
+
+
+    @staticmethod
+    def create_OQ_existing_damage(exposure, mapping_damage_states, loss_type="structural"):
+        """
+        This method simulates the output of OpenQuake's DataStore.read_df() assigning no damage
+        (apart from the pre-existing damage) to all asset IDs in 'exposure'.
+
+        OpenQuake's DataStore.read_df() raises a KeyError when asked to retrieve the damage
+        results of a calculation that has resulted in no damage (for which OpenQuake logs the
+        warning "There is no damage, perhaps the hazard is too small?").
+
+        Args:
+            exposure (Pandas DataFrame):
+                Pandas DataFrame representation of the exposure CSV input for OpenQuake whose
+                damage results are to be simulated. It must comprise at least the following
+                fields:
+                    Index (simple):
+                        asset_id (str):
+                            ID of the asset (i.e. specific combination of building_id and a
+                            particular building class).
+                    Columns:
+                        taxonomy (str):
+                            Building class.
+                        number (float):
+                            Number of buildings in this asset.
+            mapping_damage_states (Pandas DataFrame):
+                Mapping between the names of damage states as output by OpenQuake (index) and as
+                labelled in the fragility model (value). E.g.:
+                              fragility
+                    dmg_state
+                    no_damage       DS0
+                    dmg_1           DS1
+                    dmg_2           DS2
+                    dmg_3           DS3
+                    dmg_4           DS4
+            loss_type (str):
+                Type of loss to be output by OpenQuake. Default: "structural".
+
+        Returns:
+            damage_results_no_damage (DataFrame):
+                DataFrame with the following structure:
+                    Index: consecutive integers starting with 0.
+                    Columns:
+                        asset_id (str): Asset IDs from 'exposure'.
+                        rlz (int): All zeroes.
+                        loss_type (str): All as per 'loss_type'.
+                        dmg_state (str): Damage states as per 'mapping_damage_states' and
+                            'exposure'.
+                        value (float): Number of buildings of 'asset_id' in each
+                            'dmg_state', as per 'exposure'.
+        """
+
+        asset_ids = exposure.index.to_numpy()
+        buildings_per_asset_id = exposure["number"].to_numpy()
+
+        # Extract damage state from taxonomy
+        dmg_states_exposure = exposure["taxonomy"].str.split("/").str[-1].to_numpy()
+
+        dmg_states_oq = mapping_damage_states.index.to_numpy()
+        fragility_codes = mapping_damage_states["fragility"].to_numpy()
+
+        n_assets = len(asset_ids)
+        n_states = len(dmg_states_oq)
+
+        # Repeat each asset_id the number of nuisance states we have (n_states)
+        # (creates blocks of "asset_id_1", ..., "asset_id_1", "asset_id_2", ..., "asset_id_2")
+        asset_ids_all = np.repeat(asset_ids, n_states)
+        # Repeat each block of nuisance states to match each block of assets
+        # (creates blocks of "no_dmg", "dmg_1", ..., "dmg_X", "no_dmg", "dmg_1", ..., "dmg_X")
+        dmg_states_oq_all = np.tile(dmg_states_oq, n_assets)
+
+        # Build array with the same damage states as in "dmg_states_oq_all"
+        # but in terms of mapping_damage_states["fragility"]
+        fragility_all = np.tile(fragility_codes, n_assets)
+
+        # Build exposure damage state array aligned with dmg_states_oq_all
+        exposure_ds_all = np.repeat(dmg_states_exposure, n_states)
+
+        # Assign buildings only where fragility dmg state matches exposure dmg state
+        values_all = np.zeros(n_assets * n_states, dtype=float)
+
+        mask = (fragility_all == exposure_ds_all)
+        values_all[mask] = np.repeat(buildings_per_asset_id, n_states)[mask]
+
+        # Build DataFrame
+        damage_results_no_damage = pd.DataFrame(
+            {
+                "asset_id": asset_ids_all,
+                "rlz": 0,
+                "loss_type": loss_type,
+                "dmg_state": dmg_states_oq_all,
+                "value": values_all,
+            }
+        )
+
+        return damage_results_no_damage
+
+
+    @staticmethod
+    def create_OQ_no_nuisance(exposure, mapping_nuisance_states, loss_type="structural"):
+        """
+        This method simulates the output of OpenQuake's DataStore.read_df() assigning no
+        nuisance to all asset IDs in 'exposure'.
+
+        Args:
+            exposure (Pandas DataFrame):
+                Pandas DataFrame representation of the exposure CSV input for OpenQuake whose
+                damage results are to be simulated. It must comprise at least the following
+                fields:
+                    Index (simple):
+                        asset_id (str):
+                            ID of the asset (i.e. specific combination of building_id and a
+                            particular building class).
+                    Columns:
+                        taxonomy (str):
+                            Building class.
+                        number (float):
+                            Number of buildings in this asset.
+            mapping_nuisance_states (Pandas DataFrame):
+                Mapping between the names of nuisance states as output by OpenQuake (index) and
+                as labelled in the nuisance model (value), assumed to be ordered from least
+                extreme to most extreme. E.g.:
+                              fragility
+                    dmg_state
+                    no_damage       nonfelt
+                    dmg_1           CDI2
+                    dmg_2           CDI3
+                    dmg_3           CDI4
+                    dmg_4           CDI5
+                    dmg_5           CDI6
+            loss_type (str):
+                Type of loss to be output by OpenQuake. Default: "structural".
+
+        Returns:
+            damage_results_no_nuisance (DataFrame):
+                DataFrame with the following structure:
+                    Index: consecutive integers starting with 0.
+                    Columns:
+                        asset_id (str): Asset IDs from 'exposure'.
+                        rlz (int): All zeroes.
+                        loss_type (str): All as per 'loss_type'.
+                        dmg_state (str): Nuisance levels as per the index of
+                            'mapping_nuisance_states'.
+                        value (float): Number of buildings of 'asset_id' in each
+                            'dmg_state', as per 'exposure'.
+        """
+
+        asset_ids = exposure.index.to_numpy()
+        buildings_per_asset_id = exposure["number"].to_numpy()
+        dmg_states_oq = mapping_nuisance_states.index.to_numpy()
+
+        n_assets = len(asset_ids)
+        n_states = len(dmg_states_oq)
+
+        # Repeat each asset_id the number of nuisance states we have (n_states)
+        # (creates blocks of "asset_id_1", ..., "asset_id_1", "asset_id_2", ..., "asset_id_2")
+        asset_ids_all = np.repeat(asset_ids,  (n_states))
+        # Repeat each block of nuisance states to match each block of assets
+        # (creates blocks of "no_dmg", "dmg_1", ..., "dmg_X", "no_dmg", "dmg_1", ..., "dmg_X")
+        dmg_states_oq_all = np.tile(dmg_states_oq, n_assets)
+
+        # All buildings go to the "no nuisance" level, all other levels are zero
+        values_all = np.zeros(n_assets * n_states, dtype=float)
+
+        mask_first_state = (dmg_states_oq_all == dmg_states_oq[0])
+        values_all[mask_first_state] = np.repeat(buildings_per_asset_id, 1)
+
+        # Build DataFrame
+        damage_results_no_nuisance = pd.DataFrame(
+            {
+                "asset_id": asset_ids_all,
+                "rlz": 0,
+                "loss_type": loss_type,
+                "dmg_state": dmg_states_oq_all,
+                "value": values_all,
+            }
+        )
+
+        return damage_results_no_nuisance

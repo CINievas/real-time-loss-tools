@@ -258,6 +258,7 @@ def main():
                 rla_ruptures.mapping[cat_filename_i],
                 config.state_dependent_fragilities,
                 consequence_economic,
+                config.nuisance,
                 config.calculate_casualties,
                 consequence_injuries,
                 recovery_damage,
@@ -275,6 +276,7 @@ def main():
             (
                 exposure_updated,
                 damage_states,
+                nuisance_states,
                 losses_economic,
                 losses_human,
                 injured_still_away,
@@ -340,6 +342,16 @@ def main():
                 ),
                 index=True,
             )
+
+            if config.nuisance["calculate"]:
+                nuisance_states.to_csv(
+                    os.path.join(
+                        config.main_path,
+                        "output",
+                        "nuisance_states_after_RLA_%s.csv" % (cat_name)
+                    ),
+                    index=True,
+                )
 
             # Store economic losses per building ID
             losses_economic.to_csv(
@@ -490,6 +502,7 @@ def main():
                 config.main_path,
                 exposure_model_undamaged,
                 consequence_economic,
+                config.nuisance,
                 config.calculate_casualties,
                 consequence_injuries,
                 recovery_damage,

@@ -142,6 +142,7 @@ def test_run_rla_01():
         rla_ruptures.mapping[cat_filename],
         config.state_dependent_fragilities,
         consequence_economic,
+        config.nuisance,
         True, # calculate_casualties
         consequence_injuries,
         recovery_damage,
@@ -158,6 +159,7 @@ def test_run_rla_01():
     (
         returned_exposure_updated,
         returned_damage_states,
+        returned_nuisance_states,
         returned_losses_economic,
         returned_losses_human,
         returned_injured_still_away,
@@ -474,6 +476,7 @@ def test_run_rla_02():
         rla_ruptures.mapping[cat_filename],
         config.state_dependent_fragilities,
         consequence_economic,
+        config.nuisance,
         True, # calculate_casualties
         consequence_injuries,
         recovery_damage,
@@ -490,6 +493,7 @@ def test_run_rla_02():
     (
         returned_exposure_updated,
         returned_damage_states,
+        returned_nuisance_states,
         returned_losses_economic,
         returned_losses_human,
         returned_injured_still_away,
@@ -809,6 +813,7 @@ def test_run_rla_03():
         rla_ruptures.mapping[cat_filename],
         config.state_dependent_fragilities,
         consequence_economic,
+        config.nuisance,
         True, # calculate_casualties
         consequence_injuries,
         recovery_damage,
@@ -825,6 +830,7 @@ def test_run_rla_03():
     (
         returned_exposure_updated,
         returned_damage_states,
+        returned_nuisance_states,
         returned_losses_economic,
         returned_losses_human,
         returned_injured_still_away,

@@ -519,6 +519,7 @@ def test_run_oelf_01():
             config.main_path,
             exposure_model_undamaged,
             consequence_economic,
+            config.nuisance,
             True, # calculate_casualties
             consequence_injuries,
             recovery_damage,
@@ -953,6 +954,7 @@ def test_run_oelf_02():
             config.main_path,
             exposure_model_undamaged,
             consequence_economic,
+            config.nuisance,
             True, # calculate_casualties
             consequence_injuries,
             recovery_damage,
@@ -1256,6 +1258,7 @@ def test_run_oelf_03():
             config.main_path,
             exposure_model_undamaged,
             consequence_economic,
+            config.nuisance,
             True, # calculate_casualties
             consequence_injuries,
             recovery_damage,
