@@ -21,6 +21,7 @@ import os
 import numpy as np
 import pandas as pd
 from datetime import datetime
+from copy import deepcopy
 from realtimelosstools.ruptures import Rupture
 from realtimelosstools.exposure_updater import ExposureUpdater
 from realtimelosstools.losses import Losses
@@ -456,7 +457,7 @@ class RapidLossAssessment:
                 path_to_oq_outputs=os.path.join(main_path, "openquake_output")
             )
             nuisance_results_OQ = oqjob_nuis.run(
-                exposure_run, nuisance_params["mapping_nuisance_states"], out_type="nuisance"
+                exposure_run, nuisance_params["mapping_nuisance_states"]
             )
 
             if not store_openquake:
@@ -467,7 +468,10 @@ class RapidLossAssessment:
                 "%s Summarising nuisance states per building ID"  % (np.datetime64('now'))
             )
             nuisance_states = ExposureUpdater.summarise_nuisance_states_per_building_id(
-                nuisance_results_OQ, exposure_run, nuisance_params["mapping_nuisance_states"]
+                nuisance_results_OQ,
+                exposure_run,
+                nuisance_params["mapping_nuisance_states"],
+                occupants_column=time_of_day
             )
 
         if not store_openquake:

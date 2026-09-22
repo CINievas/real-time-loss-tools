@@ -1047,6 +1047,14 @@ def test_summarise_nuisance_states_per_building_id():
         index_col=0
     )
 
+    expected_nuisance_summary = pd.read_csv(
+        os.path.join(
+            os.path.dirname(__file__), "data", "nuisance_expected.csv"
+        ),
+        index_col=[0,1]
+    )
+
+    # Test 1: no occupants column
     mapping_nuisance_states = pd.DataFrame(
         {
             "dmg_state": ["no_damage", "dmg_1", "dmg_2", "dmg_3", "dmg_4", "dmg_5"],
@@ -1060,16 +1068,33 @@ def test_summarise_nuisance_states_per_building_id():
         nuisance_results_OQ, exposure, mapping_nuisance_states
     )
 
-    expected_nuisance_summary = pd.read_csv(
-        os.path.join(
-            os.path.dirname(__file__), "data", "nuisance_expected.csv"
-        ),
-        index_col=[0,1]
-    )
+    assert "night" not in returned_nuisance_summary.columns
 
     for bdg_id in ["tile_1", "special_bdg"]:
         for nuis_lev in mapping_nuisance_states["fragility"]:
             for col in ["number", "census"]:
+                assert (
+                    round(returned_nuisance_summary.loc[(bdg_id, nuis_lev), col], 5) ==
+                    round(expected_nuisance_summary.loc[(bdg_id, nuis_lev), col], 5)
+                )
+
+    # Test 2: with occupants column
+    mapping_nuisance_states = pd.DataFrame(
+        {
+            "dmg_state": ["no_damage", "dmg_1", "dmg_2", "dmg_3", "dmg_4", "dmg_5"],
+            "fragility": ["nonfelt", "CDI2", "CDI3", "CDI4", "CDI5", "CDI6"]
+        }
+    )
+    mapping_nuisance_states.set_index(mapping_nuisance_states["dmg_state"], inplace=True)
+    mapping_nuisance_states.drop(columns=["dmg_state"], inplace=True)
+
+    returned_nuisance_summary = ExposureUpdater.summarise_nuisance_states_per_building_id(
+        nuisance_results_OQ, exposure, mapping_nuisance_states, "night"
+    )
+
+    for bdg_id in ["tile_1", "special_bdg"]:
+        for nuis_lev in mapping_nuisance_states["fragility"]:
+            for col in ["number", "census", "night"]:
                 assert (
                     round(returned_nuisance_summary.loc[(bdg_id, nuis_lev), col], 5) ==
                     round(expected_nuisance_summary.loc[(bdg_id, nuis_lev), col], 5)

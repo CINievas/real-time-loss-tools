@@ -1639,7 +1639,7 @@ class ExposureUpdater:
 
     @staticmethod
     def summarise_nuisance_states_per_building_id(
-        nuisance_results_OQ, exposure, mapping_nuisance_states
+        nuisance_results_OQ, exposure, mapping_nuisance_states, occupants_column=None
     ):
         """
         This method returns the probability of a building with a certain building_id resulting
@@ -1700,6 +1700,9 @@ class ExposureUpdater:
                     dmg_3           CDI4
                     dmg_4           CDI5
                     dmg_5           CDI6
+            occupants_column (str):
+                Name of the column with occupants. E.g., "day", "night", "transit". It can be
+                None if no occupants column exists or is relevant.
 
         Returns:
             nuisance_summary (Pandas DataFrame):
@@ -1728,12 +1731,16 @@ class ExposureUpdater:
         df.rename(columns={"fragility": "nuisance_level"}, inplace=True)
 
         # Columns to consider/aggregate
+        cols_to_aggregate = {"value": "sum"}
+        cols_to_merge = ["building_id"]
+
         if "census" in exposure.columns:
-            cols_to_aggregate = {"value": "sum", "census": "sum"}
-            cols_to_merge = ["building_id", "census"]
-        else:
-            cols_to_aggregate = {"value": "sum"}
-            cols_to_merge = ["building_id"]
+            cols_to_aggregate["census"] = "sum"
+            cols_to_merge.append("census")
+
+        if not (occupants_column is None):
+            cols_to_aggregate[occupants_column] = "sum"
+            cols_to_merge.append(occupants_column)
 
         # Attach building_id from exposure (exposure.asset_id == asset_id)
         df = df.merge(
@@ -1746,6 +1753,10 @@ class ExposureUpdater:
         if "census" in exposure.columns:
             sum_per_asset_id = df.groupby("asset_id")["value"].transform("sum")
             df["census"] = df["census"] * df["value"] / sum_per_asset_id
+
+        if not (occupants_column is None):
+            sum_per_asset_id = df.groupby("asset_id")["value"].transform("sum")
+            df[occupants_column] = df[occupants_column] * df["value"] / sum_per_asset_id
 
         # Group by building_id and nuisance_level
         nuisance_summary = (
