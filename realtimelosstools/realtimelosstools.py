@@ -487,6 +487,11 @@ def main():
                 stats_by_model_portfolio,
                 stats_by_bdg_id,
                 mean_median_portfolio_curves,
+                nuisance_curves_by_model_and_bdg_id,
+                nuisance_curves_by_model_and_bdg_id_mapping,
+                nuisance_curves_by_model_portfolio,
+                nuisance_curves_by_model_portfolio_mapping,
+                nuisance_mean_median_portfolio_curves,
                 damage_states,
                 losses_economic,
                 losses_human
@@ -600,6 +605,44 @@ def main():
                     ),
                     index=True
             )
+
+            # Store nuisance exceedance curves
+            if config.nuisance["calculate"]:
+                dicts_to_export = {
+                    "nuisance_exceed_curves_by_model_and_bdg_id": (
+                        nuisance_curves_by_model_and_bdg_id
+                    ),
+                    "nuisance_exceed_curves_by_model_and_bdg_id_mapping": (
+                        nuisance_curves_by_model_and_bdg_id_mapping
+                    ),
+                    "nuisance_exceed_curves_by_model_portfolio": (
+                        nuisance_curves_by_model_portfolio
+                    ),
+                    "nuisance_exceed_curves_by_model_portfolio_mapping": (
+                        nuisance_curves_by_model_portfolio_mapping
+                    ),
+                    "nuisance_mean_median_portfolio_exceed_curves": (
+                        nuisance_mean_median_portfolio_curves
+                    )
+                }
+                params_to_export = ["nuisance"]
+
+                for subdict in dicts_to_export:
+                    for param in params_to_export:
+                        for subparam in dicts_to_export[subdict][param]:
+                            # E.g. meaning of the keys below
+                            # subdict = "nuisance_exceed_curves_by_model_and_bdg_id"
+                            # param = "nuisance"
+                            # subparam = "number_CDIX"
+                            dicts_to_export[subdict][param][subparam].to_csv(
+                                os.path.join(
+                                    config.main_path,
+                                    "output",
+                                    subdict,
+                                    "%s_%s_OELF_%s.csv" % (subdict, subparam, forecast_name)
+                                ),
+                                index=True
+                            )
 
     # Post-process individual outputs
     if config.post_process["collect_csv"]:

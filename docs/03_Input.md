@@ -90,6 +90,16 @@ remain the same all throughout. These files are:
   exposure-to-vulnerability mapping, if desired and specified in the `job.ini` file that it
   needs to be used.
 
+  - [nuisance_fragility_model.xml](#nuisance-models): XML file of the nuisance model, in
+  OpenQuake's fragility input format. The name of the file should be the as indicated in the
+  `config.yml` file under [nuisance>xml_name](02_Configuration.md#nuisance). Only needed if
+  configured to calculate nuisance.
+
+  - [exposure_vulnerability_mapping_nuisance.csv](#nuisance-models): CSV file with the
+  exposure-to-nuisance mapping. The name of the file should be the as indicated in the
+  `config.yml` file under [nuisance>mapping](02_Configuration.md#nuisance). Only needed if
+  configured to calculate nuisance.
+
   - [gmpe_logic_tree.xml](#ground-motion-models): XML file of the ground motion logic tree, in
   [OpenQuake input format](https://docs.openquake.org/oq-engine/master/manual/hazard.html#defining-logic-trees).
 
@@ -471,6 +481,37 @@ CR/LFINF+CDL+LFC:10.0/H:2/DS1,CR/LFINF+CDL+LFC:10.0/H:2/DS0,1.0
 Alternatively, the input `fragility_model.xml` file can be changed so that the definition of
 curves conditioned on different initial damage states all correspond to the same initial
 undamaged condition.
+
+## Nuisance Models
+
+If nuisance is to be calculated (i.e., [nuisance>calculate=True](02_Configuration.md#nuisance)
+in the `config.yml` file), the nuisance models need to be input in the
+[OpenQuake fragility format](https://docs.openquake.org/oq-engine/master/manual/risk.html#fragility-models),
+as a single XML file under `main_path/static`. OpenQuake supports both continuous and discrete
+fragility models. The name of the file should be the as indicated under
+[nuisance>xml_name](02_Configuration.md#nuisance) of the `config.yml` file.
+
+The use of an exposure-nuisance mapping CSV file (`exposure_vulnerability_mapping_nuisance.csv`)
+is optional when running the Real-Time Loss Tools. If desired, its name needs to be specified in
+the `config.yml` file under [nuisance>mapping](02_Configuration.md#nuisance), and the file needs
+to be placed under `main_path/static`. This file links building classes as defined in the
+exposure model to building classes as defined in the nuisance model (the nuisance fragility XML).
+If not used, strings of building classes need to be the same in the exposure and nuisance models.
+
+Example for the case in which there is only one nuisance model that is applied to all building
+types:
+
+```
+taxonomy,conversion,weight
+CR/LFINF+CDL+LFC:10.0/H:1/DS0,nuisance_ALL,1.0
+CR/LFINF+CDL+LFC:10.0/H:1/DS1,nuisance_ALL,1.0
+CR/LFINF+CDL+LFC:10.0/H:1/DS2,nuisance_ALL,1.0
+CR/LFINF+CDL+LFC:10.0/H:1/DS3,nuisance_ALL,1.0
+CR/LFINF+CDL+LFC:10.0/H:1/DS4,nuisance_ALL,1.0
+CR/LFINF+CDL+LFC:10.0/H:2/DS0,nuisance_ALL,1.0
+CR/LFINF+CDL+LFC:10.0/H:2/DS1,nuisance_ALL,1.0
+...
+```
 
 ## Ground Motion Models
 

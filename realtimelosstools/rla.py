@@ -426,7 +426,6 @@ class RapidLossAssessment:
         damage_results_OQ = oqjob_dmg.run(exposure_run, mapping_damage_states)
 
         # Run OpenQuake to calculate nuisance
-        existing_ims = None
         nuisance_states = None
         if nuisance_params["calculate"]:
             # previous_hazard_id will either be -1 (re-use) or None (calculate again)

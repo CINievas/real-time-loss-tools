@@ -66,7 +66,9 @@ exposure-vulnerability mapping. Assumed to be located under `main_path/static`. 
 These parameters link the names of nuisance "damage states" as they are output by OpenQuake and
 as they are labelled in the nuisance fragility model. The strings before the colons are the
 former while the strings to the right of the colons are the latter. The software assumes that
-the nuisance levels are input in order of severity, from least extreme to most extreme.
+the nuisance levels are input in order of severity, from least extreme to most extreme, and that
+the first level listed corresponds to the "not felt" category (irrespective of the name input by
+the user).
 
 In the following example, the strings `nonfelt`, `CDI2`, etc., would be those used in the
 nuisance fragility model, while `no_damage`, `dmg_1`, etc., are the standard labelling used by

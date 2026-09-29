@@ -71,6 +71,59 @@ class MultilinearStepFunction():
         return out if out.ndim > 0 else out.item()
 
 
+class Operations():
+
+    @staticmethod
+    def shorten_x(x, max_n=100):
+        """Reduce a sorted array of unique values to at most max_n of its own values.
+
+        Half of the points are taken at evenly spaced ranks (following the data density), the
+        other half at log-spaced targets (covering the tails), each snapped to the nearest
+        actual value of input 'x'. The first and last elements of 'x' are always kept.
+
+        Args:
+            x (numpy array):
+                1D array, sorted from smallest to largest.
+            max_n (int):
+                Maximum number of points of 'x' to keep.
+        """
+        # Number of values in the input array (already sorted and unique)
+        n = x.shape[0]
+
+        if n <= max_n:
+            return x
+
+        # Part 1: points evenly spaced by their position
+        # (max - min) / number of points (but here only positions are determined, not values)
+        # Use half of the maximum allowed points for this part
+        n_rank = max_n // 2
+
+        # Evenly spaced positions between the first (0) and last (n-1) index of 'x', ends incl.
+        rank_idx = np.linspace(0, n - 1, n_rank).round().astype(int)
+
+        # Part 2: points evenly spaced in value, snapped to the nearest actual data value of 'x'
+        # Target values between the minimum and maximum of 'x', using the remaining points.
+        # Logarithmic spacing is used when possible (all values positive), otherwise linear
+        # spacing is used.
+        if x[0] > 0:
+            targets = np.geomspace(x[0], x[-1], max_n - n_rank)
+        else:
+            targets = np.linspace(x[0], x[-1], max_n - n_rank)
+
+        # For each target value, find the index of the first value of 'x' that is >= target
+        # (clip(1, n - 1) makes sure that both 'right' and 'right - 1' are valid indices).
+        right = np.searchsorted(x, targets).clip(1, n - 1)
+        # Index of the value of 'x' immediately below (or equal to) each target
+        left = right - 1
+
+        # For each target, keep whichever of the two neighbouring values of 'x' is closer
+        # (ties go to the left one).
+        snap_idx = np.where(targets - x[left] <= x[right] - targets, left, right)
+
+        # Combine both sets of points, keep unique and return them sorted
+        return x[np.unique(np.concatenate([rank_idx, snap_idx]))]
+
+
 class Time():
     """This class handles operations associated with time.
     """

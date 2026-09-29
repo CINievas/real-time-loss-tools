@@ -44,9 +44,12 @@ description of the calculation, etc.
 - Running a scenario damage calculation with OpenQuake and retrieving the damage results.
 - Updating the exposure model with the newly-calculated damage states and distributing the
 replacement costs and number of census occupants proportionally.
-- Calculating injuries/deaths and storing the resulting timelines that indicate when (in UTC
-terms) people are allowed to go back to buildings with different levels of damage and how many
-people cannot go back to buildings due to their own health condition.
+- Optional (only if selected by the user): Calculating injuries/deaths and storing the resulting
+timelines that indicate when (in UTC terms) people are allowed to go back to buildings with
+different levels of damage and how many people cannot go back to buildings due to their own
+health condition.
+- Optional (only if selected by the user): Calculating number of buildings, census people and
+occupants exposed to different levels of nuisance.
 
 While RLA calculations always update the `exposure_model_current.csv` file under the `current`
 folder, because they correspond to earthquakes that have actually occurred, the OELF
@@ -105,6 +108,27 @@ once the exposure model has been updated to reflect the newly-calculated damage 
 case of OELF, however, the economic losses are not calculated after each earthquake but at the
 end of each stochastic event set (SES), as shown in Fig. 1.1, as economic losses depend only on
 the final damage state at the end of the SES.
+
+As an optional feature, the number of buildings and people exposed to different levels of
+nuisance can be calculated for each earthquake, with the user providing as input nuisance
+functions defined in the same way as a damage fragility (see, e.g., Schultz et al., 2021). These
+calculations are not cumulative in nature. Buildings and census people are counted as exposed to
+nuisance even in the case of buildings rendered unusable by previous earthquakes, but occupants
+do account for usability.
+
+Apart from outputs similar to those of RLA, an OELF calculation results in the calculation of
+exceedance curves and statistics associated with all stochastic event sets from all seismicity
+models. In the case of damage, losses and human casualties, the exceedance curves associated
+with one seismicity model are generated with one point from each stochastic event set (e.g.,
+Papadopoulos and Bazzurro, 2020), as a cumulative damage calculation renders the results from
+each individual earthquake meaningless in the context of forecast statistics. In the case of
+nuisance, the nuisance caused by each earthquake is independent from that caused by previous
+earthquakes, and the exceedance curves associated with one seismicity model are generated
+counting rates of exceedance within each stochastic event set, to create per-stochastic-event-set
+curves, and then averaging the curves for all stochastic event sets associated with a seismicity
+model, to produce per-model curves. In all cases (damage, losses, human casualties, nuisance),
+mean/median porfolio exceedance curves acccount for the different weights assigned by the user
+to each seismicity model.
 
 ## Keeping track of damage states
 

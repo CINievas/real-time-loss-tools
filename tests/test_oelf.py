@@ -505,6 +505,11 @@ def test_run_oelf_01():
         stats_by_model_portfolio,
         stats_by_bdg_id,
         mean_median_portfolio_curves,
+        nuisance_curves_by_model_and_bdg_id,
+        nuisance_curves_by_model_and_bdg_id_mapping,
+        nuisance_curves_by_model_portfolio,
+        nuisance_curves_by_model_portfolio_mapping,
+        nuisance_mean_median_portfolio_curves,
         returned_damage_states, returned_losses_economic, returned_losses_human
     ) = (
         OperationalEarthquakeLossForecasting.run_oelf(
@@ -940,6 +945,11 @@ def test_run_oelf_02():
         stats_by_model_portfolio,
         stats_by_bdg_id,
         mean_median_portfolio_curves,
+        nuisance_curves_by_model_and_bdg_id,
+        nuisance_curves_by_model_and_bdg_id_mapping,
+        nuisance_curves_by_model_portfolio,
+        nuisance_curves_by_model_portfolio_mapping,
+        nuisance_mean_median_portfolio_curves,
         returned_damage_states, returned_losses_economic, returned_losses_human
     ) = (
         OperationalEarthquakeLossForecasting.run_oelf(
@@ -1244,6 +1254,11 @@ def test_run_oelf_03():
         stats_by_model_portfolio,
         stats_by_bdg_id,
         mean_median_portfolio_curves,
+        nuisance_curves_by_model_and_bdg_id,
+        nuisance_curves_by_model_and_bdg_id_mapping,
+        nuisance_curves_by_model_portfolio,
+        nuisance_curves_by_model_portfolio_mapping,
+        nuisance_mean_median_portfolio_curves,
         returned_damage_states, returned_losses_economic, returned_losses_human
     ) = (
         OperationalEarthquakeLossForecasting.run_oelf(
@@ -1339,7 +1354,7 @@ def test_run_oelf_03():
     shutil.rmtree(temp_path)
 
 
-def test_get_exceedance_curves_and_stats():
+def test_get_dmg_loss_exceedance_curves_and_stats():
     ### Test 1: Economic losses
     loss_df = pd.read_csv(
         os.path.join(os.path.dirname(__file__), "data", "losses_economic_oelf_all_ses.csv"),
@@ -1364,10 +1379,9 @@ def test_get_exceedance_curves_and_stats():
         returned_stats_by_model_portfolio,
         returned_stats_by_bdg_id,
         returned_mean_median_portfolio_curves
-    ) = OperationalEarthquakeLossForecasting.get_exceedance_curves_and_stats(
+    ) = OperationalEarthquakeLossForecasting.get_dmg_loss_exceedance_curves_and_stats(
         loss_df,
         ["loss"],
-        model_weights.index,  # seismicity model IDs
         [1, 2, 3, 4],  # SES IDs
         model_weights
     )
@@ -1551,7 +1565,8 @@ def test_get_exceedance_curves_and_stats():
 
     ### Test 2: Damage states
     # This test only checks that one key is created in the output dictionaries for each of the
-    # damage states, and that 'get_exceedance_curves_and_stats' can handle the reshaped damage inputs.
+    # damage states, and that 'get_dmg_loss_exceedance_curves_and_stats' can handle the
+    # reshaped damage inputs.
     dmg_states_reshaped = pd.read_csv(
         os.path.join(os.path.dirname(__file__), "data", "damage_states_all_ses_reshaped.csv"),
         index_col=0
@@ -1575,10 +1590,9 @@ def test_get_exceedance_curves_and_stats():
         returned_stats_by_model_portfolio,
         returned_stats_by_bdg_id,
         returned_mean_median_portfolio_curves
-    ) = OperationalEarthquakeLossForecasting.get_exceedance_curves_and_stats(
+    ) = OperationalEarthquakeLossForecasting.get_dmg_loss_exceedance_curves_and_stats(
         dmg_states_reshaped,
         ["DS0", "DS1", "DS2"],
-        model_weights.index,  # model IDs
         [1, 2],  # SES IDs
         model_weights
     )
@@ -1597,8 +1611,305 @@ def test_get_exceedance_curves_and_stats():
             assert dmg_state in dict_output.keys()
 
 
-def test_reshape_damage_states_per_building_id():
+def test_get_nuisance_exceedance_curves():
+    # TEST 1
+    nuisance_reshaped = pd.read_csv(
+        os.path.join(
+            os.path.dirname(__file__), "data", "nuisance_levels_all_ses_all_eqs_reshaped.csv"
+        ),
+        index_col=0
+    )
 
+    model_weights = pd.DataFrame(
+        {
+            "model_id": [1, 2],
+            "model_name": ["Model_1", "Model_2"],
+            "weight": [0.75, 0.25]
+        }
+    )
+    model_weights.set_index(model_weights["model_id"], inplace=True)
+    model_weights.drop(columns=["model_id"], inplace=True)
+
+    requested_outputs = [
+        "number_CDI2", "number_CDI3",
+        "census_CDI2", "census_CDI3",
+        "occupants_CDI2", "occupants_CDI3"
+    ]
+
+    (
+        returned_nuisance_curves_by_model_and_bdg_id,
+        returned_nuisance_curves_by_model_and_bdg_id_mapping,
+        returned_nuisance_curves_by_model_portfolio,
+        returned_nuisance_curves_by_model_portfolio_mapping,
+        returned_nuisance_mean_median_portfolio_curves
+    ) = OperationalEarthquakeLossForecasting.get_nuisance_exceedance_curves(
+        nuisance_reshaped,
+        requested_outputs,
+        np.zeros(len(requested_outputs)),
+        [1, 2],  # SES IDs
+        model_weights
+    )
+
+    dict_outputs = [
+        returned_nuisance_curves_by_model_and_bdg_id,
+        returned_nuisance_curves_by_model_and_bdg_id_mapping,
+        returned_nuisance_curves_by_model_portfolio,
+        returned_nuisance_curves_by_model_portfolio_mapping,
+        returned_nuisance_mean_median_portfolio_curves
+    ]
+
+    # Check that the key of the requested output exists
+    for output in requested_outputs:
+        for dict_output in dict_outputs:
+            assert output in dict_output
+
+    # Check actual output values for one of the requested outputs
+    output = "number_CDI2"
+
+    # By model and building ID
+    expected_nuisance_curves_by_model_and_bdg_id = pd.read_csv(
+        os.path.join(
+            os.path.dirname(__file__), "data", "expected_nuisance_exceedance_by_model_and_bdg_id.csv"
+        ),
+        index_col=[0, 1]
+    )
+
+    expected_nuisance_curves_by_model_and_bdg_id_mapping = (
+        expected_nuisance_curves_by_model_and_bdg_id.loc[(0, "x_val"), :].T
+    )
+    expected_nuisance_curves_by_model_and_bdg_id.drop((0, "x_val"), inplace=True)
+
+    # nuisance_curves_by_model_and_bdg_id
+    for model_id in [1, 2]:
+        for bdg_id in ["b1", "b2"]:
+            for x_code in expected_nuisance_curves_by_model_and_bdg_id.columns:
+                assert (
+                    round(
+                        returned_nuisance_curves_by_model_and_bdg_id[output].loc[
+                            (model_id, bdg_id), x_code
+                        ], 5
+                    ) ==
+                    round(
+                        expected_nuisance_curves_by_model_and_bdg_id.loc[
+                            (model_id, bdg_id), x_code
+                        ], 5
+                    )
+                )
+
+    # nuisance_curves_by_model_and_bdg_id_mapping
+    for x_code in expected_nuisance_curves_by_model_and_bdg_id_mapping.index:
+        assert (
+            round(
+                returned_nuisance_curves_by_model_and_bdg_id_mapping[output].loc[
+                    x_code, "x_val"
+                ], 5
+            ) == round(
+                expected_nuisance_curves_by_model_and_bdg_id_mapping.loc[x_code], 5
+            )
+        )
+
+    # By model ID
+    expected_nuisance_curves_by_model_portfolio = pd.read_csv(
+        os.path.join(
+            os.path.dirname(__file__), "data", "expected_nuisance_exceedance_by_model.csv"
+        ),
+        index_col=0
+    )
+
+    expected_nuisance_curves_by_model_portfolio_mapping = (
+        expected_nuisance_curves_by_model_portfolio.loc[0, :].T
+    )
+    expected_nuisance_curves_by_model_portfolio.drop((0), inplace=True)
+
+    # nuisance_curves_by_model_portfolio
+    for model_id in [1, 2]:
+        for x_code in expected_nuisance_curves_by_model_portfolio.columns:
+            assert (
+                round(
+                    returned_nuisance_curves_by_model_portfolio[output].loc[model_id, x_code], 5
+                ) ==
+                round(
+                    expected_nuisance_curves_by_model_portfolio.loc[model_id, x_code], 5
+                )
+            )
+
+    # nuisance_curves_by_model_portfolio_mapping
+    for x_code in expected_nuisance_curves_by_model_portfolio_mapping.index:
+        assert (
+            round(
+                returned_nuisance_curves_by_model_portfolio_mapping[output].loc[x_code, "x_val"], 5
+            ) == round(expected_nuisance_curves_by_model_portfolio_mapping.loc[x_code], 5)
+        )
+
+    # Portfolio Mean/Median by Model ID
+    expected_nuisance_curves_by_model_portfolio = pd.read_csv(
+        os.path.join(
+            os.path.dirname(__file__), "data", "expected_nuisance_exceedance_mean_median.csv"
+        )
+    )
+
+    assert (
+        returned_nuisance_mean_median_portfolio_curves[output].shape ==
+        expected_nuisance_curves_by_model_portfolio.shape
+    )
+
+    for stat in ["mean", "median"]:
+        for row in expected_nuisance_curves_by_model_portfolio.index:
+            assert (
+                round(returned_nuisance_mean_median_portfolio_curves[output].loc[row, stat], 5) ==
+                round(expected_nuisance_curves_by_model_portfolio.loc[row, stat], 5)
+            )
+
+    # TEST 2: Input nuisance levels like TEST 1, but model_weights contains one more model
+    # (whose output was clearly zero nuisance, i.e., no earthquakes actually run)
+    nuisance_reshaped = pd.read_csv(
+        os.path.join(
+            os.path.dirname(__file__), "data", "nuisance_levels_all_ses_all_eqs_reshaped.csv"
+        ),
+        index_col=0
+    )
+
+    model_weights = pd.DataFrame(
+        {
+            "model_id": [1, 2, 3],
+            "model_name": ["Model_1", "Model_2", "Model_3"],
+            "weight": [0.6, 0.25, 0.15]
+        }
+    )
+    model_weights.set_index(model_weights["model_id"], inplace=True)
+    model_weights.drop(columns=["model_id"], inplace=True)
+
+    requested_outputs = [
+        "number_CDI2", "number_CDI3",
+        "census_CDI2", "census_CDI3",
+        "occupants_CDI2", "occupants_CDI3"
+    ]
+
+    _, _, _, _, returned_nuisance_mean_median_portfolio_curves = (
+        OperationalEarthquakeLossForecasting.get_nuisance_exceedance_curves(
+            nuisance_reshaped,
+            requested_outputs,
+            np.zeros(len(requested_outputs)),
+            [1, 2],  # SES IDs
+            model_weights
+        )
+    )
+
+    # Check actual output values for one of the requested outputs
+    output = "number_CDI2"
+
+    # Portfolio Mean/Median by Model ID
+    expected_nuisance_curves_by_model_portfolio = pd.read_csv(
+        os.path.join(
+            os.path.dirname(__file__),
+            "data",
+            "expected_nuisance_exceedance_mean_median_empty_model_2.csv"
+        )
+    )
+
+    assert (
+        returned_nuisance_mean_median_portfolio_curves[output].shape ==
+        expected_nuisance_curves_by_model_portfolio.shape
+    )
+
+    for stat in ["mean", "median"]:
+        for row in expected_nuisance_curves_by_model_portfolio.index:
+            assert (
+                round(returned_nuisance_mean_median_portfolio_curves[output].loc[row, stat], 5) ==
+                round(expected_nuisance_curves_by_model_portfolio.loc[row, stat], 5)
+            )
+
+    # TEST 3: Same as TEST 2, changing the weights
+    model_weights = pd.DataFrame(
+        {
+            "model_id": [1, 2, 3],
+            "model_name": ["Model_1", "Model_2", "Model_3"],
+            "weight": [0.25, 0.6, 0.15]
+        }
+    )
+    model_weights.set_index(model_weights["model_id"], inplace=True)
+    model_weights.drop(columns=["model_id"], inplace=True)
+
+    _, _, _, _, returned_nuisance_mean_median_portfolio_curves = (
+        OperationalEarthquakeLossForecasting.get_nuisance_exceedance_curves(
+            nuisance_reshaped,
+            requested_outputs,
+            np.zeros(len(requested_outputs)),
+            [1, 2],  # SES IDs
+            model_weights
+        )
+    )
+
+    # Check actual output values for one of the requested outputs
+    output = "number_CDI2"
+
+    # Portfolio Mean/Median by Model ID
+    expected_nuisance_curves_by_model_portfolio = pd.read_csv(
+        os.path.join(
+            os.path.dirname(__file__),
+            "data",
+            "expected_nuisance_exceedance_mean_median_empty_model_3.csv"
+        )
+    )
+
+    assert (
+        returned_nuisance_mean_median_portfolio_curves[output].shape ==
+        expected_nuisance_curves_by_model_portfolio.shape
+    )
+
+    for stat in ["mean", "median"]:
+        for row in expected_nuisance_curves_by_model_portfolio.index:
+            assert (
+                round(returned_nuisance_mean_median_portfolio_curves[output].loc[row, stat], 5) ==
+                round(expected_nuisance_curves_by_model_portfolio.loc[row, stat], 5)
+            )
+
+
+def test_ensure_all_model_curves_exist():
+
+    curves_by_model_portfolio = pd.DataFrame(
+        {
+            "model_id": [1, 4],
+            "x1": [1.5, 1.0],
+            "x2": [1.0, 1.0],
+            "x3": [0.8, 0.5],
+            "x4": [0.0, 0.5],
+        }
+    )
+    curves_by_model_portfolio.set_index(curves_by_model_portfolio["model_id"], inplace=True)
+    curves_by_model_portfolio.drop(columns=["model_id"], inplace=True)
+
+    model_ids = [1, 2, 3, 4, 5]
+    default_empty = 0.0
+
+    returned_curves = OperationalEarthquakeLossForecasting._ensure_all_model_curves_exist(
+        curves_by_model_portfolio, model_ids, default_empty
+    )
+
+    expected_curves = pd.DataFrame(
+        {
+            "model_id": [1, 4, 2, 3, 5],
+            "x1": [1.5, 1.0, 0.0, 0.0, 0.0],
+            "x2": [1.0, 1.0, 0.0, 0.0, 0.0],
+            "x3": [0.8, 0.5, 0.0, 0.0, 0.0],
+            "x4": [0.0, 0.5, 0.0, 0.0, 0.0],
+        }
+    )
+    expected_curves.set_index(expected_curves["model_id"], inplace=True)
+    expected_curves.drop(columns=["model_id"], inplace=True)
+
+    assert returned_curves.shape == expected_curves.shape
+
+    for model_id in expected_curves.index:
+        for col in expected_curves.columns:
+            assert (
+                round(returned_curves.loc[model_id, col], 5) ==
+                round(returned_curves.loc[model_id, col], 5)
+            )
+
+
+def test_reshape_damage_states_per_building_id():
+    # TEST 1: damage states, number of buildings
     dmg_df = pd.read_csv(
         os.path.join(os.path.dirname(__file__), "data", "damage_states_all_ses.csv"),
         index_col=[0,1]
@@ -1607,14 +1918,87 @@ def test_reshape_damage_states_per_building_id():
         os.path.join(os.path.dirname(__file__), "data", "damage_states_all_ses_reshaped.csv"),
     )
     # Creating a multi-index version to make the comparison easier
-    expected_reshaped = expected_reshaped.groupby(["building_id", "ses_id", "model_id"]).agg("first")
+    expected_reshaped = expected_reshaped.groupby(
+        ["building_id", "ses_id", "model_id"]
+    ).agg("first")
 
     returned_reshaped = (
-        OperationalEarthquakeLossForecasting.reshape_damage_states_per_building_id(dmg_df)
+        OperationalEarthquakeLossForecasting.reshape_damage_states_per_building_id(
+            dmg_df,
+            ["ses_id", "model_id"],
+            "damage_state",
+            ["number"]
+        )
     )
     # Creating a multi-index version to make the comparison easier
     returned_reshaped.reset_index(inplace=True)
     returned_reshaped = returned_reshaped.groupby(["building_id", "ses_id", "model_id"]).agg("first")
+
+    assert returned_reshaped.shape == expected_reshaped.shape
+
+    for index_val in expected_reshaped.index:
+        for col in expected_reshaped.columns:
+            assert (
+                round(returned_reshaped.loc[index_val, col], 5) ==
+                round(expected_reshaped.loc[index_val, col], 5)
+            )
+
+    # TEST 2: nuisance levels, number of buildings, census people & occupants
+    dmg_df = pd.read_csv(
+        os.path.join(os.path.dirname(__file__), "data", "nuisance_levels_all_ses_all_eqs.csv"),
+        index_col=[0,1]
+    )
+    expected_reshaped = pd.read_csv(
+        os.path.join(
+            os.path.dirname(__file__), "data", "nuisance_levels_all_ses_all_eqs_reshaped.csv"
+        ),
+    )
+    # Creating a multi-index version to make the comparison easier
+    expected_reshaped = expected_reshaped.groupby(
+        ["building_id", "eq_id", "ses_id", "model_id"]
+    ).agg("first")
+
+    returned_reshaped = (
+        OperationalEarthquakeLossForecasting.reshape_damage_states_per_building_id(
+            dmg_df,
+            ["eq_id", "ses_id", "model_id"],
+            "nuisance_level",
+            ["number", "census", "occupants"]
+        )
+    )
+    # Creating a multi-index version to make the comparison easier
+    returned_reshaped.reset_index(inplace=True)
+    returned_reshaped = returned_reshaped.groupby(
+        ["building_id", "eq_id", "ses_id", "model_id"]
+    ).agg("first")
+
+    assert returned_reshaped.shape == expected_reshaped.shape
+
+    for index_val in expected_reshaped.index:
+        for col in expected_reshaped.columns:
+            assert (
+                round(returned_reshaped.loc[index_val, col], 5) ==
+                round(expected_reshaped.loc[index_val, col], 5)
+            )
+
+    # TEST 3: same as TEST 2, but without occupants
+    expected_reshaped.drop(
+        columns=["occupants_nonfelt", "occupants_CDI2", "occupants_CDI3"], inplace=True
+    )
+
+    returned_reshaped = (
+        OperationalEarthquakeLossForecasting.reshape_damage_states_per_building_id(
+            dmg_df,
+            ["eq_id", "ses_id", "model_id"],
+            "nuisance_level",
+            ["number", "census"]
+        )
+    )
+    # Creating a multi-index version to make the comparison easier
+    returned_reshaped.reset_index(inplace=True)
+    returned_reshaped = returned_reshaped.groupby(
+        ["building_id", "eq_id", "ses_id", "model_id"]
+    ).agg("first")
 
     assert returned_reshaped.shape == expected_reshaped.shape
 

@@ -29,8 +29,8 @@ from realtimelosstools.ruptures import Rupture
 from realtimelosstools.exposure_updater import ExposureUpdater
 from realtimelosstools.losses import Losses
 from realtimelosstools.writers import Writer
-from realtimelosstools.utils import Time
-from realtimelosstools.oq_handler import OpenQuakeJob
+from realtimelosstools.utils import Time, Operations
+from realtimelosstools.oq_handler import OpenQuakeJob, OpenQuakeUtils
 
 
 logger = logging.getLogger()
@@ -209,6 +209,17 @@ class OperationalEarthquakeLossForecasting():
                     mapping (str):
                         Name of the CSV file mapping exposure to nuisance classes. Only
                         necessary if 'calculate' is True.
+                    mapping_nuisance_states (Pandas DataFrame):
+                        Mapping between the names of nuisance states as output by OpenQuake
+                        (index) and as labelled in the nuisance model (value). E.g.:
+                                      fragility
+                            dmg_state
+                            no_damage       nonfelt
+                            dmg_1           CDI2
+                            dmg_2           CDI3
+                            dmg_3           CDI4
+                            dmg_4           CDI5
+                            dmg_5           CDI6
             calculate_casualties (bool):
                 If True, casualties are calculated.
             consequence_injuries (dict of Pandas DataFrame):
@@ -300,7 +311,7 @@ class OperationalEarthquakeLossForecasting():
 
         Returns:
             All output dictionaries below have primary keys "damage", "losses_economic" and
-            "losses_human" (if calculate_casualties' is True). Within "damage", there is one
+            "losses_human" (if 'calculate_casualties' is True). Within "damage", there is one
             sub-key per damage state. Within "losses_economic", just one sub-key "loss". Within
             "losses_human", there is one sub-key per injury level.
 
@@ -353,6 +364,57 @@ class OperationalEarthquakeLossForecasting():
                             where all individual models' curves are defined).
                         "mean": weighted mean of all models.
                         "median": weighted median of all models.
+
+            All nuisance output dictionaries below have primary key "nuisance" (if
+            nuisance_params["calculate"] is True; otherwise they are empty). Within "nuisance",
+            there is one sub-key per combination of ["number", "census", "occupants" (if
+            'calculate_casualties'=True)] and nuisance level:
+
+            nuisance_curves_by_model_and_bdg_id (dict of Pandas DataFrame):
+                Dictionary with key structure as described above containing one DataFrame with
+                the individual exceedance curves per model and building ID. The values in the
+                DataFrame are the rates of exceedance.
+                    MultiIndex: (model_id, building_id)
+                    Columns: Index of 'curves_by_model_and_bdg_id_mapping' i.e. coded values of
+                        the output (e.g., number of buildings or people exposed to a certain
+                        nuisance level).
+                (Each row is the exceedance curve for a particular building_id and model_id).
+            nuisance_curves_by_model_and_bdg_id_mapping (dict of Pandas DataFrame):
+                Pandas DataFrame mapping the names of the columns in
+                'nuisance_curves_by_model_and_bdg_id' with the vaues of the output that they
+                represent.
+                    Index: names of the columns.
+                    Column "x_val": value of the output (e.g., number of buildings exposed to
+                        CDI6, number of people exposed to CDI5, ...).
+            nuisance_curves_by_model_portfolio (dict of Pandas DataFrame):
+                Dictionary with key structure as described above containing one DataFrame with
+                the individual portfolio exceedance curves per model. The values in the
+                DataFrame are the rates of exceedance.
+                    Index: model_id
+                    Columns: Index of 'nuisance_curves_by_model_portfolio_mapping', i.e. coded
+                        values of the output (e.g., number of buildings or people exposed to a
+                        certain nuisance level).
+                (Each row is the portfolio exceedance curve for a particular model_id).
+            nuisance_curves_by_model_portfolio_mapping (dict of Pandas DataFrame):
+                Pandas DataFrame mapping the names of the columns in
+                'nuisance_curves_by_model_portfolio' with the vaues of the output that they
+                represent.
+                    Index: names of the columns.
+                    Column "x_val": value of the output (e.g., number of buildings exposed to
+                        CDI6, number of people exposed to CDI5, ...).
+            nuisance_mean_median_portfolio_curves (dict of Pandas DataFrame):
+                Dictionary with key structure as described above containing one DataFrame with
+                the weighted mean and median portfolio exceedance curves from all models
+                (weights as per 'forecast_model_weights').
+                    No index.
+                    Columns:
+                        "value": values of the output parameter (e.g., number of people exposed
+                            to CDI6) for which the mean/median curves have been calculated.
+                        "mean": weighted mean of all models.
+                        "median": weighted median of all models.
+
+            Other outputs:
+
             mean_damage_states (Pandas DataFrame):
                 Pandas DataFrame with the damage states resulting from the average of all OELF
                 realisations from all seismicity models, i.e. all stochastic event sets of
@@ -398,6 +460,10 @@ class OperationalEarthquakeLossForecasting():
                             seismicity.
 
         """
+
+        logger.info(
+            "%s Forecast %s: OELF started"  % (np.datetime64('now'), forecast_name)
+        )
 
         # Create sub-directory to store OpenQuake outputs
         if store_intermediate:
@@ -450,6 +516,18 @@ class OperationalEarthquakeLossForecasting():
             "stats_by_bdg_id",
             "mean_median_portfolio_exceed_curves"
         ]
+        if nuisance_params["calculate"]:
+            export_folders_to_create = (
+                export_folders_to_create +
+                [
+                    "nuisance_exceed_curves_by_model_and_bdg_id",
+                    "nuisance_exceed_curves_by_model_and_bdg_id_mapping",
+                    "nuisance_exceed_curves_by_model_portfolio",
+                    "nuisance_exceed_curves_by_model_portfolio_mapping",
+                    "nuisance_mean_median_portfolio_exceed_curves"
+                ]
+            )
+
         for folder_name in export_folders_to_create:
             path_to_exceed_outputs = os.path.join(main_path, "output", folder_name)
             if not os.path.exists(path_to_exceed_outputs):
@@ -506,10 +584,12 @@ class OperationalEarthquakeLossForecasting():
         catalogue_groups = forecast_catalogue.groupby(["model_id", "ses_id"])
 
         # Initialise 'damage_states_all_ses', 'losses_economic_all_ses', 'losses_human_all_ses'
-        # to gather results from all SES from all seismicity models
+        # and 'nuisance_all_ses_all_events' to gather results from all SES from all seismicity
+        # models (and all individual events, in the case of nuisance)
         damage_states_all_ses = None
         losses_economic_all_ses = None
         losses_human_all_ses = None
+        nuisance_all_ses_all_events = None
 
         precalculated_nodmg = None
 
@@ -633,7 +713,11 @@ class OperationalEarthquakeLossForecasting():
                         exposure_updated_damage = exposure_updated_damage.drop(
                             columns=[time_of_day]
                         )
+
                         # No need to add zeros to losses_human_all_events (i.e. no injuries)
+
+                        # No need to add zero-nuisance to nuisance_all_ses_all_events
+
                         continue
 
                     # Identify rupture XML
@@ -666,20 +750,81 @@ class OperationalEarthquakeLossForecasting():
                         "../ruptures/oelf/%s/%s" % (forecast_name, name_rupture_file),
                     )
 
-                    # Run OpenQuake
-                    oqjob = OpenQuakeJob(
+                    # Run OpenQuake to calculate damage
+                    oqjob_dmg = OpenQuakeJob(
                         description,
                         eq_id,
                         os.path.join(main_path, "current", "job.ini"),
                         store_intermediate,
                         "damage",
                         oq_previous_hazard_id=None,
-                        path_to_oq_outputs=path_to_oq_outputs
+                        path_to_oq_outputs=path_to_oq_outputs if store_intermediate else None
                     )
-                    damage_results_OQ = oqjob.run(exposure_run, mapping_damage_states)
+                    damage_results_OQ = oqjob_dmg.run(exposure_run, mapping_damage_states)
+
+                    # Run OpenQuake to calculate nuisance
+                    nuisance_states = None
+                    if nuisance_params["calculate"]:
+                        # previous_hazard_id will either be -1 (re-use) or None (calculate again)
+                        previous_hazard_id = OpenQuakeUtils.can_previous_hazard_be_reused(
+                            os.path.join(main_path, "static", nuisance_params["xml_name"]), # path to nuisance XML
+                            os.path.join(main_path, "current", "job.ini"), # path to damage job.ini
+                            main_path,
+                            oqjob_dmg.oq_ran, # True if previous calculation did run
+                        )
+
+                        # Create job_nuisance.ini to run OpenQuake calculation
+                        Writer.create_job_nuisance_ini(
+                            os.path.join(main_path, "current", "job.ini"),
+                            os.path.join(main_path, "current", "job_nuisance.ini"),
+                            nuisance_params["xml_name"],
+                            nuisance_params["mapping"],
+                            erase_hazard_params=True if previous_hazard_id==-1 else False
+                        )
+
+                        # Run OpenQuake to calculate nuisance
+                        oqjob_nuis = OpenQuakeJob(
+                            "%s, nuisance" % (description),
+                            eq_id,
+                            os.path.join(main_path, "current", "job_nuisance.ini"),
+                            store_intermediate,
+                            "nuisance",
+                            oq_previous_hazard_id=previous_hazard_id,
+                            path_to_oq_outputs=path_to_oq_outputs if store_intermediate else None
+                        )
+                        nuisance_results_OQ = oqjob_nuis.run(
+                            exposure_run, nuisance_params["mapping_nuisance_states"]
+                        )
+
+                        if not store_openquake:
+                            oqjob_nuis.delete_OpenQuake_job()
+
+                        # Get nuisance states per building ID
+                        logger.info(
+                            "%s Summarising nuisance states per building ID"  % (np.datetime64('now'))
+                        )
+                        nuisance_states = ExposureUpdater.summarise_nuisance_states_per_building_id(
+                            nuisance_results_OQ,
+                            exposure_run,
+                            nuisance_params["mapping_nuisance_states"],
+                            occupants_column=time_of_day
+                        )
+
+                        # Concatenate nuisance results from all events and all SESs and all models
+                        nuisance_states["model_id"] = oef_model_id
+                        nuisance_states["ses_id"] = oef_ses_id
+                        nuisance_states["eq_id"] = eq_id
+
+                        if nuisance_all_ses_all_events is None:
+                            # First earthquake
+                            nuisance_all_ses_all_events = deepcopy(nuisance_states)
+                        else:
+                            nuisance_all_ses_all_events = pd.concat(
+                                [nuisance_all_ses_all_events, nuisance_states]
+                            )
 
                     if not store_openquake:
-                        oqjob.delete_OpenQuake_job()
+                        oqjob_dmg.delete_OpenQuake_job()
 
                     # Update exposure to reflect new damage states
                     # (occupants not updated yet)
@@ -841,12 +986,9 @@ class OperationalEarthquakeLossForecasting():
                         )
 
                 # Concatenate damage states from all (oef_model_id, oef_ses_id) sets
-                damage_states["model_id"] = [
-                    oef_model_id for j in range(damage_states.shape[0])
-                ]
-                damage_states["ses_id"] = [
-                    oef_ses_id for j in range(damage_states.shape[0])
-                ]
+                damage_states["model_id"] = oef_model_id
+                damage_states["ses_id"] = oef_ses_id
+
                 if damage_states_all_ses is None:
                     # First realisation
                     damage_states_all_ses = deepcopy(damage_states)
@@ -856,12 +998,9 @@ class OperationalEarthquakeLossForecasting():
                     )
 
                 # Concatenate economic losses from all (oef_model_id, oef_ses_id) sets
-                losses_economic["model_id"] = [
-                    oef_model_id for j in range(losses_economic.shape[0])
-                ]
-                losses_economic["ses_id"] = [
-                    oef_ses_id for j in range(losses_economic.shape[0])
-                ]
+                losses_economic["model_id"] = oef_model_id
+                losses_economic["ses_id"] = oef_ses_id
+
                 if losses_economic_all_ses is None:
                     # First realisation
                     losses_economic_all_ses = deepcopy(losses_economic)
@@ -872,12 +1011,9 @@ class OperationalEarthquakeLossForecasting():
 
                 if calculate_casualties:
                     # Concatenate human losses from all (oef_model_id, oef_ses_id) sets
-                    losses_human_all_events["model_id"] = [
-                        oef_model_id for j in range(losses_human_all_events.shape[0])
-                    ]
-                    losses_human_all_events["ses_id"] = [
-                        oef_ses_id for j in range(losses_human_all_events.shape[0])
-                    ]
+                    losses_human_all_events["model_id"] = oef_model_id
+                    losses_human_all_events["ses_id"] = oef_ses_id
+
                     if losses_human_all_ses is None:
                         # First realisation
                         losses_human_all_ses = deepcopy(losses_human_all_events)
@@ -890,6 +1026,14 @@ class OperationalEarthquakeLossForecasting():
                     # (next SES needs to start clean)
                     shutil.rmtree(path_to_occupants_oelf)
 
+        logger.info(
+            "%s Forecast %s: Finished processing all stochastic event sets from all "
+            "seismicity models"  % (np.datetime64('now'), forecast_name)
+        )
+        logger.info(
+            "%s Generating exceedance curves and stats"  % (np.datetime64('now'))
+        )
+
         # Initialise exceedance curves and stats outputs
         curves_by_model_and_bdg_id = {}
         stats_by_model_and_bdg_id = {}
@@ -898,10 +1042,19 @@ class OperationalEarthquakeLossForecasting():
         stats_by_bdg_id = {}
         mean_median_portfolio_curves = {}
 
+        nuisance_curves_by_model_and_bdg_id = {}
+        nuisance_curves_by_model_and_bdg_id_mapping = {}
+        nuisance_curves_by_model_portfolio = {}
+        nuisance_curves_by_model_portfolio_mapping = {}
+        nuisance_mean_median_portfolio_curves = {}
+
         # Exceedance curves and stats: Damage states
         damage_states_all_ses_reshaped = (
             OperationalEarthquakeLossForecasting.reshape_damage_states_per_building_id(
-                damage_states_all_ses
+                damage_states_all_ses,
+                ["ses_id", "model_id"],
+                "damage_state",
+                ["number"]
             )
         )# reshape so that each damage state is a column
         (
@@ -912,10 +1065,9 @@ class OperationalEarthquakeLossForecasting():
             stats_by_model_portfolio["damage"],
             stats_by_bdg_id["damage"],
             mean_median_portfolio_curves["damage"]
-        ) = OperationalEarthquakeLossForecasting.get_exceedance_curves_and_stats(
+        ) = OperationalEarthquakeLossForecasting.get_dmg_loss_exceedance_curves_and_stats(
             damage_states_all_ses_reshaped,
             damage_states_all_ses.index.get_level_values("damage_state").unique(),
-            forecast_model_weights.index,  # model IDs
             oef_ses_ids,
             forecast_model_weights
         )
@@ -929,10 +1081,9 @@ class OperationalEarthquakeLossForecasting():
             stats_by_model_portfolio["losses_economic"],
             stats_by_bdg_id["losses_economic"],
             mean_median_portfolio_curves["losses_economic"]
-        ) = OperationalEarthquakeLossForecasting.get_exceedance_curves_and_stats(
+        ) = OperationalEarthquakeLossForecasting.get_dmg_loss_exceedance_curves_and_stats(
             losses_economic_all_ses,
             ["loss"],
-            forecast_model_weights.index,  # model IDs
             oef_ses_ids,
             forecast_model_weights
         )
@@ -947,10 +1098,63 @@ class OperationalEarthquakeLossForecasting():
                 stats_by_model_portfolio["losses_human"],
                 stats_by_bdg_id["losses_human"],
                 mean_median_portfolio_curves["losses_human"]
-            ) = OperationalEarthquakeLossForecasting.get_exceedance_curves_and_stats(
+            ) = OperationalEarthquakeLossForecasting.get_dmg_loss_exceedance_curves_and_stats(
                 losses_human_all_ses,
                 ["injuries_%s" % (severity) for severity in consequence_injuries.keys()],
-                forecast_model_weights.index,  # model IDs
+                oef_ses_ids,
+                forecast_model_weights
+            )
+
+        # Exceedance curves and stats: Nuisance:
+        if nuisance_params["calculate"]:
+            value_columns = ["number", "census"]
+            if calculate_casualties:
+                value_columns.append("occupants")
+
+            # Reshape so that each nuisance state (subclassified as per number of buildings,
+            # census and occupants) is a column
+            index_columns = ["eq_id", "ses_id", "model_id"]
+
+            nuisance_all_ses_all_events_reshaped = (
+                OperationalEarthquakeLossForecasting.reshape_damage_states_per_building_id(
+                    nuisance_all_ses_all_events,
+                    index_columns,
+                    "nuisance_level",
+                    value_columns
+                )
+            )
+
+            if store_intermediate:
+                nuisance_all_ses_all_events_reshaped.to_csv(
+                    os.path.join(
+                        path_to_outputs,
+                        "nuisance_all_ses_all_events_OELF_%s.csv" % (forecast_name)
+                    ),
+                    index=True,
+                )
+
+            # Exceedance curves
+            nuisance_levels_felt = nuisance_params["mapping_nuisance_states"].iloc[
+                1:, 0
+            ].to_list()  # Assume first level is "not felt"
+
+            outputs_of_relevance = []
+            defaults_empty = []
+            for val_col in value_columns:
+                for nuisance_level in nuisance_levels_felt:
+                    outputs_of_relevance.append("%s_%s" % (val_col, nuisance_level))
+                    defaults_empty.append(0.0)
+
+            (
+                nuisance_curves_by_model_and_bdg_id["nuisance"],
+                nuisance_curves_by_model_and_bdg_id_mapping["nuisance"],
+                nuisance_curves_by_model_portfolio["nuisance"],
+                nuisance_curves_by_model_portfolio_mapping["nuisance"],
+                nuisance_mean_median_portfolio_curves["nuisance"]
+            ) = OperationalEarthquakeLossForecasting.get_nuisance_exceedance_curves(
+                nuisance_all_ses_all_events_reshaped,
+                outputs_of_relevance,
+                defaults_empty,
                 oef_ses_ids,
                 forecast_model_weights
             )
@@ -983,6 +1187,10 @@ class OperationalEarthquakeLossForecasting():
         else:
             mean_losses_human = None
 
+        logger.info(
+            "%s All exceedance curves and stats generated"  % (np.datetime64('now'))
+        )
+
         return (
             rates_exceed_mapping,
             curves_by_model_and_bdg_id,
@@ -991,14 +1199,19 @@ class OperationalEarthquakeLossForecasting():
             stats_by_model_portfolio,
             stats_by_bdg_id,
             mean_median_portfolio_curves,
+            nuisance_curves_by_model_and_bdg_id,
+            nuisance_curves_by_model_and_bdg_id_mapping,
+            nuisance_curves_by_model_portfolio,
+            nuisance_curves_by_model_portfolio_mapping,
+            nuisance_mean_median_portfolio_curves,
             mean_damage_states,
             mean_losses_economic,
             mean_losses_human
         )
 
     @staticmethod
-    def get_exceedance_curves_and_stats(
-        all_ses_output, value_names, oef_model_ids, oef_ses_ids, model_weights
+    def get_dmg_loss_exceedance_curves_and_stats(
+        all_ses_output, value_names, oef_ses_ids, model_weights
     ):
         """
         This method calculates:
@@ -1031,13 +1244,11 @@ class OperationalEarthquakeLossForecasting():
             value_names (list of str):
                 Names of the columns of 'all_ses_output' that contain values of relevance (e.g.
                 "loss", "injuries_X").
-            oef_model_ids (list of int):
-                IDs of the seismicity models.
             oef_ses_ids (list of int):
                 IDs of the stochastic event sets.
             model_weights (Pandas DataFrame):
                 Weights of the different seismicity models used to generate the
-                'forecast_catalogue'. The index is the "model_id". Its columns are:
+                'all_ses_all_events_output'. The index is the "model_id". Its columns are:
                     model_name (str): Name of the model.
                     weight (float): Weight of the model.
 
@@ -1211,8 +1422,8 @@ class OperationalEarthquakeLossForecasting():
 
             if not building_ids_per_col.equals(building_ids_per_col_aux):
                 error_message = (
-                    "'get_exceedance_curves_and_stats': the order of 'building_id' is not the "
-                    "same when grouping to calculate by-building-id stats"
+                    "'get_dmg_loss_exceedance_curves_and_stats': the order of 'building_id' "
+                    "is not the same when grouping to calculate by-building-id stats"
                 )
                 logger.critical(error_message)
                 raise ValueError(error_message)
@@ -1222,7 +1433,8 @@ class OperationalEarthquakeLossForecasting():
                 np.all(weights_per_building_id.sum(axis=0)<1.00001)
             ):
                 error_message = (
-                    "'get_exceedance_curves_and_stats': the sum of weights per building is not 1"
+                    "'get_dmg_loss_exceedance_curves_and_stats': "
+                    "the sum of weights per building is not 1"
                 )
                 logger.critical(error_message)
                 raise ValueError(error_message)
@@ -1268,12 +1480,263 @@ class OperationalEarthquakeLossForecasting():
         )
 
     @staticmethod
-    def reshape_damage_states_per_building_id(damage_summary_with_ids):
+    def get_nuisance_exceedance_curves(
+        all_ses_all_events_output, value_names, defaults_empty, oef_ses_ids, model_weights
+    ):
         """
-        This method reshapes the 'damage_summary_with_ids' so that each damage state is a
-        column. The input 'damage_summary_with_ids' is almost the same as the ouput of method
-        ExposureUpdater.summarise_damage_states_per_building_id(), plus two columns: one for the
-        ID of the stochastic event set, another one for the ID of the seismicity model.
+        This method calculates:
+        - exceedance curves by model_id and building_id (each curve is built counting the
+        exceedances from all the earthquakes from all stochastic event sets of the model, and
+        dividing by the number of stochastic event sets);
+        - portfolio (i.e., all building IDs summed up) exceedance curves by model_id (each curve
+        is built counting the exceedances from all the earthquakes from all stochastic event
+        sets of the model, and dividing by the number of stochastic event sets);
+        - weighted mean and weighted median portfolio exceedance curves (mean and median of all
+        models).
+
+        Args:
+            all_ses_all_events_output (Pandas DataFrame):
+                DataFrame with the output values from all earthquakes of all SES and all models,
+                with the following structure:
+                    Index: building_id
+                    Columns:
+                        - At least those indicated by 'value_names'
+                        - "eq_id": ID of the earthquake
+                        - "ses_id": ID of the stochastic event set (SES)
+                        - "model_id": ID of the seismicity model
+                    Each row of this DataFrame contains an output value for a particular
+                    building_id, earthquake ID, SES ID and seismicity model ID.
+            value_names (list of str):
+                Names of the columns of 'all_ses_all_events_output' that contain values of
+                relevance (e.g. "number_CDIX", "census_CDIX", "occupants_CDIX").
+            defaults_empty (list of float):
+                Default value to assume for each of the values of relevance of 'value_names' if
+                'all_ses_all_events_output' does not contain results for a particular seismicity
+                model (i.e., a seismicity model is "empty", i.e., no earthquakes were run, and
+                thus no nuisance was caused). Must be the same length as 'value_names'.
+            oef_ses_ids (list of int):
+                IDs of the stochastic event sets.
+            model_weights (Pandas DataFrame):
+                Weights of the different seismicity models used to generate the
+                'all_ses_all_events_output'. The index is the "model_id". Its columns are:
+                    model_name (str): Name of the model.
+                    weight (float): Weight of the model.
+
+        Returns:
+            curves_by_model_and_bdg_id (dict of Pandas DataFrame):
+                Dictionary with one key per element of 'value_names' (i.e., output type),
+                containing one DataFrame with the individual exceedance curves per model and
+                building ID. The values in the DataFrame are the rates of exceedance.
+                    MultiIndex: (model_id, building_id)
+                    Columns: Index of 'curves_by_model_and_bdg_id_mapping', i.e. coded values of
+                        the output (e.g., number of buildings or people exposed to a certain
+                        nuisance level).
+                (Each row is the exceedance curve for a particular building_id and model_id).
+            curves_by_model_and_bdg_id_mapping (dict of Pandas DataFrame):
+                Pandas DataFrame mapping the names of the columns in 'curves_by_model_and_bdg_id'
+                 with the vaues of the output that they represent.
+                    Index: names of the columns.
+                    Column "x_val": value of the output (e.g., number of buildings exposed to
+                        CDI6, number of people exposed to CDI5, ...).
+            curves_by_model_portfolio (dict of Pandas DataFrame):
+                Dictionary with one key per element of 'value_names' (i.e., output type),
+                containing one DataFrame with the individual portfolio exceedance curves per
+                model. The values in the DataFrame are the rates of exceedance.
+                    Index: model_id
+                    Columns: Index of 'curves_by_model_portfolio_mapping', i.e. coded values of
+                        the output (e.g., number of buildings or people exposed to a certain
+                        nuisance level).
+                (Each row is the portfolio exceedance curve for a particular model_id).
+            curves_by_model_portfolio_mapping (dict of Pandas DataFrame):
+                Pandas DataFrame mapping the names of the columns in 'curves_by_model_portfolio'
+                 with the vaues of the output that they represent.
+                    Index: names of the columns.
+                    Column "x_val": value of the output (e.g., number of buildings exposed to
+                        CDI6, number of people exposed to CDI5, ...).
+            mean_median_portfolio_curves (dict of Pandas DataFrame):
+                Dictionary with one key per element of 'value_names' (i.e., output type),
+                containing one DataFrame with the weighted mean and median portfolio exceedance
+                curves from all models (weights as per 'model_weights').
+                    No index.
+                    Columns:
+                        "value": values of the type of 'value_names' (i.e., output type) for
+                            which the mean/median curves have been calculated.
+                        "mean": weighted mean of all models.
+                        "median": weighted median of all models.
+        """
+
+        number_ses = float(len(oef_ses_ids))
+
+        assert len(value_names) == len(defaults_empty)
+
+        # Calculate portfolio results (i.e. sum all building_ids) for each earthquake
+        portfolio = all_ses_all_events_output.groupby(
+            ["model_id", "ses_id", "eq_id"]
+        )[value_names].sum()
+
+        curves_by_model_and_bdg_id = {}
+        curves_by_model_and_bdg_id_mapping = {}
+        curves_by_model_portfolio = {}
+        curves_by_model_portfolio_mapping = {}
+        mean_median_portfolio_curves = {}
+
+        for k, val_col in enumerate(value_names):
+            # Curve per model and building ID
+            # Create vector of val_col for which exceedances are going to be evaluated
+            # (use all unique values of all_ses_all_events_output[val_col])
+            standard_x = all_ses_all_events_output[val_col].unique()
+            standard_x.sort()  # from smallest to largest
+            # If there are more than 200 values, keep at most 200 of them, including the minimum
+            # and the maximum
+            standard_x = Operations.shorten_x(standard_x, max_n=200)
+            # Assign names and save to the mapping output
+            x_val_names = ["x%s" % (i+1) for i in range(standard_x.shape[0])]
+            curves_by_model_and_bdg_id_mapping[val_col] = pd.DataFrame(
+                {"x_val": standard_x}, index=x_val_names
+            )
+
+            # Gather all per-building_id results for all earthquakes and all SESs of each
+            # model_id ("aux"'s index is ["model_id", "building_id"] and values are the lists of
+            # values of all_ses_all_events_output[val_col], ordered
+            aux = all_ses_all_events_output.groupby(["model_id", "building_id"])[val_col].apply(np.sort)
+            rates = aux.apply(
+                lambda v: len(v) - np.searchsorted(v, standard_x, side="left")
+            ) / number_ses
+            curves_by_model_and_bdg_id[val_col] = pd.DataFrame(
+                rates.tolist(), index=rates.index, columns=x_val_names
+            ) # each row is one curve of rates of exceedance of the values of x_val_names
+
+            # Curve per model (portfolio = sum of all building_ids)
+            aux_portfolio = portfolio.groupby(["model_id"])[val_col].apply(np.sort)  # equiv of "aux" above
+
+            # Create vector of this portfolio[val_col] for which exceedances are going to be
+            # evaluated (use all unique values of all_ses_all_events_output[val_col])
+            standard_x = portfolio[val_col].unique()
+            standard_x.sort()  # from smallest to largest
+            # If there are more than 200 values, keep at most 200 of them, including the minimum
+            # and the maximum
+            standard_x = Operations.shorten_x(standard_x, max_n=200)
+            # Assign names and save to the mapping output
+            x_val_names = ["x%s" % (i+1) for i in range(standard_x.shape[0])]
+            curves_by_model_portfolio_mapping[val_col] = pd.DataFrame(
+                {"x_val": standard_x}, index=x_val_names
+            )
+
+            rates = aux_portfolio.apply(
+                lambda v: len(v) - np.searchsorted(v, standard_x, side="left")
+            ) / number_ses
+            curves_by_model_portfolio[val_col] = pd.DataFrame(
+                rates.tolist(), index=rates.index, columns=x_val_names
+            ) # each row is one curve of rates of exceedance of the values of x_val_names
+
+            # Mean and median curves of all models
+            # Add default (no-nuisance) values to empty models in 'curves_by_model_portfolio'
+            aux_curves_by_model_portfolio = deepcopy(curves_by_model_portfolio[val_col])
+            aux_curves_by_model_portfolio = (
+                OperationalEarthquakeLossForecasting._ensure_all_model_curves_exist(
+                    aux_curves_by_model_portfolio,
+                    model_weights.index.to_list(),
+                    defaults_empty[k]
+                )
+            )
+
+            # Calculate weighted means
+            weighted_means = np.average(
+                aux_curves_by_model_portfolio.to_numpy(),
+                axis=0,  # per column
+                weights=model_weights.loc[
+                    aux_curves_by_model_portfolio.index, "weight"
+                ].to_numpy()
+            )
+            # Calculate weighted medians
+            weighted_medians = np.quantile(
+                aux_curves_by_model_portfolio.to_numpy(),
+                0.5,
+                axis=0,  # per column
+                weights=model_weights.loc[
+                    aux_curves_by_model_portfolio.index, "weight"
+                ].to_numpy(),
+                method="inverted_cdf"
+            )
+            # Gather weighted means and medians in one output DataFrame
+            mean_median_portfolio_curves[val_col] = pd.DataFrame(
+                {
+                    "value": curves_by_model_portfolio_mapping[val_col]["x_val"].to_numpy(),
+                    "mean": weighted_means,
+                    "median": weighted_medians
+                }
+            )
+
+        return (
+            curves_by_model_and_bdg_id,
+            curves_by_model_and_bdg_id_mapping,
+            curves_by_model_portfolio,
+            curves_by_model_portfolio_mapping,
+            mean_median_portfolio_curves
+        )
+
+    @staticmethod
+    def _ensure_all_model_curves_exist(
+        curves_by_model_portfolio,
+        model_ids,
+        default_empty
+    ):
+        """
+        This method ensures 'curves_by_model_portfolio' has rows for all model IDs listed in
+        'model_ids' and adds a row full of 'default_empty' for any model that is missing.
+
+        Args:
+            curves_by_model_portfolio (Pandas DataFrame):
+                Pandas DataFrame with one row per seismicity model.
+            model_ids (list of int):
+                IDs of the target seismicity models.
+            default_empty (float):
+                Value with which to fill 'curves_by_model_portfolio' if any model from
+                'model_ids' is missing.
+
+        Returns:
+            curves_by_model_portfolio_full (Pandas DataFrame):
+                Pandas DataFrame with one row per seismicity model.
+        """
+
+        model_ids_series = pd.Series(model_ids)
+        exist = model_ids_series.isin(curves_by_model_portfolio.index)
+        models_to_add = model_ids_series[~exist].to_list()
+
+        if len(models_to_add) == 0:
+            return curves_by_model_portfolio
+
+        rows_to_add = default_empty * np.ones(
+            (len(models_to_add), curves_by_model_portfolio.shape[1])
+        )
+
+        curves_by_model_portfolio_full = pd.concat(
+            [
+                curves_by_model_portfolio,
+                pd.DataFrame(
+                    rows_to_add,
+                    index=models_to_add,
+                    columns=curves_by_model_portfolio.columns
+                )
+            ],
+            axis=0
+        )
+
+        return curves_by_model_portfolio_full
+
+    @staticmethod
+    def reshape_damage_states_per_building_id(
+        damage_summary_with_ids, event_index_columns, damageornuisance, value_columns
+    ):
+        """
+        This method reshapes the 'damage_summary_with_ids' so that each combination of a value
+        column (e.g. 'number', 'census', 'night', ...) and damage state/nuisance level becomes a
+        column. The input 'damage_summary_with_ids' is almost the same as the ouput of methods
+        ExposureUpdater.summarise_damage_states_per_building_id() and
+        ExposureUpdater.summarise_nuisance_states_per_building_id(), plus two or three columns:
+        one for the ID of the stochastic event set, another one for the ID of the seismicity
+        model and, as a further option, one for the ID of the earthquake within the stochastic
+        event set.
 
         Args:
             damage_summary_with_ids (Pandas DataFrame):
@@ -1281,17 +1744,37 @@ class OperationalEarthquakeLossForecasting():
                     Index is multiple:
                         building_id (str):
                             ID of the building.
-                        damage_state (str):
-                            Damage states.
+                        damage_state (str) or nuisance_level (str):
+                            Damage states or nuisance levels.
                     Columns:
                         number (float):
                             Probability of 'damage_state' for 'building_id', if building_id is
                             one individual building, or number of buildings of 'building_id'
                             under 'damage_state', if building_id is a group of buildings.
+                        census (float, optional):
+                            Number of census occupants exposed to 'damage_state'.
+                        night/day/transit (float, optional):
+                            Number of occupants in 'building_id' exposed to 'damage_state' at
+                            the time of the earthquake.
                         ses_id (int):
                             ID of the stochastic event set (SES).
                         model_id (int):
                             ID of the seismicity model.
+                        eq_id (str, optional):
+                            ID of the earthquake.
+            event_index_columns (list of str):
+                Names of the ID columns (earthquake, SES, seimicity model) to preserve as
+                columns in the output (e.g. ["ses_id", "model_id"] or ["ses_id", "model_id",
+                "event_id"]).
+            damageornuisance (str):
+                Indicate whether 'damage_summary_with_ids' contains damage states
+                ("damage_state") or nuisance levels ("nuisance_level").
+            value_columns (list of str):
+                Names of the columns with output parameters of interest to pivot against
+                'damage_state' or 'nuisance_level' ('damageornuisance'). If more than one column
+                is passed, output column names are of the form "<value_column>_<damage_state>"
+                or "<value_column>_<nuisance_level>"; if only one is passed, output column
+                names are just the damage state/nuisance level.
 
         Returns:
             damage_summary_reshaped (Pandas DataFrame):
@@ -1305,20 +1788,38 @@ class OperationalEarthquakeLossForecasting():
                             ID of the stochastic event set (SES).
                         model_id (int):
                             ID of the seismicity model.
-                        One column per possible value of 'damage_state', with the contents of
-                        'number'.
+                        eq_id (str, optional):
+                            ID of the earthquake.
+                        One column per possible combination of 'value_columns' and possible
+                        'damage_state'/'nuisance_level' values.
         """
+
+        index_columns = ["building_id"] + event_index_columns
+
         dmg_by_cols_df = (
             damage_summary_with_ids
             .reset_index()
             .pivot_table(
-                index=["building_id", "ses_id", "model_id"],
-                columns="damage_state",
-                values="number"
+                index=index_columns, # e.g. ["building_id", "ses_id", "model_id"]
+                columns=damageornuisance,
+                values=value_columns  # e.g. ["number"]
             )
             .reset_index()
         ).fillna(0.0)
-        dmg_by_cols_df.rename_axis(columns=None, inplace=True)
+
+        # Flatten MultiIndex columns (value_column, damage_state)->"value_column_damage_state",
+        # unless there's only one value column, in which case keep just the damage_state name
+        if isinstance(dmg_by_cols_df.columns, pd.MultiIndex):
+            new_columns = []
+            for col_top, col_bottom in dmg_by_cols_df.columns:
+                if col_bottom == "":
+                    new_columns.append(col_top)
+                elif len(value_columns) == 1:
+                    new_columns.append(col_bottom)
+                else:
+                    new_columns.append(f"{col_top}_{col_bottom}")
+            dmg_by_cols_df.columns = new_columns
+
         dmg_by_cols_df.set_index(dmg_by_cols_df["building_id"], inplace=True)
         dmg_by_cols_df.drop(columns=["building_id"], inplace=True)
 

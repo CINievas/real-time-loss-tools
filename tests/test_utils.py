@@ -22,7 +22,7 @@ import numpy as np
 import pandas as pd
 from datetime import datetime
 from realtimelosstools.utils import (
-    MultilinearStepFunction, Time, Files, Loader
+    MultilinearStepFunction, Operations, Time, Files, Loader
 )
 
 
@@ -101,6 +101,25 @@ def test_MultilinearStepFunction():
     # Evaluate each element of target_xvals individually
     for i in range(len(target_xvals)):
         assert round(f2.evaluate(target_xvals[i]), 10) == expected_outputs[i]
+
+
+def test_Operations_shorten_x():
+
+    filepath = os.path.join(
+        os.path.dirname(__file__), "data", "nuisance_x_array.csv"
+    )
+
+    df = pd.read_csv(filepath)
+    original_x = df["x_val"].to_numpy()
+
+    returned_x = Operations.shorten_x(original_x, max_n=100)
+
+    assert len(returned_x) <= 100
+    assert round(returned_x[0], 8) == round(original_x[0], 8)
+    assert round(returned_x[-1], 8) == round(original_x[-1], 8)
+
+    for x_val in returned_x:
+        assert x_val in original_x
 
 
 def test_interpret_time_of_the_day():

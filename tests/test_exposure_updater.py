@@ -1069,6 +1069,7 @@ def test_summarise_nuisance_states_per_building_id():
     )
 
     assert "night" not in returned_nuisance_summary.columns
+    assert "occupants" not in returned_nuisance_summary.columns
 
     for bdg_id in ["tile_1", "special_bdg"]:
         for nuis_lev in mapping_nuisance_states["fragility"]:
@@ -1092,9 +1093,11 @@ def test_summarise_nuisance_states_per_building_id():
         nuisance_results_OQ, exposure, mapping_nuisance_states, "night"
     )
 
+    assert "night" not in returned_nuisance_summary.columns
+
     for bdg_id in ["tile_1", "special_bdg"]:
         for nuis_lev in mapping_nuisance_states["fragility"]:
-            for col in ["number", "census", "night"]:
+            for col in ["number", "census", "occupants"]:
                 assert (
                     round(returned_nuisance_summary.loc[(bdg_id, nuis_lev), col], 5) ==
                     round(expected_nuisance_summary.loc[(bdg_id, nuis_lev), col], 5)

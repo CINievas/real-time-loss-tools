@@ -169,10 +169,23 @@ calculation run for stochastic event set `N` of model `M` of the OELF catalogue 
 `forecast_name_X`. Values are cumulative (i.e., considering damage from all RLAs run before this
 OELF catalogue and this stochastic event set itself).
 
-## Exceedance Curves and Statistics from Catalogues of Seismicity (OELF)
+## Nuisance
+
+When at least one of the triggers in `triggering.csv` corresponds to an OELF calculation, and
+both [nuisance>calculate](02_Configuration.md#nuisance) and
+[store_intermediate](02_Configuration.md#store_intermediate) are set to `True` in the
+`config.yml` file, the following outputs are stored within the sub-folder of the associated OELF
+catalogue under `output`:
+- `nuisance_all_ses_all_events_OELF_forecast_name.cvs`: Nuisance results (i.e., number of
+buildings, number of census people and, if
+[calculate_casualties](02_Configuration.md#calculate_casualties) is True, number of occupants)
+for each earthquake run from all stochastic event sets of all seismicity models of the OELF
+catalogue with name `forecast_name_X`.
+
+## Exceedance Curves and Statistics of Damage/Losses from Catalogues of Seismicity (OELF)
 
 When at least one of the triggers in `triggering.csv` corresponds to an OELF calculation, the
-following additional ouputs are produced:
+following additional damage/loss ouputs are produced:
 
 ### Exceedance Curves per Seismicity Model and `building_id`
 
@@ -309,6 +322,103 @@ All these files have the following structure:
 - Columns "mean", "median", "p05" and "p95": statistics for each `building_id`.
 - Values in the cells: the number of buildings, or number of human casualties, or economic
 losses corresponding to those statistics.
+
+## Nuisance Exceedance Curves from Catalogues of Seismicity (OELF)
+
+When at least one of the triggers in `triggering.csv` corresponds to an OELF calculation, and
+[nuisance>calculate=True](02_Configuration.md#nuisance) in the `config.yml` file, the following
+additional nuisance ouputs are produced:
+
+### Exceedance Curves per Seismicity Model and `building_id`
+
+For each `forecast_name_X`, the following files are created under the subfolder
+`nuisance_exceed_curves_by_model_and_bdg_id`:
+- `nuisance_exceed_curves_by_model_and_bdg_id_[output_type]_[nuisance_level]_OELF_forecast_name_X.csv`,
+where `[output_type]` can be `number` (number of buildings), `census` (number of census people)
+or `occupants` (number of occupants at the time of the day of the earthquake, accounting for
+injuries/deaths from previous earthquakes; only calculated if
+[calculate_casualties](02_Configuration.md#calculate_casualties) is True, and `[nuisance_level]`
+is as per the user-defined nuisance scale, excluding the non-felt category.
+
+These files contain exceedance curves with the following structure:
+- First column "model_id": The ID of the seismicity model.
+- Second column "building_id": `building_id` as per the input exposure model.
+- Remaining columns "x1", "x2", ..., "xP", with P = number of points in the exceedance curves.
+Each of these labels corresponds to a value of the `[output_type]` (e.g., number of buildings or
+people exposed to a certain nuisance level) that is mapped in the associated output under
+`nuisance_exceed_curves_by_model_and_bdg_id_mapping` (see below).
+- Values in the cells: the rates of exceedance in the duration of the seismicity forecast of the
+values associated with s"x1", "x2", ..., "xP" in the mapping.
+
+Each row of the files is the exceedance curve for a particular `building_id` and `model_id`. The
+curves arise from:
+1) Creating per-stochastic-event-set curves by counting the number of exceedances of each value
+of the `[output_type]` due to all the earthquakes in the stochastic event set.
+2) Averaging the curves for all stochastic event sets associated with a `model_id`.
+(For each `building_id`).
+
+For each of the files under `nuisance_exceed_curves_by_model_and_bdg_id` there will be an
+associated file in `nuisance_exceed_curves_by_model_and_bdg_id_mapping` with the mapping between
+the labels "x1", "x2", ..., "xP" and the actual values of the output (file names analogous, but
+including the word "mapping").
+
+### Portfolio Exceedance Curves per Seismicity Model
+
+Conceptually the same as the exceedance curves per seismicity model and `building_id`, but
+grouping all building IDs together, thus resulting in the whole building portfolio.
+
+For each `forecast_name_X`, the following files are created under the subfolder
+`nuisance_exceed_curves_by_model_portfolio`:
+
+- `nuisance_exceed_curves_by_model_portfolio_[output_type]_[nuisance_level]_OELF_forecast_name_X.csv`,
+where `[output_type]` can be `number` (number of buildings), `census` (number of census people)
+or `occupants` (number of occupants at the time of the day of the earthquake, accounting for
+injuries/deaths from previous earthquakes; only calculated if
+[calculate_casualties](02_Configuration.md#calculate_casualties) is True, and `[nuisance_level]`
+is as per the user-defined nuisance scale, excluding the non-felt category·
+
+These files contain exceedance curves with the following structure:
+- First column "model_id": The ID of the seismicity model.
+- Remaining columns "x1", "x2", ..., "xP", with P = number of points in the exceedance curves.
+Each of these labels corresponds to a value of the `[output_type]` (e.g., number of buildings or
+people exposed to a certain nuisance level) that is mapped in the associated output under
+`nuisance_exceed_curves_by_model_portfolio_mapping` (see below).
+- Values in the cells: the rates of exceedance in the duration of the seismicity forecast of the
+values associated with s"x1", "x2", ..., "xP" in the mapping.
+
+Each row of the files is the portfolio exceedance curve for a particular `model_id`. The curves
+arise from:
+1) Creating per-stochastic-event-set curves by counting the number of exceedances of each value
+of the `[output_type]` due to all the earthquakes in the stochastic event set.
+2) Averaging the curves for all stochastic event sets associated with a `model_id`.
+(For all `building_id`s grouped together as portfolio values).
+
+For each of the files under `nuisance_exceed_curves_by_model_portfolio` there will be an
+associated file in `nuisance_exceed_curves_by_model_portfolio_mapping` with the mapping between
+the labels "x1", "x2", ..., "xP" and the actual values of the output (file names analogous, but
+including the word "mapping").
+
+### Mean/Median Portfolio Exceedance Curves
+
+The weighted mean/median of the portfolio exceedance curves per seismicity model. The model
+weights are as defined by the user in the `config.yml` (`seismicity_models_weights` parameter)
+and `static/seismicity_models_weights.csv`, when provided.
+
+For each `forecast_name_X`, the following files are created under the subfolder
+`nuisance_mean_median_portfolio_exceed_curves`:
+- `nuisance_mean_median_portfolio_exceed_curves_[output_type]_[nuisance_level]_OELF_forecast_name_X.csv`,
+where `[output_type]` can be `number` (number of buildings), `census` (number of census people)
+or `occupants` (number of occupants at the time of the day of the earthquake, accounting for
+injuries/deaths from previous earthquakes; only calculated if
+[calculate_casualties](02_Configuration.md#calculate_casualties) is True, and `[nuisance_level]`
+is as per the user-defined nuisance scale, excluding the non-felt category·
+
+All these files contain exceedance curves with the following structure:
+- First column: trivial index.
+- Second column "value": the number of buildings/census people/occupants exposed to
+`[nuisance_level]`.
+- Third/fourth columns "mean" and "median": weighted mean/median rates of exceedance of the
+values listed in the second column ("value").
 
 ## Log for quick checks
 

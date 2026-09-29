@@ -1720,6 +1720,9 @@ class ExposureUpdater:
                         census (float, only if "census" exists in input 'exposure'):
                             Number of census people exposed to each 'nuisance_level' in each
                             'building_id'.
+                        occupants (float, only if "occupants_column" is not None):
+                            Number of occupants (at the time of the day of the earthquake)
+                            exposed to each 'nuisance_level' in each 'building_id'.
         """
 
         # Replace dmg_state with fragility names
@@ -1764,6 +1767,8 @@ class ExposureUpdater:
               .agg(cols_to_aggregate)
         )
         nuisance_summary.rename(columns={"value": "number"}, inplace=True)
+        if not (occupants_column is None):
+            nuisance_summary.rename(columns={occupants_column: "occupants"}, inplace=True)
 
         return nuisance_summary
 

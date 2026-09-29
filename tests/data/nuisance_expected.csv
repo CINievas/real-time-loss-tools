@@ -1,4 +1,4 @@
-building_id,nuisance_level,number,census,night
+building_id,nuisance_level,number,census,occupants
 tile_1,nonfelt,0.00000,0.00000,0.00000
 tile_1,CDI2,0.00255,0.00805,0.00696
 tile_1,CDI3,0.04745,0.14959,0.12937

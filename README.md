@@ -101,9 +101,15 @@ input files used for a proof of concept developed as part of Task 6.1 of the
 
 ## Acknowledgements
 
-These tools have been developed within the [RISE project](http://rise-eu.org/home/), which has
-received funding from the European Union's Horizon 2020 research and innovation programme under
-grant agreement No. 821115.
+These tools have been initially developed within the [RISE project](http://rise-eu.org/home/),
+which has received funding from the European Union's Horizon 2020 research and innovation
+programme under grant agreement No. 821115.
+
+These tools have been further expanded within the [GEOTWINS project](https://deepgeothermal.org/),
+which has been funded by CETPartnership, the Clean Energy Transition Partnership under the 2023
+joint call for research proposals, co-funded by the European Commission (GA N°101069750) and
+with the funding organizations detailed
+[here](https://cetpartnership.eu/funding-agencies-and-call-modules).
 
 ## Citation
 
@@ -142,7 +148,7 @@ Nievas CI, Crowley H, Weatherill G (2023) Real-Time Loss Tools. Zenodo.
 
 ## Copyright and copyleft
 
-Copyright (C) 2022-2026 Cecilia Nievas: cecilia.nievas@gfz-potsdam.de
+Copyright (C) 2022-2026 Cecilia Nievas: cecilia.nievas@gfz.de
 
 This program is free software: you can redistribute it and/or modify it
 under the terms of the GNU Affero General Public License as published by

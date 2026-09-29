@@ -24,10 +24,18 @@ Pan-zeri L, Simionato M, Vigano D (2014) OpenQuake engine: An open hazard (and r
 for the global earthquake model. Seismological Research Letters 85(3):692-702.
 [https://doi.org/10.1785/0220130087](https://doi.org/10.1785/0220130087)
 
+Papadopoulos AN, Bazzurro P (2021) Exploring probabilistic seismic risk assessment accounting
+for seismicity clustering and damage accumulation: Part II. Risk analysis. Earthquake Spectra,
+37(1), 386-408. [DOI: 10.1177/8755293020938816](https://doi.org/10.1177/8755293020938816)
+
 Russo E, Felicetta C, D Amico M, Sgobba S, Lanzano G, Mascandola C, Pacor F, Luzi L (2022)
 Italian Accelerometric Archive v3.2 - Istituto Nazionale di Geofisica e Vulcanologia,
 Dipartimento della Protezione Civile Nazionale.
-[doi:10.13127/itaca.3.2](https://data.ingv.it/dataset/683#additional-metadata).
+[DOI: 10.13127/itaca.3.2](https://data.ingv.it/dataset/683#additional-metadata).
+
+Schultz R, Quitoriano V, Wald DJ, Beroza GC (2021) Quantifying nuisance ground motion thresholds
+for induced earthquakes. Earthquake Spectra, 37(2), 789-802.
+[DOI: 10.1177/8755293020988025](https://doi.org/10.1177/8755293020988025)
 
 Silva V, Crowley H, Pagani M, Monelli D, Pinho R (2014) Development of the OpenQuake engine, the
 Global Earthquake Model’s open-source software for seismic risk assessment. Natural Hazards
