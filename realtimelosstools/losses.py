@@ -139,6 +139,49 @@ class Losses:
         return missing_strings
 
     @staticmethod
+    def _get_loss_ratios(consequence_model, building_classes, damage_states):
+        """
+        This method returns the loss ratio (as stated in 'consequence_model') for each
+        combination of building class in 'building_classes' and damage state in 'damage_states'.
+        The loss ratio is returned in the 0-1 range (not in percentage, which is what
+        'consequence_model' is expected to contain).
+
+        Args:
+            consequence_model (Pandas DataFrame):
+                Pandas DataFrame with the consequence model for economic losses in terms of mean
+                values of loss ratio per damage state. Each row in the 'consequence_model'
+                corresponds to a different building class. The structure is as follows:
+                    Index:
+                        Taxonomy (str): Building classes.
+                    Columns:
+                        One per damage state (float): They contain the mean loss ratios (as
+                        percentages) for each building class and damage state.
+            building_classes (Numpy array of str):
+                Array of target building classes, expected to exist in 'consequence_model'.
+            damage_states (Numpy array of str):
+                Array of target damage states, expected to exist in 'consequence_model'.
+        """
+
+        # Retrieve the indices and col numbers within 'consequence_model' of the elements in
+        # 'building_classes' and 'damage_states'
+        # ("-1" if class/state is missing from 'consequence_model')
+        row_idx = consequence_model.index.get_indexer(building_classes)
+        col_idx = consequence_model.columns.get_indexer(damage_states)
+
+        if (row_idx < 0).any():
+            missing = np.unique(np.asarray(building_classes)[row_idx < 0])
+            raise KeyError("Building classes not in consequence model: %s" % (missing,))
+
+        if (col_idx < 0).any():
+            missing = np.unique(np.asarray(damage_states)[col_idx < 0])
+            raise KeyError("Damage states not in consequence model: %s" % (missing,))
+
+        losspercentages = consequence_model.to_numpy()[row_idx, col_idx]
+        ratios = losspercentages / 100.0
+
+        return ratios
+
+    @staticmethod
     def expected_economic_loss(exposure, consequence_model):
         """
         This method returns the expected economic loss per building_id, where building_id refers
@@ -213,32 +256,14 @@ class Losses:
             "/".join(taxonomy[i].split("/")[:-1]) for i in range(loss_summary.shape[0])
         ]
 
-        # Join the 'loss_summary' with the 'consequence_model'
-        logger.debug(
-            "%s Method 'Losses.expected_economic_loss': "
-            "combining damaged exposure model with consequence model"
-            % (np.datetime64('now'))
-        )
-        loss_summary = loss_summary.join(consequence_model, on="building_class")
-
-        # Calculate the losses
-        logger.debug(
-            "%s Method 'Losses.expected_economic_loss': "
-            "calculating economic losses"
-            % (np.datetime64('now'))
-        )
-        loss_ratios = [
-            loss_summary.loc[
-                row,
-                loss_summary.loc[row, "damage_state"]  # corresponding DS column
-            ] / 100.0
-            for row in loss_summary.index
-        ]
+        loss_ratios = Losses._get_loss_ratios(
+            consequence_model,
+            loss_summary["building_class"].to_numpy(),
+            loss_summary["damage_state"].to_numpy(),
+        )  # array of loss ratios in range 0-1
         loss_summary["loss"] = loss_ratios * loss_summary["structural"]
 
-        loss_summary = loss_summary.groupby(["building_id"]).sum(numeric_only=True)
-
-        loss_summary = loss_summary[["loss"]]
+        loss_summary = loss_summary.groupby(["building_id"]).agg({"loss": "sum"})
 
         return loss_summary
 
@@ -322,6 +347,10 @@ class Losses:
 
         how_to_group = {"building_id": "first"}
 
+        building_classes = losses_per_orig_asset["building_class"].to_numpy()
+        damage_states = losses_per_orig_asset["damage_state"].to_numpy()
+        occupants = losses_per_orig_asset[time_of_day].to_numpy()
+
         for severity in consequence_model:
             logger.debug(
                 "%s Method 'Losses.expected_human_loss_per_original_asset_id': "
@@ -329,34 +358,10 @@ class Losses:
                 % (np.datetime64('now'), severity)
             )
 
-            losses_per_orig_asset_aux = deepcopy(losses_per_orig_asset)
-
-            # Join the 'losses_per_orig_asset_aux' with the consequence model
-            logger.debug(
-                "%s Method 'Losses.expected_human_loss_per_original_asset_id', severity %s: "
-                "joining damaged exposure with consequence model"
-                % (np.datetime64('now'), severity)
+            loss_ratios = Losses._get_loss_ratios(
+                consequence_model[severity], building_classes, damage_states
             )
-            losses_per_orig_asset_aux = losses_per_orig_asset_aux.join(
-                consequence_model[severity], on="building_class"
-            )
-
-            # Calculate the losses
-            logger.debug(
-                "%s Method 'Losses.expected_human_loss_per_original_asset_id', severity %s: "
-                "calculating number of people"
-                % (np.datetime64('now'), severity)
-            )
-            loss_ratios = [
-                losses_per_orig_asset_aux.loc[
-                    row,
-                    losses_per_orig_asset_aux.loc[row, "damage_state"]  # DS column
-                ] / 100.0
-                for row in losses_per_orig_asset_aux.index
-            ]
-            losses_per_orig_asset["injuries_%s" % (severity)] = (
-                loss_ratios * losses_per_orig_asset_aux[time_of_day]
-            )
+            losses_per_orig_asset["injuries_%s" % (severity)] = loss_ratios * occupants
 
             how_to_group["injuries_%s" % (severity)] = "sum"
 

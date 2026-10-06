@@ -17,6 +17,7 @@
 # along with this program. If not, see http://www.gnu.org/licenses/.
 
 import os
+import pytest
 import numpy as np
 import pandas as pd
 from copy import deepcopy
@@ -58,6 +59,62 @@ def test_expected_economic_loss():
         assert round(returned_loss_summary.loc[index, "loss"], 5) == round(
             expected_loss_summary.loc[index, "loss"], 5
         )
+
+
+def test_get_loss_ratios():
+    # Read exposure model (same input as test_expected_economic_loss)
+    filepath = os.path.join(
+        os.path.dirname(__file__), "data", "expected_exposure_model_cycle_2.csv"
+    )
+    exposure = pd.read_csv(filepath)
+
+    # Read economic consequence model (same input as test_expected_economic_loss)
+    filepath = os.path.join(
+        os.path.dirname(__file__), "data", "consequences_economic.csv"
+    )
+    consequence_model = pd.read_csv(filepath)
+    consequence_model.set_index(consequence_model["Taxonomy"], drop=True, inplace=True)
+    consequence_model = consequence_model.drop(columns=["Taxonomy"])
+    # The file has identical rows for the two building classes, which would not detect a
+    # swapped row lookup, so make the second class different
+    consequence_model.iloc[1, :] = [0, 10, 20, 50, 90]
+
+    # Building class and damage state per asset, as done in Losses.expected_economic_loss
+    taxonomy = exposure["taxonomy"].to_numpy()
+    building_class = np.array(["/".join(t.split("/")[:-1]) for t in taxonomy])
+    damage_state = np.array([t.split("/")[-1] for t in taxonomy])
+
+    # Test 1: all building classes and damage states exist
+    returned_ratios = Losses._get_loss_ratios(consequence_model, building_class, damage_state)
+
+    expected_ratios = np.array([
+        0.05, 0.15, 0.60, 1.00, 0.00,
+        0.10, 0.20, 0.50, 0.90, 0.00,
+        0.05, 0.15, 0.60, 1.00, 0.00,
+        0.10, 0.20, 0.50, 0.90, 0.00,
+        0.05, 0.15, 0.60, 1.00, 0.00
+    ])
+
+    assert returned_ratios.shape == expected_ratios.shape
+    np.testing.assert_allclose(returned_ratios, expected_ratios, rtol=0, atol=1e-12)
+
+    # (rows 0 and 5 are the same damage state of the two building classes)
+    assert returned_ratios[0] == 0.05
+    assert returned_ratios[5] == 0.10
+
+    # Test 2: a damage state that is not a column of the consequence model
+    damage_state_missing = damage_state.copy()
+    damage_state_missing[7] = "DS7"
+
+    with pytest.raises(KeyError, match="DS7"):
+        Losses._get_loss_ratios(consequence_model, building_class, damage_state_missing)
+
+    # Test 3: a building class that is not in the index of the consequence model
+    building_class_missing = building_class.copy()
+    building_class_missing[12] = "CR/LFINF+CDX+LFC:9.0/H:1"
+
+    with pytest.raises(KeyError, match="CDX"):
+        Losses._get_loss_ratios(consequence_model, building_class_missing, damage_state)
 
 
 def test_expected_human_loss_per_original_asset_id():
