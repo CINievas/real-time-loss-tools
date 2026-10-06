@@ -582,56 +582,41 @@ class Losses:
             + np.array([np.timedelta64(t, "D") for t in timeline_injuries_relative])
         )
 
+        # Names of the columns of the output (absolute time thresholds, as str)
+        col_names = [str(t.astype("datetime64[s]")) for t in timeline_injuries_absolute]
+
         # Define f_severity: factor to account for whether people are able to go back into the
         # building based on their health status and irrespective of the damage state of the
-        # building and the inspection times. One factor per injury severity (index) and time
+        # building and the inspection times. One factor per injury severity (row) and time
         # threshold (column).
-        f_severity = deepcopy(recovery_injuries)
 
-        for i, time_threshold in enumerate(timeline_injuries_relative):
-            logger.debug(
-                "%s Method 'Losses.calculate_injuries_recovery_timeline': "
-                "defining f_severity for time threshold %s of %s"
-                % (np.datetime64('now'), i+1, len(timeline_injuries_relative))
-            )
-            # Initialise with zeros
-            f_severity_aux = np.zeros([f_severity.shape[0]], dtype=int)
-            # Turn to ones the cases where the time threshold is < the N_discharge number of days
-            # (factors of 1 will cause the injured people to be removed from the occupancy)
-            which_one = np.where(time_threshold < f_severity["N_discharged"].to_numpy())[0]
-            f_severity_aux[which_one] = 1
+        # Turn to ones the cases where the time threshold is < the N_discharge number of days
+        # (factors of 1 will cause the injured people to be removed from the occupancy).
+        # (Zero otherwise)
+        f_severity = (
+            np.asarray(timeline_injuries_relative)[np.newaxis, :]
+            < recovery_injuries["N_discharged"].to_numpy()[:, np.newaxis]
+        ).astype(float)  # dim: n_sev × n_times
 
-            # Add column for this time threshold
-            col_name = str(timeline_injuries_absolute[i].astype("datetime64[s]"))
-            f_severity[col_name] = f_severity_aux
+        # Expected injuries per original_asset_id (rows; i.e. one row per original_asset_id) and
+        # severity (columns), with the columns in the same order as the rows of 'f_severity'
+        injuries = losses_human_per_orig_asset_id[
+            ["injuries_%s" % (severity) for severity in recovery_injuries.index]
+        ].to_numpy()  # dim: n_assets × n_sev
 
         # Calculate injured people still away (e.g. in hospital or dead)
-        # per asset ID and time threshold
-        injured_still_away = pd.DataFrame(
-            {
-                "building_id": losses_human_per_orig_asset_id["building_id"],
-            },
-            index=losses_human_per_orig_asset_id.index  # index is "original_asset_id"
+        # per asset ID and time threshold (sums up all severities for that asset)
+        injured_still_away = pd.concat(
+            [
+                losses_human_per_orig_asset_id[["building_id"]],
+                pd.DataFrame(
+                    injuries @ f_severity,  # matrix product [n_assets × n_sev] @ [n_sev × n_times]
+                    index=losses_human_per_orig_asset_id.index,  # "original_asset_id"
+                    columns=col_names,
+                ),
+            ],
+            axis=1,
         )
-
-        for j, time_threshold in enumerate(timeline_injuries_absolute):
-            logger.debug(
-                "%s Method 'Losses.calculate_injuries_recovery_timeline': "
-                "calculating injured people still away for time threshold %s of %s"
-                % (np.datetime64('now'), j+1, len(timeline_injuries_absolute))
-            )
-            time_threshold_str = str(time_threshold.astype("datetime64[s]"))
-            injured_still_away_aux = np.zeros([losses_human_per_orig_asset_id.shape[0]])
-            for i, orig_asset_id in enumerate(losses_human_per_orig_asset_id.index):
-                remove = 0.0
-                for severity in f_severity.index:  # injury severity level
-                    remove += (
-                        f_severity.loc[severity, time_threshold_str]
-                        * losses_human_per_orig_asset_id.loc[orig_asset_id, "injuries_%s" % (severity)]
-                    )
-                injured_still_away_aux[i] = remove
-
-            injured_still_away[time_threshold_str] = injured_still_away_aux
 
         return injured_still_away
 
