@@ -64,8 +64,7 @@ class OperationalEarthquakeLossForecasting():
         local_timezone,
         mapping_damage_states,
         store_intermediate,
-        store_openquake,
-        number_cores=1
+        store_openquake
     ):
         """
         This method uses OpenQuake to run an Operational Earthquake Loss Forecast (OELF) due to
@@ -304,10 +303,6 @@ class OperationalEarthquakeLossForecasting():
                 If True, OpenQuake HDF5 files will be stored and jobs will be kept in
                 OpenQuake's database. If false, OpenQuake's database will be purged of the last
                 job after each run.
-            number_cores (int):
-                Number of cores to be used for processing whenever parallelisation is possible.
-                This parameter does not apply to OpenQuake, which has its own parallelisation
-                strategy.
 
         Returns:
             All output dictionaries below have primary keys "damage", "losses_economic" and
@@ -689,8 +684,7 @@ class OperationalEarthquakeLossForecasting():
                             time_of_day,
                             events_in_ses.loc[eq_id, "datetime"],
                             True,  # include OELF previous earthquakes (not just RLA)
-                            main_path,
-                            number_cores
+                            main_path
                         )
                     else:  # either there cannot be occupants or 'calculate_casualties' is False
                         # Assume all occupants are zero

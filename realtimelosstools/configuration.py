@@ -176,7 +176,6 @@ class Configuration:
     REQUIRES = [
         "description_general",
         "main_path",
-        "number_cores",
         "state_dependent_fragilities",
         "calculate_casualties",
         "nuisance",

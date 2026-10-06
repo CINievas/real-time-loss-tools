@@ -20,8 +20,6 @@ import logging
 from copy import deepcopy
 import numpy as np
 import pandas as pd
-from multiprocessing import Pool
-from functools import partial
 from realtimelosstools.losses import Losses
 from realtimelosstools.oq_handler import OpenQuakeUtils
 
@@ -1289,8 +1287,7 @@ class ExposureUpdater:
         earthquake_time_of_day,
         earthquake_datetime,
         include_oelf,
-        main_path,
-        number_cores=1
+        main_path
     ):
         """
         If 'calculate_casualties' is True, this method calculates the number of occupants in
@@ -1373,8 +1370,6 @@ class ExposureUpdater:
                 'main_path'/current/occupants/oelf.
             main_path (str):
                 Path to the main running directory, assumed to have the needed structure.
-            number_cores (int):
-                Number of cores to use to parallelise the processing of each original_asset_id.
 
         Returns:
             exposure_updated_occupants (Pandas DataFrame):
@@ -1457,45 +1452,32 @@ class ExposureUpdater:
                 # 'original_asset_id') proportionally to the distribution of 'census' occupants
                 logger.debug(
                     "%s Method 'ExposureUpdater.update_exposure_occupants': "
-                    "calculating number of injured still away for each asset, using %s core(s)"
-                    % (np.datetime64('now'), number_cores)
+                    "calculating number of injured still away for each asset"
+                    % (np.datetime64('now'))
                 )
 
-                injured_still_away_as_tuples = [  # prepare input for parallelisation
-                    (
-                        injured_still_away.index.to_numpy()[i],  # original_asset_id
-                        injured_still_away["number_injured"].to_numpy()[i]
-                    )
-                    for i in range(injured_still_away.shape[0])
-                ]
+                census = exposure_updated_occupants["census"].to_numpy()
 
-                # Parallelise processing of each 'original_asset_id'
-                p = Pool(processes=number_cores)
-                func = partial(
-                    ExposureUpdater.distribute_injured_still_away_proportionally_to_census,
-                    exposure_updated_occupants[["census", "original_asset_id"]]  # index implicit
+                # Total census occupants of the 'original_asset_id' of each row
+                # (i.e. rows associated with the same 'original_asset_id' will have the same value)
+                census_total_per_orig_asset_id = (
+                    exposure_updated_occupants.groupby("original_asset_id")["census"]
+                    .transform("sum")
+                    .to_numpy()
                 )
-                all_results = p.map(func, injured_still_away_as_tuples)  # all_results is one list
-                p.close()
-                p.join()
 
-                # Flatten results (to be able to build a DataFrame)
-                results_flattened_asset_ids = []
-                results_flattened_number_injured = []
-                for subtuple in all_results:  # each tuple corresponds to one 'original_asset_id'
-                    for item in subtuple[0]:
-                        results_flattened_asset_ids.append(item)
-                    for item in subtuple[1]:
-                        results_flattened_number_injured.append(item)
-
-                # Gather all number of people still away per asset_id in a DataFrame
-                injured_still_away_per_asset = pd.DataFrame(
-                    {
-                        "number_injured": results_flattened_number_injured
-                    },
-                    index=results_flattened_asset_ids
+                # Number of injured still away of the 'original_asset_id' of each row
+                injured_per_orig_asset_id = (
+                    exposure_updated_occupants["original_asset_id"]
+                    .map(injured_still_away["number_injured"])
+                    .to_numpy()
                 )
-                injured_still_away_per_asset.index.name = "asset_id"
+
+                # Distribute the injured still away of each 'original_asset_id' across its
+                # rows (damage states) proportionally to the 'census' occupants
+                injured_still_away_per_asset = injured_per_orig_asset_id * (
+                    census / census_total_per_orig_asset_id
+                )
 
                 # Calculate the occupants at the time of the day of 'earthquake_time_of_day'
                 logger.debug(
@@ -1503,15 +1485,12 @@ class ExposureUpdater:
                     "calculating %s occupants for current earthquake"
                     % (np.datetime64('now'), earthquake_time_of_day)
                 )
-                occupants_at_time_of_day = np.zeros([exposure_updated_occupants.shape[0]])
                 occupants_at_time_of_day = (
                     time_of_day_factors_per_asset
                     * occupancy_factors_per_asset
-                    * (
-                        exposure_updated_occupants["census"].to_numpy()
-                        - injured_still_away_per_asset["number_injured"].to_numpy()
-                    )
+                    * (census - injured_still_away_per_asset)
                 )
+
             else: # ( injured_still_away["number_injured"].sum() <= 1E-15)
                 logger.debug(
                     "%s Method 'ExposureUpdater.update_exposure_occupants': "
@@ -1535,70 +1514,6 @@ class ExposureUpdater:
         exposure_updated_occupants[earthquake_time_of_day] = occupants_at_time_of_day
 
         return exposure_updated_occupants
-
-
-    @staticmethod
-    def distribute_injured_still_away_proportionally_to_census(
-        exposure_census,
-        original_asset_id_attrs
-    ):
-        """
-        This method distributes the number of injured people associated with a particular
-        'original_asset_id' who cannot return to their buildings due to their health status,
-        onto the different 'asset_id's associated with the 'original_asset_id'. The target
-        'original_asset_id' and the total number of injured people still away are passed as a
-        tuple, 'original_asset_id_attrs'.
-
-        Args:
-            exposure_census (Pandas DataFrame):
-                Pandas DataFrame with, at least, the following fields:
-                    Index (simple):
-                        asset_id (str):
-                            ID of the asset (i.e. specific combination of building_id and a
-                            particular building class).
-                    Columns:
-                        original_asset_id (str):
-                            ID of the asset in the initial undamaged version of the exposure
-                            model. It can be the value of 'asset_id' in the undamaged version or
-                            any other unique ID per row that refers to a combination of a
-                            building ID and a building class with no initial damage.
-                        census (float):
-                            Total number of occupants in this asset irrespective of the time of
-                            the day, the damage state of the building or the health status of
-                            its occupants.
-            original_asset_id_attrs (tuple of (str, float)):
-                Tuple with the 'original_asset_id' to process (first element, str) and the
-                associated number of injured still away (second element, float).
-
-        Returns:
-            asset_ids (list of str):
-                List of 'asset_id' associated with the target 'original_asset_id' specified in
-                'original_asset_id_attrs', in the order they appear in 'exposure_census'.
-            injured_still_away_by_asset_id (list of float):
-                Number of injured people still away for each 'asset_id' in 'asset_ids'.
-        """
-
-        original_asset_id = original_asset_id_attrs[0]
-        injured_people_away = original_asset_id_attrs[1]
-
-        # Filter 'exposure_census' for this 'original_asset_id'
-        orig_asset_id_filter = (
-            exposure_census.original_asset_id == original_asset_id
-        )
-
-        # Get asset_ids associated with this 'original_asset_id'
-        asset_ids = list(exposure_census[orig_asset_id_filter].index)
-
-        # Get census occupants for all assets of this 'original_asset_id'
-        census_all = exposure_census[orig_asset_id_filter].loc[:, "census"].to_numpy()
-        # Calculate proportions
-        proportions = census_all / census_all.sum()
-
-        # Distribute 'injured_people_away' of this 'original_asset_id' across all assets
-        # associated with 'original_asset_id' as per 'proportions'
-        injured_still_away_by_asset_id = list(injured_people_away * proportions)
-
-        return asset_ids, injured_still_away_by_asset_id
 
 
     @staticmethod

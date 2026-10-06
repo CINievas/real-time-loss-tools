@@ -27,7 +27,7 @@ level logs only (no debug messages).
 
 ### `number_cores`
 
-Number of CPUs to be used for computational processes that are parallelised.
+Optional parameter. Number of CPUs to be used for computational processes that are parallelised.
 
 ### `state_dependent_fragilities`
 

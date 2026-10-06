@@ -57,8 +57,7 @@ class RapidLossAssessment:
         mapping_damage_states,
         damage_results_SHM,
         store_intermediate,
-        store_openquake,
-        number_cores=1
+        store_openquake
     ):
         """
         This method uses OpenQuake to run a Rapid Loss Assessment (RLA) due to an input
@@ -243,10 +242,6 @@ class RapidLossAssessment:
                 If True, OpenQuake HDF5 files will be stored and jobs will be kept in
                 OpenQuake's database. If false, OpenQuake's database will be purged of the last
                 job after running.
-            number_cores (int):
-                Number of cores to be used for processing whenever parallelisation is possible.
-                This parameter does not apply to OpenQuake, which has its own parallelisation
-                strategy.
 
         Returns:
             exposure_updated_damage (Pandas DataFrame):
@@ -383,8 +378,7 @@ class RapidLossAssessment:
                 time_of_day,
                 earthquake["datetime"],
                 False,  # do not search for OELF earthquakes
-                main_path,
-                number_cores
+                main_path
             )
         else:
             exposure_run = deepcopy(exposure_full_occupants)
