@@ -271,23 +271,49 @@ class ExposureUpdater:
         # Start from the OQ results
         damage_results_merged = deepcopy(damage_results_OQ)
 
-        # Get list of damage states
+        # Number of asset_ids associated with each building_id (computed once)
+        n_assets_per_building = id_asset_building_mapping.groupby("building_id").size()
+
+        # Keep only the asset_ids whose building_id has SHM results
+        building_ids_with_shm = damage_results_SHM.index.get_level_values(0).unique()
+        assets_with_shm = id_asset_building_mapping[
+            id_asset_building_mapping["building_id"].isin(building_ids_with_shm)
+        ]
+
+        if assets_with_shm.shape[0] == 0:
+            return damage_results_merged
+
+        # One entry per (asset_id, damage state) to be replaced
         unique_damage_states = damage_results_SHM.index.get_level_values("dmg_state").unique()
+        n_dmg = len(unique_damage_states)
 
-        # Go one by one each asset_id
-        for asset_id in id_asset_building_mapping.index:
-            building_id = id_asset_building_mapping.loc[asset_id, "building_id"]
+        asset_ids = np.repeat(assets_with_shm.index.to_numpy(), n_dmg)
+        building_ids = np.repeat(assets_with_shm["building_id"].to_numpy(), n_dmg)
+        dmg_states = np.tile(unique_damage_states.to_numpy(), assets_with_shm.shape[0])
 
-            # If this building_id has SHM results, take them
-            if building_id in damage_results_SHM.index.get_level_values(0):
-                how_many_asset_ids = id_asset_building_mapping[
-                    id_asset_building_mapping.building_id == building_id
-                ].shape[0]
-                for damage_state in unique_damage_states:
-                    damage_results_merged.loc[(asset_id, damage_state), "value"] = (
-                        damage_results_SHM.loc[(building_id, damage_state)].astype("float32")
-                        / how_many_asset_ids
-                    )
+        # SHM values for each (building_id, damage state), divided by the number of asset_ids
+        # that share that building_id
+        shm_values = damage_results_SHM.loc[
+            pd.MultiIndex.from_arrays([building_ids, dmg_states])
+        ].to_numpy().astype("float32")
+        how_many_asset_ids = n_assets_per_building.loc[building_ids].to_numpy().astype("float32")
+        new_values = shm_values / how_many_asset_ids
+
+        # Replace all the values in one go
+        rows_to_replace = damage_results_merged.index.get_indexer(
+            pd.MultiIndex.from_arrays([asset_ids, dmg_states])
+        )
+        if (rows_to_replace < 0).any():  # rows_to_replace will be -1 if index not found
+            error_message = (
+                "Method 'ExposureUpdater.merge_damage_results_OQ_SHM': some (asset_id, dmg_state) "
+                "combinations with SHM results are not present in 'damage_results_OQ'."
+            )
+            logger.critical(error_message)
+            raise ValueError(error_message)
+
+        damage_results_merged.iloc[
+            rows_to_replace, damage_results_merged.columns.get_loc("value")
+        ] = new_values
 
         return damage_results_merged
 
@@ -969,6 +995,8 @@ class ExposureUpdater:
                             "X" is the administrative level.
         """
 
+        assert original_exposure_model["original_asset_id"].is_unique
+
         # Replace probabilities in damage_results_OQ by probabilities from damage_results_SHM
         # for buildings that are monitored
         if damage_results_SHM is not None:
@@ -1093,16 +1121,10 @@ class ExposureUpdater:
         )
         # Detach the damage state from the building class string (it is faster to do it before
         # joining with the new damage states)
-        previous_exposure_model_without_ds = deepcopy(previous_exposure_model)
-        previous_exposure_model_without_ds["taxonomy"] = [
-            "%s"
-            % (
-                "/".join(
-                    previous_exposure_model_without_ds["taxonomy"].to_numpy()[j].split("/")[:-1]
-                )
-            )
-            for j in range(previous_exposure_model_without_ds.shape[0])
-        ]
+        previous_exposure_model_without_ds = previous_exposure_model.assign(
+            taxonomy=previous_exposure_model["taxonomy"].str.rpartition("/")[0]
+        )
+
         new_exposure_model = damage_results_merged_updated.join(
             previous_exposure_model_without_ds
         )
@@ -1132,18 +1154,12 @@ class ExposureUpdater:
             "re-generating taxonomy strings"
             % (np.datetime64('now'))
         )
-        mapping_damage_states["fragility_aux"] = [
-            "/%s"
-            % (mapping_damage_states["fragility"].to_numpy()[j])
-            for j in range(mapping_damage_states.shape[0])
-        ]  # Add the "/" to the front of the damage state names
-        new_exposure_model = new_exposure_model.join(mapping_damage_states, on="dmg_state")
-        new_taxonomies = new_exposure_model["taxonomy"] + new_exposure_model["fragility_aux"]
-        new_exposure_model["taxonomy"] = new_taxonomies
-
-        new_exposure_model = new_exposure_model.drop(
-            columns=["fragility", "fragility_aux"]
+        dmg_state = new_exposure_model.index.get_level_values("dmg_state")
+        fragility = pd.Series(
+            dmg_state.map(mapping_damage_states["fragility"]),
+            index=new_exposure_model.index,
         )
+        new_exposure_model["taxonomy"] = new_exposure_model["taxonomy"] + "/" + fragility
 
         # Group same damage states for same original_asset_id (e.g. for the same building and
         # class, two instances of "ClassA/DS1" should be grouped in the same row)
@@ -1180,17 +1196,17 @@ class ExposureUpdater:
             "re-assigning values of columns that only depend on original_asset_id"
             % (np.datetime64('now'))
         )
-        original_exposure_model_aux = deepcopy(original_exposure_model)
-        original_exposure_model_aux.set_index(
-            original_exposure_model_aux["original_asset_id"], inplace=True
+
+        original_asset_ids = new_exposure_model.index.get_level_values("original_asset_id")
+
+        values_by_original_asset_id = (
+            original_exposure_model
+            .set_index("original_asset_id")[columns_by_original_asset_id]
+            .loc[original_asset_ids]
         )
 
         for col in columns_by_original_asset_id:
-            aux_cols_content = []
-            for multiindex in new_exposure_model.index:
-                original_asset_id = multiindex[0]
-                aux_cols_content.append(original_exposure_model_aux.loc[original_asset_id, col])
-            new_exposure_model[col] = aux_cols_content
+            new_exposure_model[col] = values_by_original_asset_id[col].to_numpy()
 
         # Re-arrange index (up to now it is MultiIndex on (original_asset_id, taxonomy), need to
         # make it based again on ("asset_id", "dmg_state"), "asset_id" being that of the
@@ -1201,12 +1217,29 @@ class ExposureUpdater:
             % (np.datetime64('now'))
         )
         new_exposure_model["taxonomy"] = new_exposure_model.index.get_level_values("taxonomy")
-        new_exposure_model["dmg_state"] = [
-            mapping_damage_states[
-                mapping_damage_states.fragility == taxonomy_val.split("/")[-1]
-            ].index[0]
-            for taxonomy_val in new_exposure_model["taxonomy"]
+
+        # fragility name -> OpenQuake damage-state name (first match)
+        fragility_to_dmg_state = pd.Series(
+            mapping_damage_states.index,
+            index=mapping_damage_states["fragility"].to_numpy(),
+        )
+        fragility_to_dmg_state = fragility_to_dmg_state[
+            ~fragility_to_dmg_state.index.duplicated(keep="first")
         ]
+
+        new_exposure_model["dmg_state"] = (
+            new_exposure_model["taxonomy"].str.rpartition("/")[2].map(fragility_to_dmg_state)
+        )
+
+        if new_exposure_model["dmg_state"].isna().any():
+            unknown = new_exposure_model["taxonomy"][new_exposure_model["dmg_state"].isna()].unique()
+            error_message = (
+                "Method 'ExposureUpdater.update_exposure_with_damage_states': taxonomies with "
+                "damage states not in 'mapping_damage_states': %s" % (unknown,)
+            )
+            logger.critical(error_message)
+            raise ValueError(error_message)
+
         original_asset_id = new_exposure_model.index.get_level_values("original_asset_id")
         new_index = pd.MultiIndex.from_arrays(
             [original_asset_id, new_exposure_model["dmg_state"]]

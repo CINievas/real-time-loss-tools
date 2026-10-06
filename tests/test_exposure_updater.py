@@ -284,6 +284,67 @@ def test_merge_damage_results_OQ_SHM():
             expected_damage_results_merged.loc[multiindex, "value"], 5
         )
 
+    # Third test case: a mix of situations:
+    # There are 2 building_ids in the SHM results
+    # One of them corresponds to one asset_id in OpenQuake
+    # The other correspnds to two asset_ids in OpenQuake
+
+    # Damage results from OpenQuake
+    filepath = os.path.join(os.path.dirname(__file__), "data", "damages_OQ_0.csv")
+    damage_results_OQ = pd.read_csv(filepath)
+    new_index = pd.MultiIndex.from_arrays(
+        [damage_results_OQ["asset_id"], damage_results_OQ["dmg_state"]]
+    )
+    damage_results_OQ.index = new_index
+    damage_results_OQ = damage_results_OQ.drop(columns=["asset_id", "dmg_state"])
+
+    # Damage results from Structural Health Monitoring
+    filepath = os.path.join(os.path.dirname(__file__), "data", "damages_SHM_2.csv")
+    damage_results_SHM = pd.read_csv(filepath)
+    new_index = pd.MultiIndex.from_arrays(
+        [damage_results_SHM["building_id"], damage_results_SHM["dmg_state"]]
+    )
+    damage_results_SHM.index = new_index
+    damage_results_SHM = damage_results_SHM.drop(columns=["dmg_state"])
+
+    # Mapping of asset_id and building_id
+    id_asset_building_mapping = pd.DataFrame(
+        {"building_id": ["osm_1", "osm_1", "tile_8", "tile_8", "shm_1"]},
+        index=["exp_1", "exp_2", "exp_3", "exp_4", "exp_5"],
+    )
+    id_asset_building_mapping.index = id_asset_building_mapping.index.rename("asset_id")
+
+    # Expected merged damage results
+    expected_damage_results_merged = deepcopy(damage_results_OQ)
+    for dmg in ["no_damage", "dmg_1", "dmg_2", "dmg_3", "dmg_4"]:
+        expected_damage_results_merged.loc[("exp_5", dmg), "value"] = damage_results_SHM.loc[
+            ("shm_1", dmg), "value"
+        ]
+    for dmg in ["no_damage", "dmg_1", "dmg_2", "dmg_3", "dmg_4"]:
+        expected_damage_results_merged.loc[("exp_1", dmg), "value"] = damage_results_SHM.loc[
+            ("osm_1", dmg), "value"
+        ] / 2.0
+        expected_damage_results_merged.loc[("exp_2", dmg), "value"] = damage_results_SHM.loc[
+            ("osm_1", dmg), "value"
+        ] / 2.0
+
+    # Execute the method
+    returned_damage_results_merged = ExposureUpdater.merge_damage_results_OQ_SHM(
+        damage_results_OQ, pd.Series(damage_results_SHM.loc[:, "value"]), id_asset_building_mapping
+    )
+
+    assert returned_damage_results_merged.shape[0] == expected_damage_results_merged.shape[0]
+    assert (returned_damage_results_merged.index == expected_damage_results_merged.index).all
+    assert (
+        returned_damage_results_merged.index.name == expected_damage_results_merged.index.name
+    )
+
+    for multiindex in expected_damage_results_merged.index:
+        assert multiindex in returned_damage_results_merged.index
+        assert round(returned_damage_results_merged.loc[multiindex, "value"], 5) == round(
+            expected_damage_results_merged.loc[multiindex, "value"], 5
+        )
+
 
 def test_get_damage_results_by_orig_asset_id():
     # Damage results from OpenQuake
