@@ -578,13 +578,14 @@ class OperationalEarthquakeLossForecasting():
         # (oef_model_id, oef_ses_id) subset ('catalogue_groups' is DataFrameGroupBy object)
         catalogue_groups = forecast_catalogue.groupby(["model_id", "ses_id"])
 
-        # Initialise 'damage_states_all_ses', 'losses_economic_all_ses', 'losses_human_all_ses'
-        # and 'nuisance_all_ses_all_events' to gather results from all SES from all seismicity
-        # models (and all individual events, in the case of nuisance)
-        damage_states_all_ses = None
-        losses_economic_all_ses = None
-        losses_human_all_ses = None
-        nuisance_all_ses_all_events = None
+        # Initialise lists to gather results from all SES from all seismicity models (and all
+        # individual events, in the case of nuisance): damage states, economic losses, human
+        # losses and nuisance. They are lists of DataFrames, concatenated only once after all
+        # SES have been processed.
+        damage_states_all_ses_list = []  # one DataFrame per (model, SES), concatenated at the end
+        losses_economic_all_ses_list = []
+        losses_human_all_ses_list = []
+        nuisance_all_events_list = []  # one DataFrame per earthquake run, concatenated at the end
 
         precalculated_nodmg = None
 
@@ -621,7 +622,7 @@ class OperationalEarthquakeLossForecasting():
 
                 damage_states = None
                 losses_economic = None
-                losses_human_all_events = None
+                losses_human_per_event_list = []  # one DataFrame per earthquake run in this SES
 
                 if (
                     (events_in_ses.shape[0] > 0) or
@@ -710,7 +711,7 @@ class OperationalEarthquakeLossForecasting():
 
                         # No need to add zeros to losses_human_all_events (i.e. no injuries)
 
-                        # No need to add zero-nuisance to nuisance_all_ses_all_events
+                        # No need to add zero-nuisance to nuisance_all_events_list
 
                         continue
 
@@ -809,13 +810,7 @@ class OperationalEarthquakeLossForecasting():
                         nuisance_states["ses_id"] = oef_ses_id
                         nuisance_states["eq_id"] = eq_id
 
-                        if nuisance_all_ses_all_events is None:
-                            # First earthquake
-                            nuisance_all_ses_all_events = deepcopy(nuisance_states)
-                        else:
-                            nuisance_all_ses_all_events = pd.concat(
-                                [nuisance_all_ses_all_events, nuisance_states]
-                            )
+                        nuisance_all_events_list.append(nuisance_states)
 
                     if not store_openquake:
                         oqjob_dmg.delete_OpenQuake_job()
@@ -841,14 +836,8 @@ class OperationalEarthquakeLossForecasting():
                             losses_human_per_asset
                         )
 
-                        # Concatenate human losses from all earthquakes in the stochastic event set
-                        if losses_human_all_events is None:
-                            # First earthquake
-                            losses_human_all_events = deepcopy(losses_human_per_building_id)
-                        else:
-                            losses_human_all_events = pd.concat(
-                                [losses_human_all_events, losses_human_per_building_id]
-                            )
+                        # Gather human losses from all earthquakes in the stochastic event set
+                        losses_human_per_event_list.append(losses_human_per_building_id)
 
                         # Calculate timeline of recovery (to define occupants for next earthquake)
                         # Calculate number of injured people still away in time
@@ -870,7 +859,6 @@ class OperationalEarthquakeLossForecasting():
 
                     else: # 'calculate_casualties' is False
                         injured_still_away = None
-                        losses_human_all_events = None
 
                     # Store new exposure CSV
                     if store_intermediate:
@@ -889,6 +877,13 @@ class OperationalEarthquakeLossForecasting():
                         os.path.join(path_to_exposure, current_exposure_filename),
                         index=False,
                     )
+
+                # Concatenate human losses from all earthquakes in the stochastic event set
+                # (None if no earthquake contributed human losses)
+                if len(losses_human_per_event_list) > 0:
+                    losses_human_all_events = pd.concat(losses_human_per_event_list)
+                else:
+                    losses_human_all_events = None
 
                 # Calculate or retrieve pre-calculated (no damage)
                 # 'damage_states', 'losses_economic', and 'losses_human_all_events'
@@ -983,38 +978,20 @@ class OperationalEarthquakeLossForecasting():
                 damage_states["model_id"] = oef_model_id
                 damage_states["ses_id"] = oef_ses_id
 
-                if damage_states_all_ses is None:
-                    # First realisation
-                    damage_states_all_ses = deepcopy(damage_states)
-                else:
-                    damage_states_all_ses = pd.concat(
-                        [damage_states_all_ses, damage_states]
-                    )
+                damage_states_all_ses_list.append(damage_states)
 
                 # Concatenate economic losses from all (oef_model_id, oef_ses_id) sets
                 losses_economic["model_id"] = oef_model_id
                 losses_economic["ses_id"] = oef_ses_id
 
-                if losses_economic_all_ses is None:
-                    # First realisation
-                    losses_economic_all_ses = deepcopy(losses_economic)
-                else:
-                    losses_economic_all_ses = pd.concat(
-                        [losses_economic_all_ses, losses_economic]
-                    )
+                losses_economic_all_ses_list.append(losses_economic)
 
                 if calculate_casualties:
                     # Concatenate human losses from all (oef_model_id, oef_ses_id) sets
                     losses_human_all_events["model_id"] = oef_model_id
                     losses_human_all_events["ses_id"] = oef_ses_id
 
-                    if losses_human_all_ses is None:
-                        # First realisation
-                        losses_human_all_ses = deepcopy(losses_human_all_events)
-                    else:
-                        losses_human_all_ses = pd.concat(
-                            [losses_human_all_ses, losses_human_all_events]
-                        )
+                    losses_human_all_ses_list.append(losses_human_all_events)
 
                     # Erase 'path_to_occupants_oelf' and all its contents
                     # (next SES needs to start clean)
@@ -1027,6 +1004,15 @@ class OperationalEarthquakeLossForecasting():
         logger.info(
             "%s Generating exceedance curves and stats"  % (np.datetime64('now'))
         )
+
+        # Gather results from all (oef_model_id, oef_ses_id) sets
+        damage_states_all_ses = pd.concat(damage_states_all_ses_list)
+        losses_economic_all_ses = pd.concat(losses_economic_all_ses_list)
+        if calculate_casualties:
+            losses_human_all_ses = pd.concat(losses_human_all_ses_list)
+        else:
+            losses_human_all_ses = None
+        del damage_states_all_ses_list, losses_economic_all_ses_list, losses_human_all_ses_list
 
         # Initialise exceedance curves and stats outputs
         curves_by_model_and_bdg_id = {}
@@ -1101,6 +1087,13 @@ class OperationalEarthquakeLossForecasting():
 
         # Exceedance curves and stats: Nuisance:
         if nuisance_params["calculate"]:
+            # Gather nuisance results from all events, all SESs and all models
+            if len(nuisance_all_events_list) > 0:
+                nuisance_all_ses_all_events = pd.concat(nuisance_all_events_list)
+            else:
+                nuisance_all_ses_all_events = None
+            del nuisance_all_events_list
+
             value_columns = ["number", "census"]
             if calculate_casualties:
                 value_columns.append("occupants")
