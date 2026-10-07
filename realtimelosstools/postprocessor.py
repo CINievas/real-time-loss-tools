@@ -131,6 +131,7 @@ class PostProcessor:
         """
 
         collected_output = None  # initialise, for case 'filenames' is empty
+        indiv_outputs = []  # one DataFrame per earthquake, concatenated once after the loop
 
         filenames = [
             filename_pattern % (cat_name) for cat_name in list_earthquakes
@@ -144,16 +145,15 @@ class PostProcessor:
             indiv_output.index = new_index
             indiv_output = indiv_output.drop(columns=["building_id", "damage_state"])
             indiv_output = indiv_output.rename(columns={"number": list_earthquakes[i]})
+            indiv_outputs.append(indiv_output)
 
-            if i == 0:
-                collected_output = deepcopy(indiv_output)
-            else:
-                collected_output = pd.concat(
-                    [collected_output, indiv_output],
-                    axis=1
-                )
-                # NaNs may arise from damage states missing in the output --> transform to zero
-                collected_output = collected_output.fillna(0)
+        # Gather the results of all earthquakes in one go
+        if len(indiv_outputs) == 1:
+            collected_output = indiv_outputs[0]
+        elif len(indiv_outputs) > 1:
+            collected_output = pd.concat(indiv_outputs, axis=1)
+            # NaNs may arise from damage states missing in the output --> transform to zero
+            collected_output = collected_output.fillna(0)
 
         # Sort 'collected_output' by index (first by 'building_id', then by 'damage_state')
         if collected_output is not None:
@@ -412,6 +412,7 @@ class PostProcessor:
         """
 
         collected_output = None  # initialise, for case 'filenames' is empty
+        indiv_outputs = []  # one DataFrame per earthquake, concatenated once after the loop
 
         filenames = [
             filename_pattern % (cat_name) for cat_name in list_earthquakes
@@ -424,16 +425,15 @@ class PostProcessor:
             )
             indiv_output = indiv_output.drop(columns=["building_id"])
             indiv_output = indiv_output.rename(columns={"loss": list_earthquakes[i]})
+            indiv_outputs.append(indiv_output)
 
-            if i == 0:
-                collected_output = deepcopy(indiv_output)
-            else:
-                collected_output = pd.concat(
-                    [collected_output, indiv_output],
-                    axis=1
-                )
-                # Transform NaNs to zero
-                collected_output = collected_output.fillna(0)
+        # Gather the results of all earthquakes in one go
+        if len(indiv_outputs) == 1:
+            collected_output = indiv_outputs[0]
+        elif len(indiv_outputs) > 1:
+            collected_output = pd.concat(indiv_outputs, axis=1)
+            # Transform NaNs to zero
+            collected_output = collected_output.fillna(0)
 
         return collected_output
 
@@ -713,6 +713,10 @@ class PostProcessor:
             for severity in injuries_scale:
                 collected_output[severity] = None
 
+        # One list of DataFrames (one per earthquake) per severity, each concatenated once after
+        # the loop
+        indiv_outputs = {severity: [] for severity in injuries_scale}
+
         filenames = [
             filename_pattern % (cat_name) for cat_name in list_earthquakes
         ]
@@ -734,15 +738,16 @@ class PostProcessor:
                     columns={severity_name: list_earthquakes[i]}
                 )
 
-                if i == 0:
-                    collected_output[severity] = deepcopy(indiv_output_severity)
-                else:
-                    collected_output[severity] = pd.concat(
-                        [collected_output[severity], indiv_output_severity],
-                        axis=1
-                    )
-                    # Transform NaNs to zero
-                    collected_output[severity] = collected_output[severity].fillna(0)
+                indiv_outputs[severity].append(indiv_output_severity)
+
+        # Gather the results of all earthquakes in one go
+        for severity in collected_output:
+            if len(indiv_outputs[severity]) == 1:
+                collected_output[severity] = indiv_outputs[severity][0]
+            else:
+                collected_output[severity] = pd.concat(indiv_outputs[severity], axis=1)
+                # Transform NaNs to zero
+                collected_output[severity] = collected_output[severity].fillna(0)
 
         return collected_output
 
