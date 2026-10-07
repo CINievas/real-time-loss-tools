@@ -19,7 +19,6 @@
 import logging
 import glob
 import os
-from copy import deepcopy
 import numpy as np
 import pandas as pd
 from realtimelosstools.utils import MultilinearStepFunction
@@ -235,8 +234,7 @@ class Losses:
         """
 
         # Initialise output
-        loss_summary = deepcopy(exposure)
-        loss_summary = loss_summary.drop(
+        loss_summary = exposure.drop(
             columns=["lon", "lat", "occupancy", "original_asset_id"]
         )
         if "id" in loss_summary.columns:
@@ -328,8 +326,10 @@ class Losses:
                             Expected injuries of severity X for 'original_asset_id'.
         """
 
-        # Initialise output
-        losses_per_orig_asset = deepcopy(exposure)
+        # Initialise output (copy only the needed columns)
+        losses_per_orig_asset = exposure[
+            ["building_id", "original_asset_id", "taxonomy", time_of_day]
+        ].copy()
 
         # Create separate columns for building class and damage state
         logger.debug(

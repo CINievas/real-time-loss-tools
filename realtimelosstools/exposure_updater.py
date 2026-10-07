@@ -168,8 +168,7 @@ class ExposureUpdater:
                 case ("number" column).
         """
 
-        aux_df = deepcopy(exposure)
-        aux_df = aux_df.reset_index()
+        aux_df = exposure.reset_index()
         aux_df = aux_df.groupby(["asset_id", "original_asset_id"]).sum(numeric_only=True)
 
         asset_id_original_asset_id_mapping = pd.DataFrame(
@@ -1571,8 +1570,7 @@ class ExposureUpdater:
         """
 
         # Initialise output
-        damage_summary = deepcopy(exposure)
-        damage_summary = damage_summary.drop(
+        damage_summary = exposure.drop(
             columns=["lon", "lat", "occupancy", "original_asset_id"]
         )
         if "id" in damage_summary.columns:

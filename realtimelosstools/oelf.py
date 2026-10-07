@@ -702,10 +702,7 @@ class OperationalEarthquakeLossForecasting():
                         # Magnitude too small or too far away from all exposure sites
                         # --> skip this earthquake and go on to the next one
                         # The 'exposure_updated_damage' is the same as the exposure so far
-                        exposure_updated_damage = deepcopy(exposure_run)
-                        exposure_updated_damage = exposure_updated_damage.drop(
-                            columns=[time_of_day]
-                        )
+                        exposure_updated_damage = exposure_run.drop(columns=[time_of_day])
 
                         # No need to add zeros to losses_human_all_events (i.e. no injuries)
 
@@ -2043,13 +2040,12 @@ class OperationalEarthquakeLossForecasting():
                 'forecast_cat_filtered' (True) or not (False).
         """
 
-        # Initialise output
-        forecast_cat_filtered = deepcopy(forecast_catalogue)
-        earthquakes_kept = np.array([True for i in range(forecast_cat_filtered.shape[0])])
+        # Initialise earthquakes_kept with all True
+        earthquakes_kept = np.array([True for i in range(forecast_catalogue.shape[0])])
 
         # Keep only earthquakes with magnitude >= magnitude_min
-        magnitude_filter = (forecast_cat_filtered.magnitude >= magnitude_min)
-        forecast_cat_filtered = forecast_cat_filtered[magnitude_filter]
+        magnitude_filter = (forecast_catalogue.magnitude >= magnitude_min)
+        forecast_cat_filtered = forecast_catalogue[magnitude_filter]
         earthquakes_kept = magnitude_filter.to_numpy()
         logger.info(
             "%s out of %s earthquakes have magnitudes equal to or larger than the minimum %s."
