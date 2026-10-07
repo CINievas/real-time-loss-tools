@@ -649,7 +649,11 @@ class OperationalEarthquakeLossForecasting():
                     exposure_updated_damage = None # No need to initialise the exposure model
 
                 # Run earthquake by earthquake of this stochastic event set
-                for eq_id in events_in_ses.index:  # EQID is index of DataFrame
+                # (EQID is index of DataFrame, 'event' is a named tuple with the columns)
+                has_model_id = "model_id" in events_in_ses.columns
+                for eq_id, event in zip(
+                    events_in_ses.index, events_in_ses.itertuples(index=False)
+                ):
 
                     # Description
                     description = "%s, %s, event ID %s" % (
@@ -657,7 +661,7 @@ class OperationalEarthquakeLossForecasting():
                     )
 
                     # Retrieve "time_of_day"
-                    time_of_day = events_in_ses.loc[eq_id, "time_of_day"]
+                    time_of_day = event.time_of_day
                     # can be None if not calculate_casualties
 
                     # Load exposure CSV (the exposure model to be used to run OpenQuake with this
@@ -671,7 +675,7 @@ class OperationalEarthquakeLossForecasting():
                     exposure_full_occupants.index = exposure_full_occupants.index.rename("asset_id")
                     exposure_full_occupants = exposure_full_occupants.drop(columns=["id"])
 
-                    if there_can_be_occupants and events_in_ses.loc[eq_id, "to_run"]:
+                    if there_can_be_occupants and event.to_run:
                         # Update exposure to reflect occupants for this earthquake
                         # (reflecting injuries and deaths)
                         exposure_run = ExposureUpdater.update_exposure_occupants(
@@ -680,7 +684,7 @@ class OperationalEarthquakeLossForecasting():
                             recovery_occupancy_factors[eq_id], #e.g. {"DS0": 1, ... "DS4": 0}
                             time_of_day_occupancy,
                             time_of_day,
-                            events_in_ses.loc[eq_id, "datetime"],
+                            event.datetime,
                             injured_still_away_oelf,  # OELF previous earthquakes
                             main_path,
                             injured_still_away_rla=injured_still_away_rla
@@ -698,7 +702,7 @@ class OperationalEarthquakeLossForecasting():
                         index_label="id",  # the index of 'exposure_run' is "asset_id", but OQ needs "id"
                     )
 
-                    if not events_in_ses.loc[eq_id, "to_run"]:
+                    if not event.to_run:
                         # Magnitude too small or too far away from all exposure sites
                         # --> skip this earthquake and go on to the next one
                         # The 'exposure_updated_damage' is the same as the exposure so far
@@ -711,17 +715,12 @@ class OperationalEarthquakeLossForecasting():
                         continue
 
                     # Identify rupture XML
-                    if "model_id" in events_in_ses.columns:
+                    if has_model_id:
                         name_rupture_file = "RUP_%s-%s-%s.xml" % (
-                            events_in_ses.loc[eq_id, "model_id"],
-                            events_in_ses.loc[eq_id, "ses_id"],
-                            events_in_ses.loc[eq_id, "event_id"]
+                            event.model_id, event.ses_id, event.event_id
                         )
                     else:
-                        name_rupture_file = "RUP_%s-%s.xml" % (
-                            events_in_ses.loc[eq_id, "ses_id"],
-                            events_in_ses.loc[eq_id, "event_id"]
-                        )
+                        name_rupture_file = "RUP_%s-%s.xml" % (event.ses_id, event.event_id)
 
                     # Update exposure XML
                     Writer.update_exposure_xml(
@@ -840,7 +839,7 @@ class OperationalEarthquakeLossForecasting():
                             losses_human_per_asset,
                             recovery_injuries,
                             recovery_longest_time,
-                            events_in_ses.loc[eq_id, "datetime"],
+                            event.datetime,
                         )
 
                         # Keep in memory the number of injured people away from the building in
