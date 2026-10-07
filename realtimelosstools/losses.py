@@ -970,34 +970,94 @@ class Losses:
         return occupancy_factors_per_asset
 
     @staticmethod
+    def read_injured_still_away_RLA(main_path):
+        """
+        This method reads the injuries recovery timelines (number of injured people still away
+        from their buildings in time) of all "real" (RLA) earthquakes run so far, stored under
+        'main_path'/current/occupants as "injured_still_away_after_RLA_*.csv" files (one per
+        earthquake).
+
+        Args:
+            main_path (str):
+                Path to the main running directory, assumed to have the needed structure.
+
+        Returns:
+            injured_still_away_rla (dict of Pandas DataFrame):
+                Dictionary whose keys are the names of the files (one per RLA earthquake) and
+                whose elements are Pandas DataFrames with the following structure:
+                    Index:
+                        original_asset_id (str):
+                            ID of the asset in the initial undamaged version of the exposure
+                            model.
+                    Columns:
+                        building_id (str):
+                            ID of the building.
+                        dates in UTC (float):
+                            The names of the columns are UTC dates and times (as str) at which
+                            the number of injured people still unable to return to their
+                            buildings has been calculated. The content of the columns is the
+                            number of injured people.
+                The dictionary is empty if no RLA earthquake has been run before.
+        """
+
+        path_to_injured = os.path.join(main_path, "current", "occupants")
+        filenames = glob.glob(
+            os.path.join(path_to_injured, "injured_still_away_after_RLA_*.csv")
+        )  # each file corresponds to one past earthquake
+
+        injured_still_away_rla = {}
+
+        for filename in filenames:
+            injured = pd.read_csv(os.path.join(path_to_injured, filename))
+            injured.set_index(injured["original_asset_id"], drop=True, inplace=True)
+            injured = injured.drop(columns=["original_asset_id"])
+            injured_still_away_rla[os.path.basename(filename)] = injured
+
+        return injured_still_away_rla
+
+    @staticmethod
     def get_injured_still_away(
-        exposure_orig_asset_ids, datetime_earthquake, include_oelf, main_path
+        exposure_orig_asset_ids,
+        datetime_earthquake,
+        main_path,
+        injured_still_away_oelf=None,
+        injured_still_away_rla=None,
     ):
         """
         This method goes through the injuries recovery timelines of all earthquakes that have
-        occurred before 'datetime_earthquake' (this is done by searching for all the
-        "still-away-injured" files present in 'main_path'/current/occupants, including
-        'main_path'/current/occupants/oelf if 'include_oelf' is True), and determines
-        the total number of injured people still away from their buildings by the time of
-        'datetime_earthquake'. The output follows the order of the original asset IDs listed in
-        'exposure_orig_asset_ids'.
+        occurred before 'datetime_earthquake' and determines the total number of injured people
+        still away from their buildings by the time of 'datetime_earthquake'. The output
+        follows the order of the original asset IDs listed in 'exposure_orig_asset_ids'.
 
-        If there are no "still-away-injured" files in 'main_path'/current/occupants, all
-        returned values of injured people still away will be 0.
+        The timelines of "real" (RLA) earthquakes are retrieved from the
+        "injured_still_away_after_RLA_*.csv" files present in 'main_path'/current/occupants,
+        unless they are provided via 'injured_still_away_rla'. The timelines of OELF
+        earthquakes (earthquakes of the stochastic event set being run) are never stored in
+        files, they are provided via 'injured_still_away_oelf'.
+
+        If there are no timelines to consider, all returned values of injured people still away
+        will be 0.
 
         Args:
             exposure_orig_asset_ids (arr of str):
                 Array of original asset IDs from the OpenQuake exposure CSV files (i.e. the
                 asset IDs of the undamaged exposure model, stored as the original_asset_id
-                column). These should exist in the "still-away-injured" files present in
-                'main_path'/current/occupants.
+                column). These should exist in all the timelines considered.
             datetime_earthquake (numpy.datetime64):
                 UTC date and time of the earthquake.
-            include_oelf (bool):
-                If True, the method will also search for "still-away-injured" files under
-                'main_path'/current/occupants/oelf.
             main_path (str):
                 Path to the main running directory, assumed to have the needed structure.
+            injured_still_away_oelf (dict of Pandas DataFrame):
+                Injuries recovery timelines of the previous OELF earthquakes of the stochastic
+                event set being run. The keys are the IDs of the earthquakes and the elements
+                are the Pandas DataFrames output by
+                Losses.calculate_injuries_recovery_timeline(). Use None (or an empty dictionary)
+                to not consider any OELF earthquakes (e.g. when running RLA).
+            injured_still_away_rla (dict of Pandas DataFrame):
+                Injuries recovery timelines of the RLA earthquakes, as output by
+                Losses.read_injured_still_away_RLA(). If None, they are read from the CSV
+                files stored under 'main_path'/current/occupants. Pass them to avoid re-reading
+                the same files for every earthquake (e.g. when running OELF).
 
         Returns:
             injured_still_away (arr of float):
@@ -1005,31 +1065,18 @@ class Losses:
                 whose original asset ID is listed in 'exposure_orig_asset_ids'.
         """
 
-        # Retrieve filenames of injured people still away due to previous earthquakes
-        path_to_injured = os.path.join(main_path, "current", "occupants")
-        filenames = glob.glob(
-            os.path.join(path_to_injured, "injured_still_away_after_RLA_*.csv")
-        )  # each file corresponds to one past earthquake
+        if injured_still_away_rla is None:
+            injured_still_away_rla = Losses.read_injured_still_away_RLA(main_path)
 
-        if include_oelf:
-            # Retrieve filenames of occupancy factors due to previous OELF earthquakes
-            filenames_oelf = glob.glob(
-                os.path.join(path_to_injured, "oelf", "injured_still_away_after_OELF_*.csv")
-            )  # each file corresponds to one past earthquake
-            filenames = filenames + filenames_oelf  # concatenate
+        timelines = list(injured_still_away_rla.values())
+        if injured_still_away_oelf is not None:
+            timelines = timelines + list(injured_still_away_oelf.values())
 
         # Initialise the number of injured people still away (injured due to each earthquake
         # will be added)
         injured_still_away = np.zeros([len(exposure_orig_asset_ids)])
 
-        for filename in filenames:
-            if "RLA" in filename:
-                injured = pd.read_csv(os.path.join(path_to_injured, filename))
-            elif "OELF" in filename:
-                injured = pd.read_csv(os.path.join(path_to_injured, "oelf", filename))
-
-            injured.set_index(injured["original_asset_id"], drop=True, inplace=True)
-            injured = injured.drop(columns=["original_asset_id"])
+        for injured in timelines:
             # 'injured' has as columns: "building_id" and the dates of the timeline
 
             # Recover dates of the timeline from names of columns

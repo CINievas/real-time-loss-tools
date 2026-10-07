@@ -1286,8 +1286,9 @@ class ExposureUpdater:
         time_of_day_factors,
         earthquake_time_of_day,
         earthquake_datetime,
-        include_oelf,
-        main_path
+        injured_still_away_oelf,
+        main_path,
+        injured_still_away_rla=None
     ):
         """
         If 'calculate_casualties' is True, this method calculates the number of occupants in
@@ -1365,11 +1366,17 @@ class ExposureUpdater:
                 Time of the day of the earthquake, i.e. "day", "night" or "transit".
             earthquake_datetime (numpy.datetime64):
                 UTC date and time of the earthquake.
-            include_oelf (bool):
-                If True, the method will also search for occupancy factors files under
-                'main_path'/current/occupants/oelf.
+            injured_still_away_oelf (dict of Pandas DataFrame):
+                Injuries recovery timelines of the previous OELF earthquakes of the stochastic
+                event set being run (keys: IDs of the earthquakes; elements: DataFrames as
+                output by Losses.calculate_injuries_recovery_timeline()). Use None when running
+                RLA, i.e. when there are no OELF earthquakes to consider.
             main_path (str):
                 Path to the main running directory, assumed to have the needed structure.
+            injured_still_away_rla (dict of Pandas DataFrame):
+                Injuries recovery timelines of the RLA earthquakes, as output by
+                Losses.read_injured_still_away_RLA(). If None (default), they are read from the
+                CSV files stored under 'main_path'/current/occupants.
 
         Returns:
             exposure_updated_occupants (Pandas DataFrame):
@@ -1423,8 +1430,9 @@ class ExposureUpdater:
             injured_still_away_vals = Losses.get_injured_still_away(
                 original_asset_ids_unique,
                 earthquake_datetime,
-                include_oelf,
                 main_path,
+                injured_still_away_oelf=injured_still_away_oelf,
+                injured_still_away_rla=injured_still_away_rla,
             )  # 'injured_still_away_vals' in the order of 'original_asset_ids_unique'
             injured_still_away = pd.DataFrame(
                 {"number_injured": injured_still_away_vals},

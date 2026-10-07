@@ -377,7 +377,7 @@ class RapidLossAssessment:
                 time_of_day_occupancy,
                 time_of_day,
                 earthquake["datetime"],
-                False,  # do not search for OELF earthquakes
+                None,  # no OELF earthquakes to consider
                 main_path
             )
         else:

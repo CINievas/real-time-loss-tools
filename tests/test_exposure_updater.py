@@ -1258,7 +1258,7 @@ def test_update_exposure_occupants():
         time_of_day_factors,
         earthquake_time_of_day,
         earthquake_datetime,
-        False,
+        None,  # no OELF earthquakes
         os.path.join(os.path.dirname(__file__), "data", "intentionally_no_files"),
     )
 
@@ -1319,7 +1319,7 @@ def test_update_exposure_occupants():
         time_of_day_factors,
         earthquake_time_of_day,
         earthquake_datetime,
-        False,
+        None,  # no OELF earthquakes
         os.path.join(os.path.dirname(__file__), "data"),
     )
 
@@ -1381,7 +1381,7 @@ def test_update_exposure_occupants():
         time_of_day_factors,
         earthquake_time_of_day,
         earthquake_datetime,
-        False,
+        None,  # no OELF earthquakes
         os.path.join(os.path.dirname(__file__), "data"),
     )
 

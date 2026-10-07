@@ -472,48 +472,99 @@ def test_get_occupancy_factors_per_asset():
     )
 
 
+def test_read_injured_still_away_RLA():
+    # Test 1: previous earthquakes run
+    main_path = os.path.join(os.path.dirname(__file__), "data")
+
+    returned_timelines = Losses.read_injured_still_away_RLA(main_path)
+
+    assert sorted(returned_timelines.keys()) == [
+        "injured_still_away_after_RLA_EQ_01.csv",
+        "injured_still_away_after_RLA_EQ_02.csv",
+    ]
+    for timeline in returned_timelines.values():
+        assert timeline.index.name == "original_asset_id"
+        assert "building_id" in timeline.columns
+        assert "original_asset_id" not in timeline.columns
+
+    # Test 2: no previous earthquakes run
+    main_path = os.path.join(os.path.dirname(__file__), "data", "intentionally_no_files")
+
+    assert Losses.read_injured_still_away_RLA(main_path) == {}
+
+
 def test_get_injured_still_away():
-    # Test 1: previous earthquakes run, without OELF
     target_datetime = np.datetime64("2010-04-10T00:00:00")
-    include_oelf = False
     main_path = os.path.join(os.path.dirname(__file__), "data")
     exposure_orig_asset_ids = np.array(["exp_%s" % (i) for i in range(1, 6)])
 
+    # Previous OELF earthquakes (timelines kept in memory), read here from the test files
+    path_to_oelf_files = os.path.join(main_path, "current", "occupants", "oelf")
+    injured_still_away_oelf = {}
+    for eq_id in ["EQ_01", "EQ_02"]:
+        timeline = pd.read_csv(
+            os.path.join(path_to_oelf_files, "injured_still_away_after_OELF_%s.csv" % (eq_id))
+        )
+        injured_still_away_oelf[eq_id] = timeline.set_index("original_asset_id")
+
+    # Test 1: previous RLA earthquakes run, no OELF (RLA timelines read from CSV files)
     expected_injured_still_away = np.array([
         0.0037331224, 0.0014685534, 0.0022101222, 0.0008455265, 0.0046624868,
     ])
 
     returned_injured_still_away = Losses.get_injured_still_away(
-        exposure_orig_asset_ids, target_datetime, include_oelf, main_path
+        exposure_orig_asset_ids, target_datetime, main_path
     )
 
     np.testing.assert_almost_equal(
         returned_injured_still_away, expected_injured_still_away, decimal=8
     )
 
-    # Test 2: previous earthquakes run, include OELF
-    include_oelf = True
+    # Test 2: same as Test 1 but with an empty dictionary of OELF earthquakes
+    returned_injured_still_away = Losses.get_injured_still_away(
+        exposure_orig_asset_ids, target_datetime, main_path, injured_still_away_oelf={}
+    )
 
+    np.testing.assert_almost_equal(
+        returned_injured_still_away, expected_injured_still_away, decimal=8
+    )
+
+    # Test 3: previous RLA earthquakes run, include OELF
     expected_injured_still_away = np.array([
         0.0055996836, 0.0022028301, 0.0033151833, 0.0012682898, 0.0069937302
     ])
 
     returned_injured_still_away = Losses.get_injured_still_away(
-        exposure_orig_asset_ids, target_datetime, include_oelf, main_path
+        exposure_orig_asset_ids,
+        target_datetime,
+        main_path,
+        injured_still_away_oelf=injured_still_away_oelf,
     )
 
     np.testing.assert_almost_equal(
         returned_injured_still_away, expected_injured_still_away, decimal=8
     )
 
-    # Test 3: no previous earthquakes run
+    # Test 4: same as Test 3 but with RLA timelines provided in memory
+    returned_injured_still_away = Losses.get_injured_still_away(
+        exposure_orig_asset_ids,
+        target_datetime,
+        main_path,
+        injured_still_away_oelf=injured_still_away_oelf,
+        injured_still_away_rla=Losses.read_injured_still_away_RLA(main_path),
+    )
+
+    np.testing.assert_almost_equal(
+        returned_injured_still_away, expected_injured_still_away, decimal=8
+    )
+
+    # Test 5: no previous earthquakes run
     main_path = os.path.join(os.path.dirname(__file__), "data", "intentionally_no_files")
-    include_oelf = False
 
     expected_injured_still_away = np.zeros([len(exposure_orig_asset_ids)])
 
     returned_injured_still_away = Losses.get_injured_still_away(
-        exposure_orig_asset_ids, target_datetime, include_oelf, main_path
+        exposure_orig_asset_ids, target_datetime, main_path
     )
 
     np.testing.assert_almost_equal(

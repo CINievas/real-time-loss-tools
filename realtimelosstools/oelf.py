@@ -574,6 +574,13 @@ class OperationalEarthquakeLossForecasting():
         else:
             recovery_occupancy_factors = None
 
+        # Read once the injuries recovery timelines of the "real" (RLA) earthquakes, which do not
+        # change during the OELF (to avoid re-reading the same files for every earthquake)
+        if calculate_casualties and there_can_be_occupants:
+            injured_still_away_rla = Losses.read_injured_still_away_RLA(main_path)
+        else:
+            injured_still_away_rla = None
+
         # Group 'forecast_catalogue' so that it is easier to identify each
         # (oef_model_id, oef_ses_id) subset ('catalogue_groups' is DataFrameGroupBy object)
         catalogue_groups = forecast_catalogue.groupby(["model_id", "ses_id"])
@@ -597,20 +604,10 @@ class OperationalEarthquakeLossForecasting():
                     % (np.datetime64('now'), k+1, len(oef_ses_ids), oef_model_id)
                 )
 
-                if calculate_casualties:
-                    # Create sub-directory to store "injured_still_away" and "occupancy_factors" files
-                    # (this sub-directory and all its contents will be erased at the end of this SES)
-                    path_to_occupants_oelf = os.path.join(main_path, "current", "occupants", "oelf")
-                    if not os.path.exists(path_to_occupants_oelf):
-                        os.mkdir(path_to_occupants_oelf)
-                    else:
-                        error_message = (
-                            "The directory %s already exists and may contain results from "
-                            "a previous run. The program will stop."
-                            % (path_to_occupants_oelf)
-                        )
-                        logger.critical(error_message)
-                        raise OSError(error_message)
+                # Injuries recovery timelines (number of injured people still away in time) of
+                # the earthquakes run so far in this SES, kept in memory (keys: eq_id)
+                # (each SES starts clean)
+                injured_still_away_oelf = {}
 
                 # Earthquakes that belong only to this realisation of seismicity (SES)
                 # and seismicity model
@@ -684,8 +681,9 @@ class OperationalEarthquakeLossForecasting():
                             time_of_day_occupancy,
                             time_of_day,
                             events_in_ses.loc[eq_id, "datetime"],
-                            True,  # include OELF previous earthquakes (not just RLA)
-                            main_path
+                            injured_still_away_oelf,  # OELF previous earthquakes
+                            main_path,
+                            injured_still_away_rla=injured_still_away_rla
                         )
                     else:  # either there cannot be occupants or 'calculate_casualties' is False
                         # Assume all occupants are zero
@@ -848,14 +846,9 @@ class OperationalEarthquakeLossForecasting():
                             events_in_ses.loc[eq_id, "datetime"],
                         )
 
-                        # Store number of injured people away from the building in time, per asset ID
-                        injured_still_away.to_csv(
-                            os.path.join(
-                                path_to_occupants_oelf,
-                                "injured_still_away_after_OELF_%s.csv" % (eq_id)
-                            ),
-                            index=True,
-                        )
+                        # Keep in memory the number of injured people away from the building in
+                        # time, per asset ID
+                        injured_still_away_oelf[eq_id] = injured_still_away
 
                     else: # 'calculate_casualties' is False
                         injured_still_away = None
@@ -992,10 +985,6 @@ class OperationalEarthquakeLossForecasting():
                     losses_human_all_events["ses_id"] = oef_ses_id
 
                     losses_human_all_ses_list.append(losses_human_all_events)
-
-                    # Erase 'path_to_occupants_oelf' and all its contents
-                    # (next SES needs to start clean)
-                    shutil.rmtree(path_to_occupants_oelf)
 
         logger.info(
             "%s Forecast %s: Finished processing all stochastic event sets from all "

@@ -204,16 +204,27 @@ the current damage state of the building,
 - $`still\:away`$: number of people whose health status does not allow them to return to the
 building.
 
-The same conceptual process occurrs within an OELF calculation, but the inspection/repair
-timelines are not stored as CSV files and the calculation is optimised for speed. Firstly, the
-possibility that occupants might be present for any of the earthquakes in an OELF catalogue is
-assessed by comparing the date/time of the newest earthquake in the catalogue against that of
-the last-run RLA earthquake: if the former is too close to the latter (with respect to the
-minimum inspection+repair time input by the user), then no occupants are considered for any of
-the earthquakes in the catalogue. Secondly, if it is concluded that occupants might be present
-during some earthquakes, the time difference between each earthquake in the catalogue and its
-predecesor in time is compared against the inspection+repair times input by the user to
-determine $`F_{occupancy}`$ for each damage state.
+The same conceptual process occurrs within an OELF calculation, but the calculation is
+optimised for speed and none of the OELF timelines are stored as CSV files. In the case of the
+timelines of number of people "still away":
+- those of the RLA earthquakes (i.e. those stored as CSV files by previous RLA calculations)
+are read only once, at the beginning of the OELF calculation, as they do not change while the
+OELF calculation runs;
+- those of the OELF earthquakes are calculated after each earthquake and kept in memory only
+for as long as the stochastic event set (SES) to which the earthquake belongs is being
+processed. They are discarded when the next SES starts, because the SES are independent from
+each other: the number of people "still away" due to an earthquake of a SES only affects the
+subsequent earthquakes of the same SES.
+
+In the case of the inspection/repair timelines, they are not calculated explicitly in OELF.
+Instead, the possibility that occupants might be present for any of the earthquakes in
+an OELF catalogue is first assessed by comparing the date/time of the newest earthquake in the
+catalogue against that of the last-run RLA earthquake: if the former is too close to the latter
+(with respect to the minimum inspection+repair time input by the user), then no occupants are
+considered for any of the earthquakes in the catalogue. Afterwards, if it is concluded that
+occupants might be present during some earthquakes, the time difference between each earthquake
+in the catalogue and its predecesor in time is compared against the inspection+repair times
+input by the user to determine $`F_{occupancy}`$ for each damage state.
 
 ## Cumulative damage: state-dependent vs state-independent fragility models
 
