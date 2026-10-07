@@ -648,6 +648,13 @@ class OperationalEarthquakeLossForecasting():
                     # and the no-damage outputs have already been pre-calculated
                     exposure_updated_damage = None # No need to initialise the exposure model
 
+                # In-memory copy of the contents of 'current_exposure_filename'. Most earthquakes
+                # do not run OpenQuake (magnitude too small or too far away), so the file only
+                # needs to be written for those that do; this copy is updated at every write
+                exposure_disk_cache = (
+                    exposure_updated_damage.copy() if exposure_updated_damage is not None else None
+                )
+
                 # Run earthquake by earthquake of this stochastic event set
                 # (EQID is index of DataFrame, 'event' is a named tuple with the columns)
                 has_model_id = "model_id" in events_in_ses.columns
@@ -664,16 +671,10 @@ class OperationalEarthquakeLossForecasting():
                     time_of_day = event.time_of_day
                     # can be None if not calculate_casualties
 
-                    # Load exposure CSV (the exposure model to be used to run OpenQuake with this
-                    # earthquake). This exposure file contains census occupants not adjusted to
-                    # reflect the damage state of the building or the health status of people
-                    exposure_full_occupants = pd.read_csv(
-                        os.path.join(path_to_exposure, current_exposure_filename),
-                        dtype={"id_3": str, "id_2": str, "id_1": str}
-                    )
-                    exposure_full_occupants.index = exposure_full_occupants["id"]
-                    exposure_full_occupants.index = exposure_full_occupants.index.rename("asset_id")
-                    exposure_full_occupants = exposure_full_occupants.drop(columns=["id"])
+                    # Exposure model to be used to run OpenQuake with this earthquake. It contains
+                    # census occupants not adjusted to reflect the damage state of the building or
+                    # the health status of people
+                    exposure_full_occupants = exposure_disk_cache.copy()
 
                     if there_can_be_occupants and event.to_run:
                         # Update exposure to reflect occupants for this earthquake
@@ -694,17 +695,11 @@ class OperationalEarthquakeLossForecasting():
                         exposure_run = deepcopy(exposure_full_occupants)
                         exposure_run[time_of_day] = np.zeros([exposure_run.shape[0]])
 
-                    # Update 'exposure_model_current.csv' (only update is associated with the column with
-                    # the number of occupants appropriate for this earthquake)
-                    exposure_run.to_csv(
-                        os.path.join(path_to_exposure, current_exposure_filename),
-                        index=True,
-                        index_label="id",  # the index of 'exposure_run' is "asset_id", but OQ needs "id"
-                    )
-
                     if not event.to_run:
                         # Magnitude too small or too far away from all exposure sites
-                        # --> skip this earthquake and go on to the next one
+                        # --> skip this earthquake and go on to the next one (only OpenQuake
+                        # reads 'current_exposure_filename', so it is not written here)
+                        exposure_disk_cache = exposure_run.copy()
                         # The 'exposure_updated_damage' is the same as the exposure so far
                         exposure_updated_damage = exposure_run.drop(columns=[time_of_day])
 
@@ -713,6 +708,15 @@ class OperationalEarthquakeLossForecasting():
                         # No need to add zero-nuisance to nuisance_all_events_list
 
                         continue
+
+                    # Update 'exposure_model_current.csv' (only update is associated with the column with
+                    # the number of occupants appropriate for this earthquake), which OpenQuake reads
+                    exposure_run.to_csv(
+                        os.path.join(path_to_exposure, current_exposure_filename),
+                        index=True,
+                        index_label="id",  # the index of 'exposure_run' is "asset_id", but OQ needs "id"
+                    )
+                    exposure_disk_cache = exposure_run.copy()
 
                     # Identify rupture XML
                     if has_model_id:
@@ -866,6 +870,21 @@ class OperationalEarthquakeLossForecasting():
                         os.path.join(path_to_exposure, current_exposure_filename),
                         index=False,
                     )
+                    # Same index as the file would have when read back ("id" is a column of
+                    # 'exposure_updated_damage')
+                    exposure_disk_cache = exposure_updated_damage.copy()
+                    exposure_disk_cache.index = exposure_disk_cache["id"]
+                    exposure_disk_cache.index = exposure_disk_cache.index.rename("asset_id")
+                    exposure_disk_cache = exposure_disk_cache.drop(columns=["id"])
+                    # Same values as reading the file back: float32 columns (from OpenQuake) as
+                    # their shortest decimal text, administrative IDs as strings
+                    for column in exposure_disk_cache.select_dtypes("float32").columns:
+                        exposure_disk_cache[column] = (
+                            exposure_disk_cache[column].astype(str).astype("float64")
+                        )
+                    for column in ["id_3", "id_2", "id_1"]:
+                        if column in exposure_disk_cache.columns:
+                            exposure_disk_cache[column] = exposure_disk_cache[column].astype(str)
 
                 # Concatenate human losses from all earthquakes in the stochastic event set
                 # (None if no earthquake contributed human losses)
