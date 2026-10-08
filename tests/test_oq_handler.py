@@ -21,6 +21,7 @@ import pytest
 import numpy as np
 import pandas as pd
 from copy import deepcopy
+from openquake.baselib import parallel
 from realtimelosstools.oq_handler import OpenQuakeJob, OpenQuakeFragility, OpenQuakeUtils
 
 
@@ -535,3 +536,38 @@ def test_create_OQ_no_nuisance():
                     round(returned_oq_no_nuisance.loc[row, column], 6)
                     == round(expected_oq_no_nuisance.loc[row, column], 6)
                 )
+
+
+def test_set_number_of_cores(monkeypatch):
+    # Pretend that OpenQuake can use 8 cores and starts with 8 workers
+    monkeypatch.setattr(parallel, "tot_cores", 8)
+    monkeypatch.setattr(parallel, "num_cores", 8)
+
+    # Test 1: "all" changes nothing
+    monkeypatch.delenv("OQ_DISTRIBUTE", raising=False)
+    message = OpenQuakeUtils.set_number_of_cores("all")
+    assert parallel.num_cores == 8
+    assert "OQ_DISTRIBUTE" not in os.environ
+    assert "default" in message
+
+    # Test 2: 1 core means no distribution (and the number of workers is not touched)
+    monkeypatch.setenv("OQ_DISTRIBUTE", "processpool")
+    OpenQuakeUtils.set_number_of_cores(1)
+    assert os.environ["OQ_DISTRIBUTE"] == "no"
+    assert parallel.num_cores == 8
+
+    # Test 3: an integer between 2 and the number of cores OpenQuake can use limits the workers
+    monkeypatch.delenv("OQ_DISTRIBUTE", raising=False)
+    OpenQuakeUtils.set_number_of_cores(3)
+    assert parallel.num_cores == 3
+    assert "OQ_DISTRIBUTE" not in os.environ
+    parallel.num_cores = 8
+    OpenQuakeUtils.set_number_of_cores(8)  # exactly the number of cores that can be used
+    assert parallel.num_cores == 8
+
+    # Test 4: more cores than OpenQuake can use is treated as "all": nothing is changed
+    parallel.num_cores = 5  # e.g. previously limited by the user in another way
+    message = OpenQuakeUtils.set_number_of_cores(9)
+    assert parallel.num_cores == 5
+    assert "OQ_DISTRIBUTE" not in os.environ
+    assert "WARNING" in message

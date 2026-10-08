@@ -32,6 +32,7 @@ from realtimelosstools.stochastic_rupture_generator import StochasticRuptureSet
 from realtimelosstools.point_source_generator import PointSourceSet
 from realtimelosstools.exposure_updater import ExposureUpdater
 from realtimelosstools.losses import Losses
+from realtimelosstools.oq_handler import OpenQuakeUtils
 from realtimelosstools.postprocessor import PostProcessor
 from realtimelosstools.utils import Files, Loader
 from realtimelosstools.writers import Writer
@@ -60,11 +61,15 @@ def main():
 
     logger.setLevel(config.logging_level)
 
+    # Tell OpenQuake how many cores it can use (to be done before running any OpenQuake job)
+    number_oq_cores_message = OpenQuakeUtils.set_number_of_cores(config.number_oq_cores)
+
     # Log relevant summary parameters (to create log file that allows
     # for a quick check of correct input)
     log_summary.append("Real-Time Loss Tools has started")
     log_summary.append("General description: %s" % (config.description_general))
     log_summary.append(state_dependent_message)
+    log_summary.append(number_oq_cores_message)
     log_summary.append("%s is path in config file" % (config.main_path))
     log_summary.append("%s is current path" % (os.getcwd()))
 

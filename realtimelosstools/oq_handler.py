@@ -24,6 +24,7 @@ import numpy as np
 import pandas as pd
 import xml.etree.ElementTree as ET
 from copy import deepcopy
+from openquake.baselib import parallel
 from openquake.commands.run import main
 from openquake.commands.purge import purge_one
 from openquake.calculators.extract import extract
@@ -673,6 +674,67 @@ class OpenQuakeUtils():
     """
     Class with methods associated with running OpenQuake.
     """
+
+    @staticmethod
+    def set_number_of_cores(number_oq_cores):
+        """
+        This method tells OpenQuake how many cores it can use to run its jobs. It needs to be
+        called once, before running any OpenQuake job (OpenQuake reads the settings that this
+        method modifies every time it starts a job).
+
+        - "all": nothing is changed, i.e. OpenQuake uses its own default, which is the number
+        of cores that it can use (the smaller of the number of cores visible to the process and
+        the memory in GB) unless 'OQ_NUM_CORES' or the OpenQuake configuration file say
+        otherwise.
+        - 1: OpenQuake is told not to use its pool of worker processes, i.e. the environment
+        variable 'OQ_DISTRIBUTE' is set to "no" for this program and all its jobs run in the
+        main process (this overrides the value that 'OQ_DISTRIBUTE' may have in the
+        environment).
+        - An integer larger than 1 and not larger than the number of cores that OpenQuake can
+        use: OpenQuake's pool of worker processes is limited to this number of workers.
+        - An integer larger than the number of cores that OpenQuake can use: it is treated as
+        "all" (nothing is changed) and a warning is logged.
+
+        Args:
+            number_oq_cores (str or int):
+                "all" or an integer >= 1.
+
+        Returns:
+            message (str):
+                Short description of what OpenQuake will use, which is also logged.
+        """
+
+        if number_oq_cores == "all":
+            message = "OpenQuake uses its default number of cores (all the cores it can use)"
+
+        elif number_oq_cores == 1:
+            os.environ["OQ_DISTRIBUTE"] = "no"
+            message = "OpenQuake runs its jobs without worker processes (1 core)"
+
+        else:
+            if not (hasattr(parallel, "num_cores") and hasattr(parallel, "tot_cores")):
+                error_message = (
+                    "The installed OpenQuake does not have the variables "
+                    "'openquake.baselib.parallel.num_cores' and 'tot_cores', which are needed "
+                    "to limit the number of cores of OpenQuake (tested with OpenQuake 3.26)."
+                )
+                logger.critical(error_message)
+                raise OSError(error_message)
+
+            if number_oq_cores > parallel.tot_cores:
+                message = (
+                    "WARNING: 'number_oq_cores' (%s) is larger than the number of cores that "
+                    "OpenQuake can use (%s): OpenQuake uses its default number of cores "
+                    "(all the cores it can use)" % (number_oq_cores, parallel.tot_cores)
+                )
+                logger.warning(message)
+            else:
+                parallel.num_cores = int(number_oq_cores)
+                message = "OpenQuake uses up to %s cores" % (number_oq_cores)
+
+        logger.info(message)
+
+        return message
 
     @staticmethod
     def can_previous_hazard_be_reused(

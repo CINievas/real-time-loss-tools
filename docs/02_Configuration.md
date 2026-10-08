@@ -25,9 +25,25 @@ Path to the main running directory, assumed to have the required
 Optional parameter. Set to `True` to get debug level logs. Skip or set to `False` to get info
 level logs only (no debug messages).
 
-### `number_cores`
+### `number_oq_cores`
 
-Optional parameter. Number of CPUs to be used for computational processes that are parallelised.
+Mandatory parameter. Number of cores that OpenQuake can use to run each of its jobs. It can be:
+
+- `all`: the Real-Time Loss Tools do not limit OpenQuake, which uses its own default, i.e. all
+the cores that it can use (the smaller of the number of cores visible to the program and the
+memory of the machine in GB, unless the environment variable `OQ_NUM_CORES` or the OpenQuake
+configuration file say otherwise).
+- `1`: OpenQuake runs its jobs without its pool of worker processes (the environment variable
+`OQ_DISTRIBUTE` is set to `no` for the Real-Time Loss Tools, overriding any value it may have in
+your environment). This is usually the fastest option for small jobs, for which starting and
+stopping many worker processes takes longer than the calculation itself.
+- An integer `N` larger than 1: OpenQuake uses a pool of up to `N` worker processes.
+- If `N` is larger than the number of cores that OpenQuake can use, the Real-Time Loss Tools
+behave as if `all` had been indicated (they pass nothing to OpenQuake) and log a warning.
+
+Which value is fastest depends on the size of the OpenQuake jobs (number of rows of the exposure
+model and number of ground motion fields): the larger the jobs, the more cores are worth using.
+The value is applied once, when the program starts, and it is the same for all OpenQuake jobs.
 
 ### `state_dependent_fragilities`
 

@@ -38,9 +38,12 @@ class Configuration:
             If "debug_logging" in the configuration file is True, 'logging_level' will be set to
             DEBUG mode. If False, or if parameter "debug_logging" is not provided,
             'logging_level' will be set to INFO.
-        self.number_cores (int):
-            Number of cores to be used for processing whenever parallelisation is possible. This
-            parameter does not apply to OpenQuake, which has its own parallelisation strategy.
+        self.number_oq_cores (int or str):
+            Number of cores that OpenQuake can use to run each job: either an integer >= 1 or
+            the string "all". "all" leaves the decision to OpenQuake, which by default uses all
+            the cores that it can use. 1 makes OpenQuake run its jobs without its pool of worker
+            processes. An integer larger than the number of cores that OpenQuake can use is
+            treated as "all".
         self.state_dependent_fragilities (bool):
             True if state-dependent fragility models are being used to run OpenQuake, False if
             state-independent fragility models are being used instead.
@@ -176,6 +179,7 @@ class Configuration:
     REQUIRES = [
         "description_general",
         "main_path",
+        "number_oq_cores",
         "state_dependent_fragilities",
         "calculate_casualties",
         "nuisance",
@@ -216,9 +220,14 @@ class Configuration:
             if self.assign_boolean_parameter(config, "debug_logging"):
                 self.logging_level = logging.DEBUG
 
-        self.number_cores = self.assign_integer_parameter(
-            config, "number_cores"
-        )
+        if ("number_cores" in config) and ("number_oq_cores" not in config):
+            logger.warning(
+                "Warning: parameter 'number_cores' of the configuration file has been renamed "
+                "to 'number_oq_cores' (number of cores that OpenQuake can use: an integer >= 1 "
+                "or 'all'), and 'number_cores' is no longer used"
+            )
+
+        self.number_oq_cores = self.assign_number_oq_cores(config, "number_oq_cores")
 
         self.state_dependent_fragilities = self.assign_boolean_parameter(
             config, "state_dependent_fragilities"
@@ -637,6 +646,54 @@ class Configuration:
             assigned_parameter = None
 
         return assigned_parameter
+
+    def assign_number_oq_cores(self, config, input_parameter):
+        """This function searches for the key input_parameter in the dictionary config and
+        interprets it as the number of cores that OpenQuake can use: either the string "all"
+        (in any combination of upper and lower case letters) or an integer >= 1.
+
+        If input_parameter is not a key of config, or if its value is not valid (e.g. 0, a
+        negative number, a non-integer number, a boolean or any string other than "all"), the
+        output is None.
+
+        Args:
+            config (dictionary):
+                The configuration file read as a dictionary. It may be an empty dictionary.
+            input_parameter (str):
+                Name of the desired parameter, to be searched for as a primary key of config.
+
+        Returns:
+            number_oq_cores (str, int or None):
+                "all" or an integer >= 1, or None if the parameter is missing or invalid.
+        """
+
+        assigned_parameter = self.assign_parameter(config, input_parameter)
+
+        if assigned_parameter is None:
+            return None
+
+        if isinstance(assigned_parameter, bool):  # booleans are also integers in Python
+            logger.critical(
+                "Error reading %s from configuration file: it must be 'all' or an integer >= 1"
+                % (input_parameter)
+            )
+            return None
+
+        if isinstance(assigned_parameter, str) and assigned_parameter.strip().lower() == "all":
+            return "all"
+
+        number = self.assign_integer_parameter(
+            {input_parameter: assigned_parameter}, input_parameter
+        )  # logs a critical message and returns None if it is not an integer
+
+        if number is not None and number < 1:
+            logger.critical(
+                "Error reading %s from configuration file: it must be 'all' or an integer >= 1"
+                % (input_parameter)
+            )
+            return None
+
+        return number
 
     def assign_rupture_generator_properties(self, config):
         """This function parses information controlling the stochastic rupture generator

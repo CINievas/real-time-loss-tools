@@ -1,7 +1,7 @@
 description_general: description of the run  # General description, used for the OpenQuake job.ini file.
 main_path: path/to/running/directory  #Path to the main running directory, assumed to have the needed structure.
 debug_logging: False
-number_cores: 4  # Number of cores to use whenever parallelisation is possible (does not apply to OpenQuake)
+number_oq_cores: all  # Number of cores that OpenQuake can use: "all" (OpenQuake's default) or an integer >= 1 (1: no worker processes, best for small jobs). Larger than available = all.
 state_dependent_fragilities: True  # True if the fragility models used to run OpenQuake are state-dependent, False otherwise.
 calculate_casualties: True  # True to calculate casualties (and account for them in occupants of future earthquakes), False otherwise.
 nuisance:
