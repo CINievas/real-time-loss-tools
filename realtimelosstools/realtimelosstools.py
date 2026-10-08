@@ -198,7 +198,7 @@ def main():
         if oelf_model_weights.shape[0] != config.oelf["number_seismicity_models"]:
             # If the number of models in the weights CSV file is different, update the number
             # in the configuration
-            config.oelf["number_seismicity_models"] = num_models
+            config.oelf["number_seismicity_models"] = oelf_model_weights.shape[0]
 
     # Load the "initial" exposure model
     exposure_model_undamaged = pd.read_csv(
