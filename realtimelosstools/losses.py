@@ -1036,7 +1036,9 @@ class Losses:
         files, they are provided via 'injured_still_away_oelf'.
 
         If there are no timelines to consider, all returned values of injured people still away
-        will be 0.
+        will be 0. Within each timeline, the column of the timeline that applies at
+        'datetime_earthquake' (as per MultilinearStepFunction) is the same for all assets, so it
+        is identified once per timeline and read for all assets at the same time.
 
         Args:
             exposure_orig_asset_ids (arr of str):
@@ -1084,13 +1086,28 @@ class Losses:
             date_thresholds.remove("building_id")
             date_thresholds = np.array(date_thresholds, dtype=np.datetime64)
 
-            for i, asset_id in enumerate(exposure_orig_asset_ids):
-                injuries_function = MultilinearStepFunction(
-                    date_thresholds,
-                    injured.loc[asset_id, date_thresholds.astype(str)].to_numpy()  # values
-                )
-                injured_still_away[i] += injuries_function.evaluate(
+            # All the assets of this timeline share the same date thresholds and are evaluated at
+            # the same 'datetime_earthquake', so the same column applies to all of them. It is
+            # identified once, evaluating a step function whose values are the (1-based)
+            # positions of the columns: 0 means 'before the first threshold' (zero injured)
+            column_positions = np.arange(1, date_thresholds.shape[0] + 1, dtype=float)
+            position = int(
+                MultilinearStepFunction(date_thresholds, column_positions).evaluate(
                     datetime_earthquake
+                )
+            )
+            column_names = date_thresholds.astype(str)
+
+            if position == 0:
+                # Contributes zero injured (the lookup is kept so that an asset ID that is
+                # missing from the timeline raises a KeyError in all cases)
+                injured.loc[exposure_orig_asset_ids, column_names[0]]
+            else:
+                # Values of that column for all assets, in the order of 'exposure_orig_asset_ids'
+                # (added timeline after timeline, so each asset accumulates its total in the
+                # same order as when going asset by asset)
+                injured_still_away += (
+                    injured.loc[exposure_orig_asset_ids, column_names[position - 1]].to_numpy()
                 )
 
         return injured_still_away

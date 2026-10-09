@@ -22,6 +22,7 @@ import numpy as np
 import pandas as pd
 from copy import deepcopy
 from realtimelosstools.losses import Losses
+from realtimelosstools.utils import MultilinearStepFunction
 
 
 def test_expected_economic_loss():
@@ -570,6 +571,99 @@ def test_get_injured_still_away():
     np.testing.assert_almost_equal(
         returned_injured_still_away, expected_injured_still_away, decimal=8
     )
+
+
+def _get_injured_still_away_reference(timelines, exposure_orig_asset_ids, datetime_earthquake):
+    """Asset-by-asset version of Losses.get_injured_still_away (reference for tests)."""
+
+    injured_still_away = np.zeros([len(exposure_orig_asset_ids)])
+
+    for injured in timelines:
+        date_thresholds = list(injured.columns)
+        date_thresholds.remove("building_id")
+        date_thresholds = np.array(date_thresholds, dtype=np.datetime64)
+
+        for i, asset_id in enumerate(exposure_orig_asset_ids):
+            injuries_function = MultilinearStepFunction(
+                date_thresholds,
+                injured.loc[asset_id, date_thresholds.astype(str)].to_numpy()
+            )
+            injured_still_away[i] += injuries_function.evaluate(datetime_earthquake)
+
+    return injured_still_away
+
+
+def test_get_injured_still_away_same_as_asset_by_asset_version():
+    rng = np.random.default_rng(3)
+    asset_ids = ["a_%s" % (i) for i in range(30)]
+
+    def make_timeline(date_columns, shuffle_rows=False):
+        values = rng.random((len(asset_ids), len(date_columns)))
+        timeline = pd.DataFrame(values, index=asset_ids, columns=date_columns)
+        timeline.insert(0, "building_id", ["b_%s" % (i) for i in range(len(asset_ids))])
+        timeline.index.name = "original_asset_id"
+        if shuffle_rows:
+            timeline = timeline.iloc[rng.permutation(len(asset_ids))]
+        return timeline
+
+    dates = [
+        "2010-01-01T00:00:00", "2010-01-03T00:00:00", "2010-01-10T00:00:00",
+        "2010-02-01T00:00:00",
+    ]
+    timelines = {
+        "t1": make_timeline(dates),
+        "t2": make_timeline(dates[1:]),  # different dates
+        "t3": make_timeline(dates, shuffle_rows=True),  # rows in another order
+        "t4": make_timeline([dates[2], dates[0], dates[3], dates[1]]),  # columns out of order
+    }
+    # Order of the assets requested is not the order of the index of the timelines
+    requested_ids = np.array(asset_ids)[rng.permutation(len(asset_ids))]
+
+    # Before the first date, exactly on each date, between dates, and after the last date
+    earthquake_times = [
+        np.datetime64("2009-12-31T00:00:00"),
+        np.datetime64("2010-01-01T00:00:00"),
+        np.datetime64("2010-01-02T12:00:00"),
+        np.datetime64("2010-01-03T00:00:00"),
+        np.datetime64("2010-01-10T00:00:00"),
+        np.datetime64("2010-02-01T00:00:00"),
+        np.datetime64("2010-03-01T00:00:00"),
+        pd.Timestamp("2010-01-05T10:00:00"),  # as in the OELF catalogue
+    ]
+
+    for earthquake_time in earthquake_times:
+        for n_timelines in [0, 1, 4]:
+            selected = dict(list(timelines.items())[:n_timelines])
+            returned = Losses.get_injured_still_away(
+                requested_ids, earthquake_time, "no_files_needed",
+                injured_still_away_oelf=selected, injured_still_away_rla={}
+            )
+            expected = _get_injured_still_away_reference(
+                list(selected.values()), requested_ids, earthquake_time
+            )
+            np.testing.assert_array_equal(returned, expected)  # exactly equal
+
+    # Timelines of RLA earthquakes and of OELF earthquakes, in this order
+    returned = Losses.get_injured_still_away(
+        requested_ids, np.datetime64("2010-01-05T00:00:00"), "no_files_needed",
+        injured_still_away_oelf={"t3": timelines["t3"]},
+        injured_still_away_rla={"t1": timelines["t1"], "t2": timelines["t2"]},
+    )
+    expected = _get_injured_still_away_reference(
+        [timelines["t1"], timelines["t2"], timelines["t3"]],
+        requested_ids, np.datetime64("2010-01-05T00:00:00")
+    )
+    np.testing.assert_array_equal(returned, expected)
+
+    # An asset ID missing from the timelines raises a KeyError, also when the earthquake is
+    # before the first date of the timeline
+    for earthquake_time in [np.datetime64("2009-12-31T00:00:00"),
+                            np.datetime64("2010-01-05T00:00:00")]:
+        with pytest.raises(KeyError):
+            Losses.get_injured_still_away(
+                np.array(["a_0", "not_there"]), earthquake_time, "no_files_needed",
+                injured_still_away_oelf={"t1": timelines["t1"]}, injured_still_away_rla={},
+            )
 
 
 def test_get_time_of_day_factors_per_asset():
