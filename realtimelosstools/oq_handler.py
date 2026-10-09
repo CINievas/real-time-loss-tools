@@ -400,25 +400,49 @@ class OpenQuakeJob():
                         value (float): Number of buildings of 'asset_id' in each 'dmg_state'.
         """
 
-        rows = []
+        if datastore_damage_results.shape[0] == 0:  # nothing to convert
+            return pd.DataFrame([])
 
-        for _, r in datastore_damage_results.iterrows():
-            # each row of the DataFrame = 1 exposure asset
-            record = r["value"]  # this is the np.void with number of buildings per damage state
-            for i, field in enumerate(record.dtype.names):  # names of the damage states
-                losstype = field.split("-")[0]
-                dmg_state = field.split("-")[1]
-                if dmg_state != "no_damage":
-                    dmg_state = "dmg_%s" % (i)  # "dmg_X" as used in OpenQuake v3.15
-                rows.append({
-                    "asset_id": oq_asset_id_mapping[r["asset_id"]],
-                    "dmg_state": dmg_state,
-                    "rlz": r["rlz_id"],
-                    "loss_type": losstype,
-                    "value": record[field]
-                })
+        n_assets = datastore_damage_results.shape[0]
 
-        damage_results_OQ = pd.DataFrame(rows)
+        # Each element of the "value" column is a np.void with the number of buildings in each
+        # damage state (all of them have the same structure), which is turned into one
+        # structured array and then into a 2D array with one row per asset and one column per
+        # damage state
+        record_dtype = datastore_damage_results["value"].iloc[0].dtype
+        structured_values = np.array(
+            datastore_damage_results["value"].tolist(), dtype=record_dtype
+        )
+        values_2d = np.column_stack(
+            [structured_values[field] for field in record_dtype.names]
+        )  # shape (n_assets, n_damage_states)
+        n_fields = len(record_dtype.names)
+
+        # Loss type and damage state, which only depend on the names of the fields
+        loss_types = [field.split("-")[0] for field in record_dtype.names]
+        dmg_states = []
+        for i, field in enumerate(record_dtype.names):  # names of the damage states
+            dmg_state = field.split("-")[1]
+            if dmg_state != "no_damage":
+                dmg_state = "dmg_%s" % (i)  # "dmg_X" as used in OpenQuake v3.15
+            dmg_states.append(dmg_state)
+
+        # User-defined asset IDs (KeyError if an asset ID of OpenQuake is not in the mapping)
+        asset_ids = np.array(
+            [oq_asset_id_mapping[a] for a in datastore_damage_results["asset_id"]],
+            dtype=object
+        )
+
+        # Rows are ordered by asset and, within each asset, by damage state
+        damage_results_OQ = pd.DataFrame(
+            {
+                "asset_id": np.repeat(asset_ids, n_fields),
+                "dmg_state": np.tile(np.array(dmg_states, dtype=object), n_assets),
+                "rlz": np.repeat(datastore_damage_results["rlz_id"].to_numpy(), n_fields),
+                "loss_type": np.tile(np.array(loss_types, dtype=object), n_assets),
+                "value": values_2d.reshape(-1),
+            }
+        )
 
         return damage_results_OQ
 

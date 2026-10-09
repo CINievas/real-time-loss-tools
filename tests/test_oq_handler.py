@@ -113,6 +113,66 @@ def test_OpenQuakeJob_backward_compatibility_damage():
                     expected_damage_results_OQ.loc[row, col]
                 )
 
+def _backward_compatibility_damage_reference(datastore_damage_results, oq_asset_id_mapping):
+    """Row-by-row version of OpenQuakeJob.backward_compatibility_damage (reference for tests)."""
+
+    rows = []
+
+    for _, r in datastore_damage_results.iterrows():
+        record = r["value"]
+        for i, field in enumerate(record.dtype.names):
+            losstype = field.split("-")[0]
+            dmg_state = field.split("-")[1]
+            if dmg_state != "no_damage":
+                dmg_state = "dmg_%s" % (i)
+            rows.append({
+                "asset_id": oq_asset_id_mapping[r["asset_id"]],
+                "dmg_state": dmg_state,
+                "rlz": r["rlz_id"],
+                "loss_type": losstype,
+                "value": record[field]
+            })
+
+    return pd.DataFrame(rows)
+
+
+def test_OpenQuakeJob_backward_compatibility_damage_same_as_row_by_row_version():
+    # Several assets, several realisations, a different set of damage states and an asset
+    # numbering of OpenQuake that is not consecutive
+    dt = np.dtype([
+        ('nuisance-nonfelt', '<f4'),
+        ('nuisance-CDI2', '<f4'),
+        ('nuisance-CDI3', '<f4'),
+    ])
+    rng = np.random.default_rng(1)
+    n_assets = 25
+    values = np.array([tuple(rng.random(3)) for _ in range(n_assets)], dtype=dt)
+    asset_numbers = np.arange(n_assets) * 3 + 7
+    datastore_damage_results = pd.DataFrame(
+        {
+            "asset_id": asset_numbers,
+            "rlz_id": rng.integers(0, 3, n_assets),
+            "value": [values[i] for i in range(n_assets)],
+        }
+    )
+    mapping = {int(a): "asset_%s" % (a) for a in asset_numbers}
+
+    returned = OpenQuakeJob.backward_compatibility_damage(datastore_damage_results, mapping)
+    expected = _backward_compatibility_damage_reference(datastore_damage_results, mapping)
+
+    pd.testing.assert_frame_equal(returned, expected, check_dtype=True, check_exact=True)
+    assert list(returned.columns) == ["asset_id", "dmg_state", "rlz", "loss_type", "value"]
+
+    # Asset ID of OpenQuake that is not in the mapping
+    mapping.pop(int(asset_numbers[3]))
+    with pytest.raises(KeyError):
+        OpenQuakeJob.backward_compatibility_damage(datastore_damage_results, mapping)
+
+    # Nothing to convert
+    empty = OpenQuakeJob.backward_compatibility_damage(datastore_damage_results.head(0), {})
+    assert empty.shape[0] == 0
+
+
 def test_update_OQ_damage_w_logic_tree_weights():
     filepath = os.path.join(os.path.dirname(__file__), "data", "damages_OQ_logic_tree.csv")
     damage_results_OQ = pd.read_csv(filepath)
